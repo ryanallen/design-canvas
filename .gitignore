@@ -1,0 +1,6 @@
+# Pictures and copies a check writes while it runs
+/shots/
+node_modules/
+examples/*/canvas.html
+/try/
+/.last-folder

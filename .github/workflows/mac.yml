@@ -1,0 +1,32 @@
+# The canvas on a Mac: the unit tests, the launcher building and checking the example folder,
+# the double-click launcher itself, and the Mac folder picker compiled.
+# Run by hand from the Actions tab (or `gh workflow run mac.yml`).
+name: mac
+on: workflow_dispatch
+jobs:
+  mac:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: A Playwright for the runner only (the skill brings none of its own)
+        run: |
+          npm i --prefix "$RUNNER_TEMP/pw" playwright@1.48.2
+          npx --prefix "$RUNNER_TEMP/pw" playwright install chromium
+          echo "CANVAS_PLAYWRIGHT=$RUNNER_TEMP/pw/node_modules" >> "$GITHUB_ENV"
+      - name: Unit tests
+        run: node --test "scripts/lib/*.test.mjs"
+      - name: The launcher builds the example folder
+        run: node scripts/app.mjs --folder examples/plain --action build --no-open < /dev/null
+      - name: The launcher checks it (the gate, every step)
+        run: node scripts/app.mjs --folder examples/plain --action check < /dev/null
+      - name: The double-click launcher is executable and its shell is sound
+        run: |
+          test -x "Design Canvas.command"
+          sh -n "Design Canvas.command"
+      - name: The Mac folder picker, as the launcher writes it, compiles
+        # Opening it needs a person: this Mac will not let a script press keys in a system dialog.
+        run: osacompile -o "$RUNNER_TEMP/picker.scpt" -e "POSIX path of (choose folder with prompt \"The folder of HTML prototypes\" default location (POSIX file \"$PWD\"))"

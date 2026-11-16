@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="__MARK__" content="__KEY__">
+<title>__TITLE__</title>
+<style>
+/*__CSS__*/
+</style>
+</head>
+<body>
+<div id="viewport"><div id="world"></div><div id="overlay"></div></div>
+
+<header id="topbar">
+  <div class="cluster" id="bar-left">
+    <button type="button" class="tool pages-btn" id="page-switch" aria-haspopup="menu" title="Pages"><span class="count" id="page-count">1</span><span id="page-name">Page 1</span><span class="caret">▾</span></button>
+    <span class="sep"></span>
+    <button type="button" class="tool title-btn" id="title-btn" aria-haspopup="menu" title="Canvas menu"><span class="title" id="canvas-title">__TITLE__</span><span class="caret">▾</span></button>
+    <span class="sub" id="canvas-sub">__SUB__</span>
+    <span class="mode" id="canvas-mode">Viewing</span>
+  </div>
+  <div class="cluster" id="bar-right">
+    <button type="button" class="tool" id="tool-play" aria-haspopup="menu" title="Play">▷ Play</button>
+    <button type="button" class="tool" id="tool-comments" aria-pressed="false" title="Comments"><span class="ico" data-icon="comment"></span><span class="count" id="comment-count">0</span></button>
+    <button type="button" class="tool" id="tool-panel" aria-pressed="false" title="Panel (Ctrl+\)"><span class="ico" data-icon="panel"></span></button>
+    <button type="button" class="tool zoom" id="zoom-level" aria-haspopup="menu" title="Zoom">10%</button>
+  </div>
+</header>
+
+<nav id="toolbar" aria-label="Tools">
+  <button type="button" class="tool" data-tool="select" title="Select (V)" aria-label="Select"><span class="ico" data-icon="select"></span></button>
+  <button type="button" class="tool" data-tool="hand" title="Hand (H, or hold Space)" aria-label="Hand"><span class="ico" data-icon="hand"></span></button>
+  <span class="sep edit-only"></span>
+  <button type="button" class="tool" data-tool="text" title="Text (T)" aria-label="Text"><span class="ico" data-icon="text"></span></button>
+  <button type="button" class="tool" data-tool="artboard" title="Artboard (A)" aria-label="Artboard"><span class="ico" data-icon="artboard"></span></button>
+  <button type="button" class="tool" data-tool="note" title="Sticky note (N)" aria-label="Sticky note"><span class="ico" data-icon="note"></span></button>
+  <button type="button" class="tool" data-tool="pencil" title="Pencil (P)" aria-label="Pencil"><span class="ico" data-icon="pencil"></span></button>
+  <span class="split">
+    <button type="button" class="tool" data-tool="rect" id="shape-tool" title="Rectangle (R)" aria-label="Rectangle"><span class="ico" data-icon="rect"></span></button>
+    <button type="button" class="tool more" id="shape-more" aria-haspopup="menu" title="More shapes" aria-label="More shapes">▴</button>
+  </span>
+  <button type="button" class="tool" data-tool="comment" title="Comment (C)" aria-label="Comment"><span class="ico" data-icon="comment"></span></button>
+  <span class="sep comment-only"></span>
+  <button type="button" class="tool ask" id="tool-ask" title="Ask agent">✦ Ask agent</button>
+</nav>
+
+<form id="ask" autocomplete="off">
+  <div class="ask-on" id="ask-on">On the board</div>
+  <textarea id="ask-text" rows="2" maxlength="4000" placeholder="Describe a change for the agent"></textarea>
+  <div class="row"><span class="error" id="ask-error"></span><button type="button" class="btn quiet" id="ask-cancel">Cancel</button><button type="submit" class="btn">Send</button></div>
+</form>
+
+<aside id="panel" aria-label="Panel">
+  <header class="tabs" role="tablist">
+    <button type="button" role="tab" data-tab="properties" aria-selected="true">Properties</button>
+    <button type="button" role="tab" data-tab="code" aria-selected="false">Code</button>
+    <button type="button" role="tab" data-tab="tweaks" aria-selected="false">Tweaks</button>
+    <button type="button" role="tab" data-tab="comments" aria-selected="false">Comments</button>
+    <button type="button" class="tool close" id="panel-close" title="Close" aria-label="Close panel">✕</button>
+  </header>
+  <section class="tab-body" data-body="properties"><div class="layers" id="layers-p"></div><div id="props"></div></section>
+  <section class="tab-body" data-body="code" hidden><div class="layers" id="layers-c"></div><div id="code"></div></section>
+  <section class="tab-body" data-body="tweaks" hidden><div id="tweaks"></div></section>
+  <section class="tab-body" data-body="comments" hidden>
+    <div class="list-head"><label><input type="checkbox" id="show-resolved"> Resolved</label></div>
+    <div class="list" id="comment-list"></div>
+    <footer>Commenting as <input id="my-name" placeholder="your name" maxlength="80" aria-label="Your name"></footer>
+  </section>
+</aside>
+
+<div id="float" role="toolbar" aria-label="Selection"></div>
+<div id="thread" role="dialog" aria-label="Comment thread"></div>
+<div id="menu" role="menu"></div>
+
+<div id="play" role="dialog" aria-label="Present">
+  <div class="head">
+    <button type="button" class="tool" id="play-close" title="Back to canvas (Esc)">‹</button>
+    <b id="play-title"></b>
+    <button type="button" class="tool" data-width="390">390</button>
+    <button type="button" class="tool" data-width="1024">1024</button>
+    <button type="button" class="tool" data-width="1440">1440</button>
+    <span class="sep"></span>
+    <button type="button" class="tool" data-width="fill">Fill</button>
+    <button type="button" class="tool" data-width="fit">Fit</button>
+    <button type="button" class="tool" id="play-download" title="Download this prototype"><span class="ico" data-icon="download"></span></button>
+  </div>
+  <div class="stage"><iframe title="Prototype"></iframe></div>
+</div>
+<div id="hint" role="status"></div>
+
+<script type="application/json" id="rc-data">__DATA__</script>
+<script>
+/*__LIBRARY__*/
+/*__RUNTIME__*/
+</script>
+<!-- __MARK__: comment, edit and board lines below, one event per line -->
+<!--__LINES__-->
+</body>
+</html>

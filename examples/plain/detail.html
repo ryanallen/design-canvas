@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tidewater: a spot</title>
+<style>
+  body { margin: 0; font-family: system-ui, sans-serif; color: #14202b; background: #fff; }
+  .bar { display: flex; align-items: center; gap: 12px; padding: 16px 24px; border-bottom: 1px solid #e5e7eb; }
+  .bar a { color: #0e6e6e; text-decoration: none; font-weight: 600; }
+  main { padding: 32px 24px; max-width: 720px; }
+  h1 { margin: 0 0 8px; font-size: 36px; }
+  .tabs { display: flex; gap: 8px; margin: 24px 0; }
+  .tab { border: 1px solid #d1d5db; background: #fff; border-radius: 999px; padding: 8px 16px; font: inherit; cursor: pointer; }
+  .tab.on { background: #14202b; color: #fff; border-color: #14202b; }
+  .panel { display: none; line-height: 1.6; }
+  .panel.on { display: block; }
+  table { border-collapse: collapse; width: 100%; }
+  td { border-bottom: 1px solid #eee; padding: 8px 0; }
+</style>
+</head>
+<body>
+<div class="bar"><a href="home.html">‹ Home</a><span>Malibu, First Point</span></div>
+<main>
+  <h1>First Point</h1>
+  <p>A long right-hand point break that likes a south swell.</p>
+  <div class="tabs"><button class="tab on" data-for="today">Today</button><button class="tab" data-for="week">This week</button></div>
+  <div class="panel on" id="today">
+    <table>
+      <tr><td>High tide</td><td>6:42 am</td></tr>
+      <tr><td>Low tide</td><td>12:58 pm</td></tr>
+      <tr><td>Swell</td><td>3–4 ft at 14 s</td></tr>
+    </table>
+  </div>
+  <div class="panel" id="week"><p>The swell builds through Thursday, then fades.</p></div>
+</main>
+<script>
+  for (const b of document.querySelectorAll('.tab')) b.addEventListener('click', () => {
+    for (const x of document.querySelectorAll('.tab, .panel')) x.classList.remove('on')
+    b.classList.add('on')
+    document.getElementById(b.dataset.for).classList.add('on')
+  })
+</script>
+</body>
+</html>

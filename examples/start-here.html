@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Try the design canvas</title>
+<style>
+  body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: #1c1d24; background: #fbfaf7; }
+  main { max-width: 1240px; padding: 48px 56px 64px; }
+  h1 { font-size: 40px; margin: 0 0 8px; }
+  .lead { color: #5b5d6b; margin: 0 0 32px; max-width: 760px; }
+  .cols { columns: 2; column-gap: 48px; }
+  section { break-inside: avoid; margin: 0 0 28px; }
+  h2 { font-size: 18px; margin: 0 0 8px; }
+  label { display: flex; gap: 10px; align-items: flex-start; padding: 4px 0; cursor: pointer; }
+  input { margin-top: 5px; flex: none; }
+  label:has(input:checked) span { color: #8a8c99; text-decoration: line-through; }
+  kbd { font: 13px ui-monospace, Consolas, monospace; background: #ecebe6; border-radius: 4px; padding: 0 5px; }
+  code { font: 14px ui-monospace, Consolas, monospace; }
+  .count { color: #5b5d6b; font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Try the design canvas</h1>
+  <p class="lead">Tick each thing as it works. On the board this page is a frame; press <b>▷ PLAY</b> on it, or open <code>try/start-here.html</code> on its own, to tick. <span class="count" id="count"></span></p>
+  <div class="cols">
+    <section>
+      <h2>1. Turn editing on, no server</h2>
+      <label><input type="checkbox"><span>Open <code>try/canvas.html</code> in Chrome or Edge by double-clicking it.</span></label>
+      <label><input type="checkbox"><span>Click <b>Viewing · Edit</b> at the top, pick the <code>try</code> folder, allow it. The chip turns green.</span></label>
+      <label><input type="checkbox"><span>Reload the page, click it again: it only asks to allow, not to pick.</span></label>
+    </section>
+    <section>
+      <h2>2. The board</h2>
+      <label><input type="checkbox"><span>Scroll to pan, <kbd>Ctrl</kbd>+wheel to zoom, <kbd>F</kbd> to fit, hold <kbd>Space</kbd> to drag.</span></label>
+      <label><input type="checkbox"><span>Zoom menu at the top right: 50%, 100%, 200%.</span></label>
+      <label><input type="checkbox"><span>Drag a frame by its name to move it; reload and it stays.</span></label>
+      <label><input type="checkbox"><span>Pages, top left: New page, rename it, delete it.</span></label>
+    </section>
+    <section>
+      <h2>3. Select</h2>
+      <label><input type="checkbox"><span>Hover shows an outline; click selects, with a name tag and handles.</span></label>
+      <label><input type="checkbox"><span>Click one card on <b>home</b>: all three are selected. <kbd>Alt</kbd>+click selects one.</span></label>
+      <label><input type="checkbox"><span><kbd>Esc</kbd> goes to the parent, <kbd>Enter</kbd> to the first child, <kbd>Tab</kbd> to the next sibling.</span></label>
+      <label><input type="checkbox"><span><kbd>Ctrl</kbd>+<kbd>\</kbd> opens the panel; layers follow the selection both ways.</span></label>
+    </section>
+    <section>
+      <h2>4. Text</h2>
+      <label><input type="checkbox"><span>Double-click the headline on <b>home</b>, retype it, <kbd>Enter</kbd>.</span></label>
+      <label><input type="checkbox"><span>While typing, select a word and press <kbd>Ctrl</kbd>+<kbd>B</kbd>; colour a word from the toolbar.</span></label>
+      <label><input type="checkbox"><span>Press <kbd>T</kbd> and click inside a frame: a new paragraph opens for typing.</span></label>
+      <label><input type="checkbox"><span>Open <code>try/home.html</code> in a text editor: only the words you changed are different.</span></label>
+    </section>
+    <section>
+      <h2>5. Style</h2>
+      <label><input type="checkbox"><span>The floating toolbar: colour, bold, align, fill, layout, radius, padding.</span></label>
+      <label><input type="checkbox"><span>Properties: width Hug, Fixed, Fill; padding; font size; colour shows a contrast reading.</span></label>
+      <label><input type="checkbox"><span>With all three cards selected, change the radius: one rule changes them all.</span></label>
+      <label><input type="checkbox"><span>Code tab: edit a declaration, an <code>@attribute</code>, and the source HTML, then Apply.</span></label>
+      <label><input type="checkbox"><span>Tweaks on <b>home</b>: drag <code>--gap</code>, pick a new <code>--accent</code>.</span></label>
+    </section>
+    <section>
+      <h2>6. Structure</h2>
+      <label><input type="checkbox"><span>Drag a card before another one: a blue line shows where it lands.</span></label>
+      <label><input type="checkbox"><span>Drag a selection's right handle to resize it.</span></label>
+      <label><input type="checkbox"><span><kbd>Ctrl</kbd>+<kbd>D</kbd>, <kbd>Delete</kbd>, <kbd>Ctrl</kbd>+<kbd>G</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd>, <kbd>Ctrl</kbd>+<kbd>C</kbd> then <kbd>Ctrl</kbd>+<kbd>V</kbd>.</span></label>
+      <label><input type="checkbox"><span><kbd>Alt</kbd>+<kbd>↓</kbd> moves it one place; "…" offers Wrap in flex row, column, grid.</span></label>
+      <label><input type="checkbox"><span><kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes each one, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> redoes.</span></label>
+    </section>
+    <section>
+      <h2>7. Comments and the agent</h2>
+      <label><input type="checkbox"><span><kbd>C</kbd> then click an element: comment, reply, resolve, delete.</span></label>
+      <label><input type="checkbox"><span>Move that element: the pin follows it.</span></label>
+      <label><input type="checkbox"><span>Select something, <b>✦ Ask agent</b> at the bottom, type, <kbd>Enter</kbd>: an orange pin.</span></label>
+    </section>
+    <section>
+      <h2>8. On the board</h2>
+      <label><input type="checkbox"><span><kbd>N</kbd> sticky note, typed, recoloured; <kbd>R</kbd> rectangle; the ▴ beside it for ellipse, line, arrow, layout guide.</span></label>
+      <label><input type="checkbox"><span><kbd>P</kbd> pencil; <kbd>T</kbd> on empty board for a title.</span></label>
+      <label><input type="checkbox"><span><kbd>A</kbd> and drag out an artboard: a new file appears in <code>try/</code>.</span></label>
+    </section>
+    <section>
+      <h2>9. Play</h2>
+      <label><input type="checkbox"><span>▷ PLAY on <b>home</b>, click <b>Download free</b>: it moves on to <b>detail</b>.</span></label>
+      <label><input type="checkbox"><span>390, 1024, 1440, Fill, Fit; <kbd>Esc</kbd> back.</span></label>
+      <label><input type="checkbox"><span>Full screen on <b>pricing</b> reflows to the window (it is fluid).</span></label>
+    </section>
+    <section>
+      <h2>10. It is all in the files</h2>
+      <label><input type="checkbox"><span>Close the tab, double-click <code>try/canvas.html</code> again: every edit, comment, note and page is there.</span></label>
+      <label><input type="checkbox"><span>Change <code>try/pricing.html</code> in a text editor while editing: the frame redraws within two seconds.</span></label>
+      <label><input type="checkbox"><span>Title menu → Download the canvas, and download one prototype.</span></label>
+      <label><input type="checkbox"><span>Start over any time: <code>node examples/try.mjs</code>.</span></label>
+    </section>
+  </div>
+</main>
+<script>
+  const boxes = [...document.querySelectorAll('input[type=checkbox]')]
+  const key = 'design-canvas-try'
+  let saved = []
+  try { saved = JSON.parse(localStorage.getItem(key)) || [] } catch {}
+  boxes.forEach((b, i) => { b.checked = !!saved[i] })
+  const count = () => { document.getElementById('count').textContent = `${boxes.filter((b) => b.checked).length} of ${boxes.length} done.` }
+  for (const b of boxes) b.addEventListener('change', () => {
+    try { localStorage.setItem(key, JSON.stringify(boxes.map((x) => x.checked))) } catch {}
+    count()
+  })
+  count()
+</script>
+</body>
+</html>

@@ -273,7 +273,7 @@ export async function buildCanvas(options) {
 }
 
 /** Serve a built canvas and take comments, board objects and edits. Returns the http server. */
-export function serveCanvas(built, { port = 4410, quiet = false, memory = false } = {}) {
+export function serveCanvas(built, { port = 4410, strictPort = false, quiet = false, memory = false } = {}) {
   const { folder, out } = built
   let payload = built.payload
   let lines = [...built.lines]
@@ -590,8 +590,20 @@ export function serveCanvas(built, { port = 4410, quiet = false, memory = false 
     }
   })
   server.canvas = { get text() { return memory ? renderPage(payload, lines) : canvasText }, readFile, get lines() { return lines }, get payload() { return payload }, outside: (file, text) => (memory ? mem.set(file, text) : fs.writeFileSync(path.join(folder, file), text)) }
+  // A port another canvas (or anything else) already holds: unless this one was asked for by
+  // name, the next free one up to 20 along; otherwise one plain line, not a stack.
+  let at = port
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE' && !strictPort && port !== 0 && at < port + 20) {
+      at++
+      return server.listen(at, '127.0.0.1')
+    }
+    if (server.listenerCount('error') > 1) return
+    console.error(err.code === 'EADDRINUSE' ? `Port ${at} is in use: close what holds it, or serve with --port <another>.` : `Could not serve: ${err.message}`)
+    process.exitCode = 1
+  })
   server.listen(port, '127.0.0.1', () => {
-    if (!quiet) console.log(`Serving ${path.basename(out)} at http://127.0.0.1:${server.address().port}/ : edits write into the prototypes in ${folder}, comments and edit lines into ${out}. Ctrl+C to stop.`)
+    if (!quiet) console.log(`Serving ${path.basename(out)} at http://127.0.0.1:${server.address().port}/${at !== port ? ` (${port} was in use)` : ''} : edits write into the prototypes in ${folder}, comments and edit lines into ${out}. Ctrl+C to stop.`)
   })
   return server
 }
@@ -628,7 +640,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       process.exit(await check({ ...options, shots: option('--shots') }, { buildCanvas, serveCanvas }))
     } else {
       const built = await buildCanvas(options)
-      if (command === 'serve') serveCanvas(built, { port: Number(option('--port') ?? 4410) })
+      if (command === 'serve') serveCanvas(built, { port: Number(option('--port') ?? 4410), strictPort: option('--port') != null })
     }
   } catch (err) {
     console.error(err.message)

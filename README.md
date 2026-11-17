@@ -14,7 +14,7 @@ The same from a terminal:
 
 ```sh
 node scripts/canvas.mjs build  <folder>   # canvas.html beside the prototypes, opens from disk
-node scripts/canvas.mjs serve  <folder>   # http://127.0.0.1:4410/, edit and comment
+node scripts/canvas.mjs serve  <folder>   # http://127.0.0.1:4410/ (or the next free port), edit and comment
 node scripts/canvas.mjs check  <folder>   # the gate
 node scripts/canvas.mjs accept <folder> <prototype.html>
 ```

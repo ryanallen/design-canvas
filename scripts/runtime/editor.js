@@ -742,6 +742,8 @@
       if (!inLocked) parts.push(h('button', { type: 'button', class: `fbtn${own ? ' on' : ''}`, title: own ? 'Locked: click to unlock' : 'Lock this part: nobody changes, moves or deletes it', 'aria-pressed': String(own), onclick: () => send({ op: 'attr', cv: cvOf(el), name: 'data-locked', value: own ? null : 'true' }) }, dc.icon(own ? 'lock' : 'unlock')))
     } else if (lockedEl(el)) parts.push(h('span', { class: 'fbtn', title: notEditable(el) }, dc.icon('lock')))
     if (dc.commenting) parts.push(h('button', { type: 'button', class: 'fbtn', title: 'Comment on it', onclick: () => { const t = hooks.selectionTarget(); if (t) dc.commentOn(t) } }, dc.icon('comment')))
+    // Editing off but one click from on (from disk, in Chrome or Edge): the way in is on the bar itself.
+    if (!dc.serve && dc.startLocal) parts.push(h('button', { type: 'button', class: 'fbtn cta', title: 'Edit and comment here: pick the folder this canvas is in, once', onclick: () => dc.startLocal() }, 'Edit'))
     parts.push(h('button', { type: 'button', class: 'fbtn', title: 'More', onclick: (e) => more(e.currentTarget) }, '…'))
     floatBar.append(...parts)
     floatBar.classList.add('open')

@@ -626,7 +626,9 @@ export async function check(options, { buildCanvas, serveCanvas } = {}) {
             dc.closeMenu()
             r({
               tools: ['text', 'artboard', 'note', 'pencil'].filter((t) => shown(`#toolbar [data-tool="${t}"]`)).concat(shown('#toolbar .split') ? ['shapes'] : []),
-              float: [...document.querySelectorAll('#float .fbtn')].map((b) => b.title).filter((t) => !['Comment on it', 'More'].includes(t)),
+              // Comment, More, and the Edit button that turns editing on all work with editing off.
+              float: [...document.querySelectorAll('#float .fbtn:not(.cta)')].map((b) => b.title).filter((t) => !['Comment on it', 'More'].includes(t)),
+              floatEdit: !!document.querySelector('#float .fbtn.cta'),
               inputs: document.querySelectorAll('#props input, #props select').length,
               newPage: /New page/.test(menu),
             })
@@ -634,6 +636,7 @@ export async function check(options, { buildCanvas, serveCanvas } = {}) {
         }, target.key)
         must(!seen.tools.length, `tools shown: ${seen.tools.join(', ')}`)
         must(!seen.float.length, `floating toolbar shows ${seen.float.join(', ')}`)
+        must(seen.floatEdit, 'the floating toolbar has no Edit button to turn editing on')
         must(!seen.inputs, `${seen.inputs} controls in Properties`)
         must(!seen.newPage, 'New page is offered')
       })

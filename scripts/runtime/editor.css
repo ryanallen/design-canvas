@@ -38,6 +38,8 @@
 }
 .fbtn:hover { background: var(--panel-2); color: var(--ink); }
 .fbtn[aria-pressed='true'] { background: var(--ink); color: var(--bg); }
+.fbtn.cta { background: var(--accent); color: var(--accent-ink); font-weight: 600; padding: 0 14px; border-radius: 999px; }
+.fbtn.cta:hover { background: var(--accent); color: var(--accent-ink); filter: brightness(1.12); }
 .fbtn.wide { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; justify-content: space-between; }
 .fbtn .caret { margin-left: 2px; }
 .swatch-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }

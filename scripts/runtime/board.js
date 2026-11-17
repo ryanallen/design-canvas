@@ -1642,11 +1642,29 @@
     if (top + mh > innerHeight - 8) top = Math.max(8, r.top - mh - 6)
     menu.style.left = `${Math.max(8, left)}px`
     menu.style.top = `${top}px`
+    anchor.setAttribute?.('aria-expanded', 'true')
+    // Opened from the keyboard, the first item takes the focus; arrows move it (menuKeys).
+    if (anchor.matches?.(':focus-visible')) menuItems()[0]?.focus()
   }
-  function closeMenu() {
+  const menuItems = () => [...menu.querySelectorAll(':scope > .mi:not(:disabled)')]
+  function closeMenu(refocus) {
+    const was = menuFor
     menu.classList.remove('open')
     menuFor = null
+    was?.setAttribute?.('aria-expanded', 'false')
+    if (refocus && menu.contains(document.activeElement)) was?.focus?.()
   }
+  menu.addEventListener('keydown', (e) => {
+    const items = menuItems()
+    const at = items.indexOf(document.activeElement)
+    const go = (i) => { e.preventDefault(); e.stopPropagation(); items[(i + items.length) % items.length]?.focus() }
+    if (e.key === 'ArrowDown') go(at + 1)
+    else if (e.key === 'ArrowUp') go(at < 0 ? -1 : at - 1)
+    else if (e.key === 'Home') go(0)
+    else if (e.key === 'End') go(-1)
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeMenu(true) }
+    else if (e.key === 'Tab') closeMenu(true)
+  })
   addEventListener('pointerdown', (e) => {
     if (!e.target.closest('#menu, [aria-haspopup]')) closeMenu()
   }, true)
@@ -1848,7 +1866,7 @@
     if (e.metaKey || e.ctrlKey || e.altKey) return
     const k = e.key.toLowerCase()
     if (e.key === 'Escape') {
-      if (menu.classList.contains('open')) closeMenu()
+      if (menu.classList.contains('open')) closeMenu(true)
       else if (ask.classList.contains('open')) closeAsk()
       else if (thread.classList.contains('open')) closeThread()
       else if (picked || chosen) pickItem(null)

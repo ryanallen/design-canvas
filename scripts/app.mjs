@@ -36,7 +36,8 @@ function pickFolder(start) {
       return execFileSync('powershell.exe', ['-NoProfile', '-STA', '-Command', script], { encoding: 'utf8' }).trim() || null
     }
     if (process.platform === 'darwin') {
-      const from = start ? ` default location (POSIX file "${start.replace(/"/g, '\\"')}")` : ''
+      // An AppleScript string: a backslash escaped before a quote, or `\"` in a path would end it early.
+      const from = start ? ` default location (POSIX file "${start.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}")` : ''
       return execFileSync('osascript', ['-e', `POSIX path of (choose folder with prompt "The folder of HTML prototypes"${from})`], { encoding: 'utf8' }).trim().replace(/\/$/, '') || null
     }
   } catch {

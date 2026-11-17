@@ -423,7 +423,7 @@
     } else if (mod && e.key.toLowerCase() === 'k') {
       e.preventDefault()
       const at = editing
-      dc.question('Link to:', 'https://').then((href) => linkInPlace(at, href))
+      askLink('Link to:', 'https://').then((href) => linkInPlace(at, href))
     }
   }
   /** Wrap what is selected inside the text being edited in a span carrying one style. */
@@ -787,20 +787,30 @@
     const el = primary()
     if (editing) {
       const at = editing
-      const href = await dc.question('Link to:', 'https://')
-      linkInPlace(at, href)
+      linkInPlace(at, await askLink('Link to:', 'https://'))
       return
     }
     if (!needEditable()) return
     if (el.localName === 'a') {
-      const href = await dc.question('Link to (empty to remove the address):', el.getAttribute('href') || '')
+      const href = await askLink('Link to (empty to remove the address):', el.getAttribute('href') || '')
       if (href != null) send({ op: 'attr', cv: cvOf(el), name: 'href', value: href })
       return
     }
-    const href = await dc.question('Link to:', '')
+    const href = await askLink('Link to:', '')
     if (!href) return
     const inner = el.innerHTML.replace(/\s+data-cv="\d+"/g, '')
     send({ op: 'inner', cv: cvOf(el), html: `<a href="${href.replace(/"/g, '&quot;')}">${inner}</a>` })
+  }
+  /** An address for a link, or null. A prototype runs in the canvas's own page, so an address that
+      runs script (javascript:, vbscript:) or carries a page of its own (data:) is refused. */
+  async function askLink(message, value) {
+    const href = await dc.question(message, value)
+    if (href == null) return null
+    if (/^(javascript|vbscript|data):/i.test(href.replace(/[\u0000-\u0020]/g, ''))) {
+      hint('That address runs script; a link takes a web address, a #place, mailto: or tel:', 3500)
+      return null
+    }
+    return href.trim()
   }
   /** A link made in text being typed: the dialog took the focus, so the text gets it back first, with its selection. */
   function linkInPlace(at, href) {

@@ -351,5 +351,44 @@ export function applyEdit(src, edit) {
   }
 }
 
+/**
+ * Why an edit may not be made, or null. An element carrying `data-locked` is locked with everything
+ * inside it: nothing in it changes, it is not moved, removed or wrapped, nothing is put into it, and
+ * nothing that holds it is retyped, replaced, removed or unwrapped. Turning a lock on or off is an
+ * edit of its own, made only by the owner (`{ owner: true }`: served by node, or the folder on disk),
+ * who is otherwise held to the locks like anyone. Styling or setting another attribute on an element that holds a locked one
+ * changes only that element, so it is allowed; so is a rule.
+ */
+export function lockedFor(src, edit, { owner = false } = {}) {
+  const { byStart } = parse(src)
+  const isLocked = (el) => !!el?.attrs && el.attrs.some((a) => a.name === 'data-locked')
+  const within = (el) => {
+    for (let p = el; p && p.tag !== '#root'; p = p.parent) if (isLocked(p)) return true
+    return false
+  }
+  const holds = (el) => (el.children ?? []).some((c) => isLocked(c) || holds(c))
+  const els = (cv) => [cv].flat().filter((v) => v != null).map((v) => byStart.get(Number(v))).filter(Boolean)
+  const SAY = 'That part is locked.'
+  if (edit.op === 'rule') return null
+  if (edit.op === 'attr' && edit.name === 'data-locked') return owner ? null : 'Only the owner locks and unlocks.'
+  const targets = els(edit.cv)
+  if (targets.some(within)) return SAY
+  switch (edit.op) {
+    case 'style':
+    case 'attr':
+    case 'insert':
+      return null
+    case 'move': {
+      if (targets.some(holds)) return SAY
+      const target = byStart.get(Number(edit.target))
+      if (target && (edit.where === 'inside' ? within(target) : within(target.parent))) return SAY
+      return null
+    }
+    default:
+      // inner, outer, delete, duplicate, wrap, unwrap: what holds a locked element would change, copy or drop it.
+      return targets.some(holds) ? SAY : null
+  }
+}
+
 /** The rules in the canvas's own stylesheet, for the panel to show. */
 export const canvasRules = (src) => parseRules(canvasStyle(src).css).map((r) => ({ selector: r.sel, props: Object.fromEntries(r.props) }))

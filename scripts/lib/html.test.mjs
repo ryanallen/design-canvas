@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { applyEdit, canvasRules, parse, tag, untag } from './html.mjs'
+import { applyEdit, canvasRules, lockedFor, parse, tag, untag } from './html.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const fixture = `<!doctype html>
@@ -150,4 +150,18 @@ test('duplicate then delete gives back the file, on a shared line and with CRLF'
 
 test('an edit at an offset that is not an element is refused', () => {
   assert.throws(() => applyEdit(fixture, { op: 'style', cv: 3, props: { color: 'red' } }), /no element at 3/)
+})
+
+test('a locked element and what holds it are refused; around it, editing goes on', () => {
+  const src = '<main><section data-locked><h1>Mine</h1></section><p>Yours</p></main>'
+  const { byStart } = parse(src)
+  const at = (tagName) => [...byStart.values()].find((e) => e.tag === tagName).start
+  assert.match(lockedFor(src, { op: 'inner', cv: at('h1'), html: 'x' }), /locked/)
+  assert.match(lockedFor(src, { op: 'delete', cv: at('section') }), /locked/)
+  assert.match(lockedFor(src, { op: 'inner', cv: at('main'), html: 'x' }), /locked/)
+  assert.match(lockedFor(src, { op: 'move', cv: at('p'), target: at('h1'), where: 'after' }), /locked/)
+  assert.match(lockedFor(src, { op: 'attr', cv: at('p'), name: 'data-locked', value: '' }), /owner/)
+  assert.equal(lockedFor(src, { op: 'inner', cv: at('p'), html: 'Changed' }), null)
+  assert.equal(lockedFor(src, { op: 'style', cv: at('main'), props: { color: 'red' } }), null)
+  assert.equal(lockedFor(src, { op: 'move', cv: at('p'), target: at('section'), where: 'before' }), null)
 })

@@ -30,7 +30,7 @@ import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { applyEdit, parse, tag } from './lib/html.mjs'
+import { applyEdit, lockedFor, parse, tag } from './lib/html.mjs'
 import { inlineFile } from './lib/inline.mjs'
 import { cropToOption } from './lib/crop.mjs'
 import { launchChromium } from './lib/browser.mjs'
@@ -138,7 +138,7 @@ const stripped = (file) =>
 // The page carries the event format and the edit engine, so a canvas opened from disk can edit
 // its own folder with no server (runtime/local.js).
 const library = () =>
-  `${stripped('events.mjs')}\nconst canvasHtml = (() => {\n${stripped('html.mjs')}\nreturn { parse, tag, untag, applyEdit }\n})()\n`
+  `${stripped('events.mjs')}\nconst canvasHtml = (() => {\n${stripped('html.mjs')}\nreturn { parse, tag, untag, applyEdit, lockedFor }\n})()\n`
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 /** The canvas page: chrome, the payload, the runtime, and every stored line after it. */
@@ -460,6 +460,9 @@ export function serveCanvas(built, { port = 4410, quiet = false, memory = false 
         const { file, edit, name } = await readBody(req)
         if (!payload.files[file]) return json(res, 404, { error: `${file} is not on this canvas` })
         const before = readFile(file)
+        const frameLocked = foldBoard(lines.flatMap((l) => parseLines(l, 'board'))).locked.some((k) => k === file || k.startsWith(`${file}#`))
+        const refused = frameLocked ? 'This prototype is locked: unlock it on the board first' : lockedFor(before, edit, { owner: true })
+        if (refused) return json(res, 403, { error: refused })
         const result = applyEdit(before, edit)
         if (result.src === before) return json(res, 200, { select: result.select, html: servedFile(file), same: true })
         writeFile(file, result.src)

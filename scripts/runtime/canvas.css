@@ -97,6 +97,16 @@ body.tool-text #viewport { cursor: text; }
 }
 .frame-label button:hover { color: var(--ink); background: var(--panel-2); }
 .frame-label button.play { border: 1px solid var(--line); font-weight: 600; letter-spacing: 0.02em; }
+.frame-label button.lock { opacity: 0.5; }
+.frame-label button.lock.on { opacity: 1; color: #f5b14c; }
+.frame-label button.lock:disabled { cursor: default; background: transparent; }
+.item.locked { cursor: default; }
+.item.locked::after {
+  content: ''; position: absolute; right: calc(6px / var(--z, 1)); top: calc(6px / var(--z, 1));
+  width: calc(10px / var(--z, 1)); height: calc(10px / var(--z, 1)); border-radius: 50%; background: #f5b14c;
+  box-shadow: 0 0 0 calc(2px / var(--z, 1)) rgb(0 0 0 / 0.35); pointer-events: none;
+}
+.item.locked.svg::after, .item.locked.title::after { display: none; }
 .section-label {
   transform: scale(var(--iz, 1)) translateY(calc(-100% - 36px));
   font-size: 15px; font-weight: 600; color: var(--ink);

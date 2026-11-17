@@ -4,3 +4,10 @@ node_modules/
 examples/*/canvas.html
 /try/
 /.last-folder
+# A host's secrets stay out of this public repository
+.env
+.env.*
+.dev.vars
+.wrangler/
+*.pem
+*.key

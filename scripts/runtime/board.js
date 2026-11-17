@@ -12,6 +12,8 @@
   const web = location.protocol === 'http:' || location.protocol === 'https:'
   let serve = !!data.serve && web
   let local = false
+  // A visitor to a published copy in play mode: edits, but never locks or unlocks.
+  let visitor = false
   const $ = (sel, el = document) => el.querySelector(sel)
   const h = (tag, attrs = {}, ...kids) => {
     const el = document.createElement(tag)
@@ -51,6 +53,8 @@
     download: '<path d="M8 2.5v8M4.5 7L8 10.5 11.5 7M3 13.5h10" stroke-linecap="round" stroke-linejoin="round"/>',
     full: '<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10" stroke-linecap="round" stroke-linejoin="round"/>',
     tweaks: '<path d="M2.5 4.5h6M11.5 4.5h2M2.5 11.5h2M7.5 11.5h6" stroke-linecap="round"/><circle cx="10" cy="4.5" r="1.5"/><circle cx="6" cy="11.5" r="1.5"/>',
+    lock: '<rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 015 0v2"/>',
+    unlock: '<rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 014.9-.7"/>',
     link: '<path d="M7 9a2.5 2.5 0 003.5 0l2-2a2.5 2.5 0 00-3.5-3.5l-.7.7M9 7a2.5 2.5 0 00-3.5 0l-2 2A2.5 2.5 0 007 12.5l.7-.7" stroke-linecap="round"/>',
   }
   const icon = (name) => h('span', { class: 'ico', html: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">${ICONS[name] ?? ''}</svg>` })
@@ -309,6 +313,7 @@
       m.play ? h('button', { type: 'button', class: 'play', title: 'Play it: click through it at full size', onclick: (e) => { e.stopPropagation(); openPlay(f) } }, '▷ PLAY') : null,
     )
     f.labelEl.addEventListener('pointerdown', (e) => startFrameDrag(e, f))
+    drawLock(f)
     positionFrame(f)
     world.append(f.el, f.labelEl)
   }
@@ -423,6 +428,7 @@
     }
     drawGroups()
     renderItems()
+    drawLocks()
     renderPins()
     call('onView')
   }
@@ -573,6 +579,7 @@
     drag = {
       kind: 'frame', id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false,
       move: (_, dx, dy) => {
+        if (isLocked(f.key)) return
         f.x = Math.round(x0 + dx)
         f.y = Math.round(y0 + dy)
         positionFrame(f)
@@ -582,7 +589,8 @@
       },
       end: (_, moved) => {
         if (!moved) return call('onFramePick', f)
-        sendBoard({ op: 'move', key: f.key, x: f.x, y: f.y, page: pageId }).catch((err) => hint(err.message, 3000))
+        if (isLocked(f.key)) return hint(LOCKED, 2000)
+        sendBoard({ op: 'move', key: f.key, x: f.x, y: f.y, page: pageId }).catch((err) => { hint(err.message, 3000); takeBoardAgain() })
       },
     }
     viewport.setPointerCapture(e.pointerId)
@@ -673,7 +681,7 @@
 
   function itemEl(it) {
     it = geometryOf(it)
-    const cls = `item ${it.kind}${picked === it.id || chosen?.items.has(it.id) ? ' on' : ''}`
+    const cls = `item ${it.kind}${picked === it.id || chosen?.items.has(it.id) ? ' on' : ''}${isLocked(it.id) ? ' locked' : ''}`
     const box = `left:${it.x}px;top:${it.y}px;width:${it.w ?? 0}px;height:${it.h ?? 0}px`
     if (it.kind === 'note') return h('div', { class: cls, 'data-id': it.id, style: `${box};background:${it.color || NOTE_COLORS[0]}` }, it.text ?? '')
     if (it.kind === 'title') return h('div', { class: cls, 'data-id': it.id, style: `left:${it.x}px;top:${it.y}px;${it.color ? `color:${it.color}` : ''}` }, it.text || 'Title')
@@ -727,7 +735,9 @@
     if (serve) fetch('/api/selection', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selection: chosen ? { board: { page: pageId, box, items: [...chosen.items], frames: [...chosen.frames] } } : null }) }).catch(() => {})
   }
   async function removeChosen() {
-    const ids = [...(chosen?.items ?? [])]
+    const all = [...(chosen?.items ?? [])]
+    const ids = all.filter((id) => !isLocked(id))
+    if (ids.length < all.length) hint(`${all.length - ids.length} locked, left where they are`, 2400)
     chosen = null
     try {
       for (const id of ids) await sendBoard({ op: 'remove', id })
@@ -764,6 +774,10 @@
         h('span', { class: 'count-note' }, `${n} selected`),
         api ? h('button', { type: 'button', class: 'tool', title: 'Ask the agent about what is in the box', onclick: () => openAsk() }, '✦ Ask agent') : null,
         chosen.items.size ? h('button', { type: 'button', class: 'tool', title: 'Delete (Delete)', onclick: () => removeChosen() }, 'Delete') : null,
+        ...(owner() ? [
+          h('button', { type: 'button', class: 'tool', title: 'Lock everything in the box', onclick: () => setLock([...chosen.items, ...chosen.frames], true) }, icon('lock'), 'Lock'),
+          h('button', { type: 'button', class: 'tool', title: 'Unlock everything in the box', onclick: () => setLock([...chosen.items, ...chosen.frames].filter(isLocked), false) }, icon('unlock'), 'Unlock'),
+        ] : []),
       )
       const top = toScreen(chosen.box.x, chosen.box.y)
       itemBar.style.left = `${Math.max(8, Math.min(innerWidth - 300, top.x))}px`
@@ -776,6 +790,13 @@
       itemBar.classList.remove('open')
       return
     }
+    if (isLocked(it.id)) {
+      itemBar.replaceChildren(
+        owner()
+          ? h('button', { type: 'button', class: 'tool', title: 'Unlock it', onclick: () => setLock([it.id], false) }, icon('lock'), 'Locked · Unlock')
+          : h('span', { class: 'count-note' }, icon('lock'), 'Locked by its owner'),
+      )
+    } else {
     const colors = it.kind === 'note' ? NOTE_COLORS : it.kind === 'section' ? SECTION_COLORS : it.kind === 'guide' ? [] : SHAPE_COLORS
     itemBar.replaceChildren(...[
       ...colors.map((c) => h('button', { type: 'button', class: `swatch${(it.color || colors[0]) === c ? ' on' : ''}`, style: `background:${c}`, title: c, onclick: () => updateItem(it.id, { color: c }) })),
@@ -788,7 +809,9 @@
         : []),
       h('span', { class: 'sep' }),
       h('button', { type: 'button', class: 'tool', title: 'Delete (Delete)', onclick: () => removeItem(it.id) }, 'Delete'),
-    ])
+      owner() ? h('button', { type: 'button', class: 'tool', title: 'Lock it: nobody moves, changes or deletes it, and visitors put nothing over it', onclick: () => setLock([it.id], true) }, icon('unlock'), 'Lock') : null,
+    ].filter(Boolean))
+    }
     const f = it.kind === 'guide' ? findFrame(it.frame) : null
     const top = toScreen(f ? f.x : it.x, f ? f.y : it.y)
     itemBar.style.left = `${Math.max(8, Math.min(innerWidth - 300, top.x))}px`
@@ -798,15 +821,18 @@
   async function updateItem(id, change) {
     const it = board.items.find((i) => i.id === id)
     if (!it) return
+    if (isLocked(id)) return hint(LOCKED, 2000)
     Object.assign(it, change)
     renderItems()
     try {
       await sendBoard({ op: 'item', id, ...change })
     } catch (err) {
       hint(err.message, 3000)
+      takeBoardAgain()
     }
   }
   async function removeItem(id) {
+    if (isLocked(id)) return hint(LOCKED, 2000)
     picked = null
     try {
       await sendBoard({ op: 'remove', id })
@@ -830,6 +856,7 @@
     const group = chosen?.items.has(id) ? chosen : null
     if (!group) pickItem(id)
     if (it.kind === 'guide') return
+    if (!group && isLocked(id)) return
     // Near the bottom-right corner it resizes; anywhere else it moves.
     const p = toWorld(e.clientX, e.clientY)
     const resize = !group && ['note', 'rect', 'ellipse', 'section'].includes(it.kind) && p.x > it.x + it.w - 24 / view.z && p.y > it.y + it.h - 24 / view.z
@@ -839,13 +866,13 @@
     const along = group ? { items: [...group.items], frames: [...group.frames] } : it.kind === 'section' && !resize ? inside(it) : { items: [id], frames: [] }
     if (!along.items.includes(id)) along.items.push(id)
     // A line moved by hand lets go of what it held, and stays where it was drawn.
-    const moving = along.items.map((x) => board.items.find((i) => i.id === x)).filter((i) => i && i.kind !== 'guide')
+    const moving = along.items.map((x) => board.items.find((i) => i.id === x)).filter((i) => i && i.kind !== 'guide' && !isLocked(i.id))
     for (const m of moving) {
       if (m.id !== id || (!m.from && !m.to)) continue
       Object.assign(m, geometryOf(m), { from: '', to: '' })
     }
     const starts = new Map(moving.map((m) => [m.id, { x: m.x, y: m.y }]))
-    const frameList = along.frames.map((k) => allFrames.get(k)).filter(Boolean)
+    const frameList = along.frames.map((k) => allFrames.get(k)).filter((f) => f && !isLocked(f.key))
     const frameStarts = new Map(frameList.map((f) => [f.key, { x: f.x, y: f.y }]))
     const boxStart = group ? { ...group.box } : null
     drag = {
@@ -878,6 +905,7 @@
           for (const f of frameList) await sendBoard({ op: 'move', key: f.key, x: f.x, y: f.y, page: pageId })
         } catch (err) {
           hint(err.message, 3000)
+          takeBoardAgain()
         }
         renderItems()
       },
@@ -888,6 +916,7 @@
     const it = board.items.find((i) => i.id === id)
     if (!it || !['note', 'title', 'rect', 'ellipse', 'section'].includes(it.kind)) return
     if (!serve) return
+    if (isLocked(id)) return hint(LOCKED, 2000)
     const box = (it.kind === 'section' ? sectionLayer : itemLayer).querySelector(`[data-id="${id}"]`)
     const el = box?.querySelector('.txt') ?? box
     if (!el) return
@@ -1024,8 +1053,82 @@
     }
   }
 
+  // ── locks ──
+  // A locked frame or board object is not moved, changed or removed by anyone until it is
+  // unlocked, and a visitor puts nothing new over it. Only the owner locks and unlocks: whoever
+  // edits the canvas where it lives (served by node, or its folder on disk), never a visitor to a
+  // published copy.
+  const LOCKED = 'That is locked'
+  const isLocked = (key) => !!key && (board.locked ?? []).includes(key)
+  const owner = () => serve && !visitor
+  const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+  /** The locked frames and objects on this page a box would sit over, leaving out `self`. */
+  function coversLocked(box, self) {
+    const lockedFrames = frames().filter((f) => f.key !== self && isLocked(f.key)).map((f) => ({ x: f.x, y: f.y, w: f.W, h: f.H }))
+    const lockedItems = items().filter((i) => i.id !== self && isLocked(i.id) && !['line', 'arrow', 'guide'].includes(i.kind)).map(geometryOf)
+    return [...lockedFrames, ...lockedItems].some((b) => overlaps(box, { x: b.x, y: b.y, w: b.w ?? 0, h: b.h ?? 0 }))
+  }
+  /** Why a board change may not be made, or null. */
+  function lockedReason(input) {
+    if (input.op === 'lock') return owner() ? null : 'Only the owner locks and unlocks'
+    if ((input.op === 'item' || input.op === 'remove') && isLocked(input.id)) return LOCKED
+    if (input.op === 'move' && isLocked(input.key)) return LOCKED
+    if (owner()) return null
+    if (input.op === 'page' && input.removed) {
+      const held = [...allFrames.values()].some((f) => f.page === input.id && isLocked(f.key)) || board.items.some((i) => (i.page ?? firstPage()) === input.id && isLocked(i.id))
+      return held ? 'That page holds locked work' : null
+    }
+    let box = null
+    if (input.op === 'move') {
+      const f = allFrames.get(input.key)
+      if (f) box = { x: input.x, y: input.y, w: f.W, h: f.H }
+    } else if (input.op === 'item') {
+      const it = { ...(board.items.find((i) => i.id === input.id) ?? {}), ...input }
+      if (!['line', 'arrow', 'guide'].includes(it.kind) && it.x != null) box = { x: it.x, y: it.y, w: it.w ?? 200, h: it.h ?? 60 }
+      if (box) return coversLocked(box, input.id) ? 'That would cover locked work' : null
+      return null
+    }
+    return box && coversLocked(box, input.key) ? 'That would cover locked work' : null
+  }
+  /** After a change was refused: draw the board as its lines say again. */
+  function takeBoardAgain() {
+    board = foldBoard(boardEvents)
+    relayout()
+    placeItemBar()
+  }
+  async function setLock(keys, locked) {
+    try {
+      for (const key of keys) await sendBoard({ op: 'lock', key, locked })
+      hint(locked ? `Locked ${keys.length === 1 ? 'it' : keys.length}` : `Unlocked ${keys.length === 1 ? 'it' : keys.length}`, 1600)
+    } catch (err) {
+      hint(err.message, 3000)
+    }
+    renderItems()
+    drawLocks()
+    placeItemBar()
+  }
+  /** Each frame's lock in its header: a padlock when locked; for the owner, the button that toggles it. */
+  function drawLock(f) {
+    if (!f.labelEl) return
+    f.lockEl?.remove()
+    const on = isLocked(f.key)
+    if (!on && !owner()) return (f.lockEl = null)
+    f.lockEl = h('button', {
+      type: 'button',
+      class: `lock${on ? ' on' : ''}`,
+      title: owner() ? (on ? 'Locked: click to unlock' : 'Lock this prototype') : 'Locked by its owner',
+      'aria-pressed': String(on),
+      disabled: !owner(),
+      onclick: (e) => { e.stopPropagation(); setLock([f.key], !on) },
+    }, icon(on ? 'lock' : 'unlock'))
+    f.labelEl.querySelector('.name')?.after(f.lockEl)
+  }
+  const drawLocks = () => { for (const f of allFrames.values()) drawLock(f) }
+
   async function sendBoard(input) {
     if (!serve) throw new Error(readOnly)
+    const refused = lockedReason(input)
+    if (refused) throw new Error(refused)
     const res = await fetch('/api/board', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ event: { name: me || 'someone', ...input } }) })
     const body = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(body.error || `Saving failed (${res.status})`)
@@ -1691,8 +1794,9 @@
   }
 
   /** Editing switched on without a server: local.js answers /api/ itself from the folder it was given. */
-  function enableLocal(folderName, title = 'Edits and comments are written into this folder by the page itself') {
+  function enableLocal(folderName, title = 'Edits and comments are written into this folder by the page itself', asVisitor = false) {
     serve = true
+    visitor = asVisitor
     api = '/api/canvas-comments'
     local = true
     document.body.classList.add('serving', 'commenting')
@@ -1704,14 +1808,16 @@
     }
     refresh()
     renderPins()
+    drawLocks()
   }
 
   // ── what the editor works through ──
   window.designCanvas = {
     get serve() { return serve },
     get local() { return local },
+    get owner() { return owner() },
     get commenting() { return !!api },
-    data, web, hooks, h, icon, store, hint, readOnly, fileChanged, enableLocal, refreshBoard, relayoutAll: () => { layoutAll(); renderPage() },
+    data, web, hooks, h, icon, store, hint, readOnly, fileChanged, enableLocal, refreshBoard, isLocked, relayoutAll: () => { layoutAll(); renderPage() },
     get view() { return view },
     get tool() { return tool },
     get page() { return pageId },

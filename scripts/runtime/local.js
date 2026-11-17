@@ -226,10 +226,16 @@
     const body = init?.body ? JSON.parse(init.body) : {}
     const post = (init?.method ?? 'GET').toUpperCase() === 'POST'
     const known = (file) => raw.has(file)
+    const locks = () => foldBoard(parseLines(lines.join('\n'), 'board')).locked
     switch (u.pathname.replace(/^.*?(\/api\/)/, '$1')) {
       case '/api/canvas-comments': {
         if (!post) return answer(200, { events: parseEvents(lines.join('\n')), viewer: null })
         const event = makeEvent(body.event)
+        // A visitor answers the owner's comments but does not delete or resolve them.
+        if (play && (event.op === 'delete' || event.op === 'resolve')) {
+          const own = parseEvents(lines.slice(0, builtLines).join('\n')).flatMap((e) => [e.id].filter(Boolean))
+          if (own.includes(event.to)) return answer(403, { error: 'That comment belongs to the owner' })
+        }
         lines.push(lineOf(event, 'comment'))
         await writeCanvas()
         return answer(200, { event })
@@ -240,6 +246,9 @@
           return answer(200, { events, board: foldBoard(events) })
         }
         const event = makeBoardEvent(body.event)
+        const held = locks()
+        if (play && event.op === 'lock') return answer(403, { error: 'Only the owner locks and unlocks' })
+        if (held.includes(event.op === 'move' ? event.key : event.id) && ['item', 'remove', 'move'].includes(event.op)) return answer(403, { error: 'That is locked' })
         lines.push(lineOf(event, 'board'))
         await writeCanvas()
         return answer(200, { event })
@@ -260,6 +269,9 @@
         const { file, edit, name } = body
         if (!known(file)) return answer(404, { error: `${file} is not on this canvas` })
         const before = raw.get(file)
+        if (locks().some((k) => k === file || k.startsWith(`${file}#`))) return answer(403, { error: 'This prototype is locked' })
+        const refused = canvasHtml.lockedFor(before, edit, { owner: !play })
+        if (refused) return answer(403, { error: refused })
         const result = canvasHtml.applyEdit(before, edit)
         if (result.src === before) return answer(200, { select: result.select, html: await served(file), same: true })
         raw.set(file, result.src)
@@ -407,7 +419,7 @@
     }
     for (const file of raw.keys()) data.files[file] = canvasHtml.tag(raw.get(file))
     on = true
-    dc.enableLocal('here', 'Edit, draw and comment: everything is kept in this browser, for you alone')
+    dc.enableLocal('here', 'Edit, draw and comment: everything is kept in this browser, for you alone', true)
     dc.refreshBoard()
   }
   if (play) {

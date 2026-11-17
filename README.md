@@ -24,6 +24,7 @@ node scripts/canvas.mjs accept <folder> <prototype.html>
 | File | What it is |
 | --- | --- |
 | [SKILL.md](SKILL.md) | What it does, when to use it, the commands, the lines it keeps, the agent endpoints |
+| [HOSTING.md](HOSTING.md) | Putting a canvas on a website: play mode, locks, shared comments through a Cloudflare Worker or GitHub sign-in, and where a host's secrets go |
 | `Design Canvas.cmd`, `Design Canvas.command` | Double-click launchers for Windows and Mac: they run `scripts/app.mjs` |
 | [scripts/app.mjs](scripts/app.mjs) | The launcher: a folder from the system's picker, then a numbered menu |
 | [scripts/runtime/local.js](scripts/runtime/local.js) | Editing from disk with no server: the page writes into the folder it is given |

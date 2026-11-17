@@ -2,8 +2,9 @@
   "title": "Design canvas",
   "play": true,
   "links": [
+    { "text": "⬇ Download", "href": "https://github.com/ryanallen/design-canvas/archive/refs/heads/main.zip" },
     { "text": "★ Star", "href": "https://github.com/ryanallen/design-canvas" },
-    { "text": "Get it", "href": "https://github.com/ryanallen/design-canvas#install" }
+    { "text": "How to install", "href": "https://github.com/ryanallen/design-canvas#install" }
   ],
   "pages": [
     {

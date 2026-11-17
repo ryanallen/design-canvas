@@ -66,4 +66,8 @@ From disk, an agent reads the threads straight from `canvas.html`: `parseEvents`
 
 ## Sharing
 
-`canvas.html` is the thing shared: send it or put it on any static host. A host that should take comments answers `GET ?path=<page>` with `{ events }` and `POST { path, event }` with `{ event }`, writing the posted line into the file, at `/api/canvas-comments` on its own site or at the address set with `comments`. A host on another site is called with its cookies (`credentials: include`), so it allows the canvas's origin.
+`canvas.html` is the thing shared: send it or put it on any static host. A host that should take comments answers `GET ?path=<page>` with `{ events }` and `POST { path, event }` with `{ event }`, writing the posted line into the file, at `/api/canvas-comments` on its own site or at the address set with `comments`. A host on another site is called with its cookies (`credentials: include`), so it allows the canvas's origin. [HOSTING.md](HOSTING.md) walks through each way.
+
+## Locks
+
+The owner (whoever edits where the canvas lives: served by node, or its folder on disk) locks what others must leave as it is: a prototype by the padlock in its header, a board object by Lock in its bar or a drag box's bar, a part of a prototype by the padlock in its floating toolbar. A locked prototype or object is not moved, changed or removed until unlocked, and a play-mode visitor puts nothing new over it. A locked part (`data-locked` on an element, and everything in it) is not changed, moved, removed or wrapped, and nothing holding it is retyped or removed. Board locks are `<!-- board {"op":"lock","key":…,"locked":true} -->` lines; part locks are in the prototype's own HTML. `lockedFor(src, edit, { owner })` in `scripts/lib/html.mjs` says why an edit is refused.

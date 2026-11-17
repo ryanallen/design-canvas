@@ -17,7 +17,11 @@
   const SKIP = new Set(['script', 'style', 'template', 'noscript', 'head', 'meta', 'link', 'title', 'base'])
   const SINGLE_LINE = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'button', 'label', 'li', 'td', 'th', 'span', 'dt', 'summary', 'option', 'figcaption', 'legend'])
   const cvOf = (el) => (el?.dataset?.cv != null ? Number(el.dataset.cv) : null)
-  const editable = (el) => dc.serve && cvOf(el) != null
+  // Locked: an element carrying data-locked, with everything in it, or a prototype locked on the board.
+  const fileOf = (el) => dc.allFrames.find((f) => f.doc && f.doc === el?.ownerDocument)?.file
+  const fileLocked = (file) => !!file && dc.allFrames.some((f) => f.file === file && dc.isLocked(f.key))
+  const lockedEl = (el) => !!el?.closest?.('[data-locked]') || fileLocked(fileOf(el))
+  const editable = (el) => dc.serve && cvOf(el) != null && !lockedEl(el)
   const win = (el) => el.ownerDocument.defaultView
   const cs = (el) => win(el).getComputedStyle(el)
   const ownText = (el) => [...el.childNodes].some((n) => n.nodeType === 3 && n.data.trim())
@@ -299,6 +303,7 @@
   async function send(edit, { file = sel?.frame.file, key = sel?.frame.key, copies = false, then } = {}) {
     if (!dc.serve) return
     if (!file) return
+    if (fileLocked(file)) return hint('This prototype is locked', 2000)
     if (busy) return hint('Still saving the last change', 1200)
     busy = true
     try {
@@ -310,6 +315,11 @@
       dc.reloadFile(file, body.html)
     } catch (err) {
       hint(err.message, 4000)
+      // A refused edit may already show in the frame: draw the file as it is.
+      try {
+        const res = await fetch(`/api/file?f=${encodeURIComponent(file)}`, { cache: 'no-store' })
+        if (res.ok) dc.reloadFile(file, (await res.json()).html)
+      } catch {}
     } finally {
       busy = false
     }
@@ -328,7 +338,7 @@
     draw()
     return send({ op: 'style', cv: cvOf(el), props })
   }
-  const notEditable = (el) => (!dc.serve ? dc.readOnly : el && cvOf(el) == null ? 'This element is made by the prototype\'s own script, so it can be inspected and not edited.' : 'Nothing editable is selected.')
+  const notEditable = (el) => (!dc.serve ? dc.readOnly : el && fileLocked(fileOf(el)) ? 'This prototype is locked by its owner.' : el && lockedEl(el) ? 'This part is locked by its owner.' : el && cvOf(el) == null ? 'This element is made by the prototype\'s own script, so it can be inspected and not edited.' : 'Nothing editable is selected.')
   async function undo(redo = false) {
     if (!dc.serve) return
     const res = await fetch(redo ? '/api/redo' : '/api/undo', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: dc.me || 'someone' }) })
@@ -689,6 +699,12 @@
       parts.push(numberButton('Padding', '⊡', 'padding', shared('padding-top')))
     }
     if (canEdit) parts.push(h('span', { class: 'sep' }))
+    // The owner locks a part of the prototype: it and everything in it stay as they are.
+    if (dc.owner && sel.els.length === 1 && cvOf(el) != null && !fileLocked(sel.frame.file)) {
+      const own = el.hasAttribute('data-locked')
+      const inLocked = !own && !!el.parentElement?.closest('[data-locked]')
+      if (!inLocked) parts.push(h('button', { type: 'button', class: `fbtn${own ? ' on' : ''}`, title: own ? 'Locked: click to unlock' : 'Lock this part: nobody changes, moves or deletes it', 'aria-pressed': String(own), onclick: () => send({ op: 'attr', cv: cvOf(el), name: 'data-locked', value: own ? null : 'true' }) }, dc.icon(own ? 'lock' : 'unlock')))
+    } else if (lockedEl(el)) parts.push(h('span', { class: 'fbtn', title: notEditable(el) }, dc.icon('lock')))
     if (dc.commenting) parts.push(h('button', { type: 'button', class: 'fbtn', title: 'Comment on it', onclick: () => { const t = hooks.selectionTarget(); if (t) dc.commentOn(t) } }, dc.icon('comment')))
     parts.push(h('button', { type: 'button', class: 'fbtn', title: 'More', onclick: (e) => more(e.currentTarget) }, '…'))
     floatBar.append(...parts)

@@ -17,7 +17,9 @@
 //
 // A board line is `item` (a note, title, shape, section, line, arrow, pencil stroke or layout
 // guide, last line for an id wins), `remove`, `move` (a frame placed by hand, on a page), `page` (a
-// page made, renamed or removed) and `name` (the canvas's own title). A line or arrow may carry
+// page made, renamed or removed), `name` (the canvas's own title) and `lock` (a frame's key or a board
+// object's id, `locked` true or false: a locked one is not moved, changed or removed, and nothing new
+// is put over it, until its owner unlocks it). A line or arrow may carry
 // `from` and `to`, each a board object's id or a frame's key, and is then drawn between those two
 // wherever they are; its own `points` are where it is drawn once either end is gone.
 //
@@ -172,6 +174,7 @@ export function foldBoard(events) {
   const items = new Map()
   const moved = new Map()
   const pages = new Map()
+  const locked = new Set()
   let name = null
   for (const e of events) {
     if (e.op === 'move' && e.key) moved.set(e.key, { x: e.x, y: e.y, page: e.page ?? moved.get(e.key)?.page ?? null })
@@ -179,8 +182,9 @@ export function foldBoard(events) {
     else if (e.op === 'remove' && e.id) items.delete(e.id)
     else if (e.op === 'page' && e.id) pages.set(e.id, { ...(pages.get(e.id) ?? { id: e.id }), ...(e.title != null ? { title: e.title } : {}), ...(e.removed != null ? { removed: e.removed } : {}) })
     else if (e.op === 'name' && e.title) name = e.title
+    else if (e.op === 'lock' && e.key) e.locked ? locked.add(e.key) : locked.delete(e.key)
   }
-  return { items: [...items.values()], moved: Object.fromEntries(moved), pages: [...pages.values()], name }
+  return { items: [...items.values()], moved: Object.fromEntries(moved), pages: [...pages.values()], name, locked: [...locked] }
 }
 
 const BOARD_KINDS = ['note', 'title', 'rect', 'ellipse', 'section', 'line', 'arrow', 'pencil', 'guide']
@@ -230,7 +234,9 @@ export function makeBoardEvent(input, { now = new Date(), newId = randomId } = {
     }
     case 'name':
       return { op: 'name', at, name, title: text(input.title, LIMITS.frame, 'title') }
+    case 'lock':
+      return { op: 'lock', at, name, key: text(input.key, LIMITS.frame, 'key'), locked: !!input.locked }
     default:
-      throw new Error('op must be move, item, remove, page or name')
+      throw new Error('op must be move, item, remove, page, name or lock')
   }
 }

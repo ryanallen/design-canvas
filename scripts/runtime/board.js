@@ -1511,11 +1511,20 @@
     const p = threadAt.thread ? anchorOf(threadAt.thread) : { x: threadAt.draft.wx, y: threadAt.draft.wy }
     const s = toScreen(p.x, p.y)
     const w = thread.offsetWidth || 300
-    const hgt = thread.offsetHeight || 200
     let left = s.x + 24
     if (left + w > innerWidth - 12) left = s.x - w - 12
-    const top = Math.min(Math.max(56, s.y - 30), innerHeight - hgt - 12)
-    thread.style.left = `${Math.max(12, left)}px`
+    left = Math.max(12, left)
+    // It ends above the toolbar when it would cross it, shortening (its messages scroll) on a short window.
+    // A phone's sheet is placed by the stylesheet.
+    let floor = innerHeight - 12
+    if (innerWidth > 640) {
+      const tb = $('#toolbar').getBoundingClientRect()
+      if (tb.height && left < tb.right && left + w > tb.left) floor = tb.top - 8
+      thread.style.maxHeight = `${Math.max(180, Math.min(460, floor - 56))}px`
+    } else thread.style.maxHeight = ''
+    const hgt = thread.offsetHeight || 200
+    const top = Math.max(56, Math.min(Math.max(56, s.y - 30), floor - hgt))
+    thread.style.left = `${left}px`
     thread.style.top = `${top}px`
   }
 

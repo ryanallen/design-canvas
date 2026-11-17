@@ -1782,6 +1782,7 @@
       { label: 'Download the canvas', icon: 'download', run: downloadCanvas },
       sel ? { label: `Download ${sel}`, icon: 'download', run: () => downloadFile(sel) } : null,
       serve ? { label: 'Rename', run: rename } : null,
+      window.designCanvas?.startOver ? { label: 'Start over', run: () => window.designCanvas.startOver() } : null,
       serve && !data.memory && !local ? { label: 'Refresh from the prototypes', run: rebuild } : null,
       // Under 900 px the top bar has no room for the layout's links, so they are here.
       ...(matchMedia('(max-width: 900px)').matches && data.links?.length ? ['-', ...data.links.filter((l) => /^https?:\/\//i.test(l?.href ?? '') && l.text).map((l) => ({ label: String(l.text), run: () => open(l.href, '_blank', 'noopener') }))] : []),
@@ -2018,6 +2019,8 @@
       if (!res.ok || !Array.isArray(body.events) || body.events.length === boardEvents.length) return
       boardEvents = body.events
       board = foldBoard(boardEvents)
+      // The canvas's name is a board line too: a rename made elsewhere, or kept by a visitor's browser, shows.
+      setTitle()
       relayout()
     } catch {}
   }

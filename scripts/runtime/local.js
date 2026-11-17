@@ -423,6 +423,12 @@
     dc.refreshBoard()
   }
   if (play) {
+    // A visitor takes back everything they changed: the canvas as it was published.
+    dc.startOver = async () => {
+      if (!(await dc.sure('Drop every change you made here and see the canvas as it was published?', 'Start over', true))) return
+      try { localStorage.removeItem(keepKey) } catch {}
+      location.reload()
+    }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(usePage))
     else setTimeout(usePage)
     return

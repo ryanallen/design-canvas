@@ -461,7 +461,7 @@ export function serveCanvas(built, { port = 4410, quiet = false, memory = false 
         if (!payload.files[file]) return json(res, 404, { error: `${file} is not on this canvas` })
         const before = readFile(file)
         const frameLocked = foldBoard(lines.flatMap((l) => parseLines(l, 'board'))).locked.some((k) => k === file || k.startsWith(`${file}#`))
-        const refused = frameLocked ? 'This prototype is locked: unlock it on the board first' : lockedFor(before, edit, { owner: true })
+        const refused = frameLocked ? 'This artboard is locked: unlock it on the board first' : lockedFor(before, edit, { owner: true })
         if (refused) return json(res, 403, { error: refused })
         const result = applyEdit(before, edit)
         if (result.src === before) return json(res, 200, { select: result.select, html: servedFile(file), same: true })

@@ -382,6 +382,11 @@
     apply()
   }
   const fitAll = () => fitTo(extent())
+  /** Go to a frame on the board: its page, then the frame filling the window. */
+  function showFrame(f) {
+    if (f.page !== pageId) goPage(f.page)
+    fitTo({ x: f.x, y: f.y, w: f.W, h: f.H })
+  }
   const centre = () => ({ x: (viewport.clientWidth - panelWidth()) / 2, y: viewport.clientHeight / 2 })
 
   function loadVisible() {
@@ -1116,7 +1121,7 @@
     f.lockEl = h('button', {
       type: 'button',
       class: `lock${on ? ' on' : ''}`,
-      title: owner() ? (on ? 'Locked: click to unlock' : 'Lock this prototype') : 'Locked by its owner',
+      title: owner() ? (on ? 'Locked: click to unlock' : 'Lock this artboard') : 'Locked by its owner',
       'aria-pressed': String(on),
       disabled: !owner(),
       onclick: (e) => { e.stopPropagation(); setLock([f.key], !on) },
@@ -1830,7 +1835,7 @@
     get pages() { return pages() },
     get threads() { return threads },
     overlay, viewport, world,
-    toWorld, toScreen, frameAt, findFrame, docFor, plainFile, reloadFile, relayout, downloadFile,
+    toWorld, toScreen, frameAt, findFrame, showFrame, docFor, plainFile, reloadFile, relayout, downloadFile,
     setTool, openPanel, setPanel, currentTab, openMenu, closeMenu, openPlay, goPage, moveFrameToPage,
     startComment, commentOn, openAsk, renderPins, pickItem, apply, sendBoard,
     setName: (n) => setName(n),

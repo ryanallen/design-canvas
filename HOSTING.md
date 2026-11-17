@@ -23,15 +23,15 @@ Visitors edit, draw and comment, and it is all kept in their browser (localStora
 
 ## Locks
 
-Lock what people need to see as you left it. A locked prototype or board object is not moved, changed or removed until it is unlocked, and a visitor puts nothing new over it. A locked part of a prototype (an element carrying `data-locked`, and everything in it) is not changed, moved, removed or wrapped, and nothing holding it is retyped or removed. Visitors answer your comments but do not delete or resolve them.
+Lock what people need to see as you left it. A locked artboard or board object is not moved, changed or removed until it is unlocked, and a visitor puts nothing new over it. A locked part of an artboard (an element carrying `data-locked`, and everything in it) is not changed, moved, removed or wrapped, and nothing holding it is retyped or removed. Visitors answer your comments but do not delete or resolve them.
 
 Only the owner locks and unlocks: whoever edits where the canvas lives, served by node or from its folder on disk.
 
-- **A prototype**: the padlock in its header.
+- **An artboard**: the padlock in its header.
 - **A board object**: pick it, then Lock in its bar. A drag box locks or unlocks everything in it at once.
-- **A part of a prototype**: select it, then the padlock in its floating toolbar.
+- **A part of an artboard**: select it, then the padlock in its floating toolbar.
 
-Then build and publish again. The locks travel in the file: board locks as `lock` lines, part locks as `data-locked` in the prototype's own HTML.
+Then build and publish again. The locks travel in the file: board locks as `lock` lines, part locks as `data-locked` in the artboard's own HTML.
 
 In play mode the page itself holds visitors to the locks. A visitor who changes the page's code in their own browser changes only their own copy, which nobody else sees. A shared host has to hold everyone to them on its own side (below).
 

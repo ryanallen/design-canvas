@@ -9,6 +9,8 @@ Every `.html` in a folder on one board. Built, it is one self-contained `canvas.
 
 It works the way HTML and CSS work: the layers are the DOM, the properties are the element's CSS, elements flow the way the browser lays them out, and only an element that is already positioned moves by `left` and `top`.
 
+On the board, a plain click on a link, button, checkbox or field inside an artboard works it: a link to the web opens in a new tab, a link to another artboard goes to it on the board, a `#` link moves within the artboard. Ctrl or ⌘ + click (or Shift, or Alt) selects it instead, to edit it.
+
 ## Commands
 
 Run from this folder (or give the path to `scripts/canvas.mjs`):
@@ -70,4 +72,4 @@ From disk, an agent reads the threads straight from `canvas.html`: `parseEvents`
 
 ## Locks
 
-The owner (whoever edits where the canvas lives: served by node, or its folder on disk) locks what others must leave as it is: a prototype by the padlock in its header, a board object by Lock in its bar or a drag box's bar, a part of a prototype by the padlock in its floating toolbar. A locked prototype or object is not moved, changed or removed until unlocked, and a play-mode visitor puts nothing new over it. A locked part (`data-locked` on an element, and everything in it) is not changed, moved, removed or wrapped, and nothing holding it is retyped or removed. Board locks are `<!-- board {"op":"lock","key":…,"locked":true} -->` lines; part locks are in the prototype's own HTML. `lockedFor(src, edit, { owner })` in `scripts/lib/html.mjs` says why an edit is refused.
+The owner (whoever edits where the canvas lives: served by node, or its folder on disk) locks what others must leave as it is: an artboard by the padlock in its header, a board object by Lock in its bar or a drag box's bar, a part of an artboard by the padlock in its floating toolbar. A locked artboard or object is not moved, changed or removed until unlocked, and a play-mode visitor puts nothing new over it. A locked part (`data-locked` on an element, and everything in it) is not changed, moved, removed or wrapped, and nothing holding it is retyped or removed. Board locks are `<!-- board {"op":"lock","key":…,"locked":true} -->` lines; part locks are in the prototype's own HTML. `lockedFor(src, edit, { owner })` in `scripts/lib/html.mjs` says why an edit is refused.

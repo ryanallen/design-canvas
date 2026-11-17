@@ -269,7 +269,7 @@
         const { file, edit, name } = body
         if (!known(file)) return answer(404, { error: `${file} is not on this canvas` })
         const before = raw.get(file)
-        if (locks().some((k) => k === file || k.startsWith(`${file}#`))) return answer(403, { error: 'This prototype is locked' })
+        if (locks().some((k) => k === file || k.startsWith(`${file}#`))) return answer(403, { error: 'This artboard is locked' })
         const refused = canvasHtml.lockedFor(before, edit, { owner: !play })
         if (refused) return answer(403, { error: refused })
         const result = canvasHtml.applyEdit(before, edit)

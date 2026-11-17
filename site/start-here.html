@@ -42,17 +42,18 @@ node .agents/skills/design-canvas/scripts/canvas.mjs build &lt;folder of prototy
   <p class="small">As a skill, it goes in a project's <code>.agents/skills/design-canvas/</code> (or <code>.claude/skills/design-canvas/</code>), and an agent reads <code>SKILL.md</code>. Without a terminal, double-click <b>Design Canvas.cmd</b> (Windows) or <b>Design Canvas.command</b> (Mac) and pick a folder.</p>
   <hr>
   <h2 class="try">Try it on this board</h2>
-  <p class="lead">Everything you do here is kept in your browser, for you alone. Tick each thing as it works: press <b>▷ PLAY</b> on this frame to tick. <span class="count" id="count"></span></p>
+  <p class="lead">Everything you do here is kept in your browser, for you alone. Anything with an orange dot or padlock is locked; the rest is yours to change. Click a box to tick each thing as it works. <span class="count" id="count"></span></p>
   <div class="cols">
     <section>
       <h3>1. The board</h3>
       <label><input type="checkbox"><span>Scroll to pan, <kbd>Ctrl</kbd>+wheel to zoom, <kbd>F</kbd> to fit, hold <kbd>Space</kbd> to drag.</span></label>
       <label><input type="checkbox"><span>Zoom menu at the top right: 50%, 100%, 200%.</span></label>
-      <label><input type="checkbox"><span>Drag a frame by its name to move it; reload and it stays.</span></label>
+      <label><input type="checkbox"><span>Drag an artboard by its name to move it (not this one: it is locked); reload and it stays.</span></label>
       <label><input type="checkbox"><span>Pages, top left: New page, rename it, delete it.</span></label>
     </section>
     <section>
       <h3>2. Select</h3>
+      <label><input type="checkbox"><span>Links, buttons and boxes work when clicked; <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+click one to select it and edit it instead.</span></label>
       <label><input type="checkbox"><span>Hover shows an outline; click selects, with a name tag and handles.</span></label>
       <label><input type="checkbox"><span>Click one card on <b>home</b>: all three are selected. <kbd>Alt</kbd>+click selects one.</span></label>
       <label><input type="checkbox"><span><kbd>Esc</kbd> goes to the parent, <kbd>Enter</kbd> to the first child, <kbd>Tab</kbd> to the next sibling.</span></label>
@@ -84,7 +85,7 @@ node .agents/skills/design-canvas/scripts/canvas.mjs build &lt;folder of prototy
       <h3>6. Comments</h3>
       <label><input type="checkbox"><span><kbd>C</kbd> then click an element: comment, reply, resolve, delete.</span></label>
       <label><input type="checkbox"><span>Move that element: the pin follows it.</span></label>
-      <label><input type="checkbox"><span>Select something, <b>✦ Ask agent</b> at the bottom, type, <kbd>Enter</kbd>: an orange pin, work for an agent.</span></label>
+      <label><input type="checkbox"><span>Select something, <b>✦ Ask agent</b> at the bottom, type, <kbd>Enter</kbd>: an orange pin. In your own copy, your agent reads it as work to do.</span></label>
     </section>
     <section>
       <h3>7. On the board</h3>

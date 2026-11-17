@@ -131,3 +131,4 @@
 #panel .font-box span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #panel .font-box .caret { color: var(--ink-3); font-family: system-ui; }
 #panel pre.source { margin: 0 12px; padding: 8px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.45 ui-monospace, Consolas, monospace; max-height: 260px; overflow: auto; }
+body.over-action #viewport { cursor: pointer; }

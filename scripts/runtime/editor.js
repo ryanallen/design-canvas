@@ -123,6 +123,32 @@
     return climb(f.doc.elementFromPoint(l.x, l.y))
   }
 
+  // ── what a plain click works ──
+  const ACTIVE = 'a[href], button, input, select, textarea, label, summary'
+  const actionAt = (f, p) => {
+    if (!f?.doc) return null
+    const l = local(f, p)
+    return f.doc.elementFromPoint(l.x, l.y)?.closest?.(ACTIVE) ?? null
+  }
+  function workIt(f, el) {
+    if (el.localName === 'a') {
+      const href = el.getAttribute('href') ?? ''
+      if (href.startsWith('#')) return el.click()
+      const to = /^([^:?#]+\.html)(#.*)?$/i.exec(href)
+      if (to) {
+        const file = to[1].replace(/^\.\//, '')
+        const hash = (to[2] ?? '').slice(1)
+        const all = dc.allFrames
+        const frame = all.find((x) => x.file === file && (x.hash || '') === hash) ?? all.find((x) => x.file === file)
+        return frame ? dc.showFrame(frame) : hint(`${file} is not on this canvas`, 2500)
+      }
+      if (/^(https?:|mailto:|tel:)/i.test(href)) return window.open(el.href, '_blank', 'noopener')
+      return hint(`${href} goes nowhere from a canvas`, 2500)
+    }
+    if (/^(input|select|textarea)$/.test(el.localName) && !/^(checkbox|radio|button|submit|reset)$/i.test(el.type)) return el.focus()
+    el.click()
+  }
+
   // ── drawing the selection on the board ──
   const rectOn = (f, el) => {
     const r = el.getBoundingClientRect()
@@ -172,6 +198,15 @@
       return true
     }
     if (tool !== 'select') return false
+    // A plain click works the page: links go where they point, buttons, checkboxes and fields act.
+    // Ctrl or ⌘ (or Shift, Alt) selects instead, to edit it.
+    if (!(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey)) {
+      const act = actionAt(frame, point)
+      if (act) {
+        workIt(frame, act)
+        return true
+      }
+    }
     const el = elementAt(frame, point)
     if (!el) return true
     const already = sel && sel.frame === frame && sel.els.includes(el)
@@ -182,6 +217,7 @@
     return true
   }
   hooks.onHover = (e, info) => {
+    document.body.classList.toggle('over-action', !!(e && info?.frame && dc.tool === 'select' && !editing && !(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) && actionAt(info.frame, info.point)))
     if (!e || !info?.frame || dc.tool !== 'select' || editing) {
       if (hover) {
         hover = null
@@ -303,7 +339,7 @@
   async function send(edit, { file = sel?.frame.file, key = sel?.frame.key, copies = false, then } = {}) {
     if (!dc.serve) return
     if (!file) return
-    if (fileLocked(file)) return hint('This prototype is locked', 2000)
+    if (fileLocked(file)) return hint('This artboard is locked', 2000)
     if (busy) return hint('Still saving the last change', 1200)
     busy = true
     try {
@@ -338,7 +374,7 @@
     draw()
     return send({ op: 'style', cv: cvOf(el), props })
   }
-  const notEditable = (el) => (!dc.serve ? dc.readOnly : el && fileLocked(fileOf(el)) ? 'This prototype is locked by its owner.' : el && lockedEl(el) ? 'This part is locked by its owner.' : el && cvOf(el) == null ? 'This element is made by the prototype\'s own script, so it can be inspected and not edited.' : 'Nothing editable is selected.')
+  const notEditable = (el) => (!dc.serve ? dc.readOnly : el && fileLocked(fileOf(el)) ? 'This artboard is locked by its owner.' : el && lockedEl(el) ? 'This part is locked by its owner.' : el && cvOf(el) == null ? 'This element is made by the prototype\'s own script, so it can be inspected and not edited.' : 'Nothing editable is selected.')
   async function undo(redo = false) {
     if (!dc.serve) return
     const res = await fetch(redo ? '/api/redo' : '/api/undo', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: dc.me || 'someone' }) })

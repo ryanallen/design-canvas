@@ -431,13 +431,15 @@ body.has-banner #panel { top: 88px; }
 }
 #topbar { padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
 #toolbar { bottom: max(16px, env(safe-area-inset-bottom)); }
+/* The toolbar sits in the middle of the board that shows, not under the panel. */
+@media (min-width: 641px) { body.panel-open #toolbar { left: calc((100vw - 320px) / 2); } }
+/* Under 900 px the layout's links move into the canvas menu, so the canvas's name has the room. */
+@media (max-width: 900px) { #bar-right a.link { display: none; } }
 
 @media (max-width: 640px) {
   /* The thread is a sheet over the bottom of the screen, above the toolbar, never off its edge. */
   #thread { left: 8px !important; right: 8px !important; top: auto !important; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 66px) !important; width: auto; max-height: 55vh; }
   #ask { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 66px); }
-  /* The layout's links move into the canvas menu; the title shows. */
-  #bar-right a.link { display: none; }
   #bar-left .sep { display: none; }
   /* A finger pans with any tool that is not drawing, so the hand is not needed, and the rest fit. */
   #toolbar { left: 50%; right: auto; transform: translateX(-50%); max-width: calc(100vw - 16px); overflow-x: auto; scrollbar-width: none; }

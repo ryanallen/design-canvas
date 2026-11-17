@@ -1460,6 +1460,11 @@
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) form.requestSubmit()
       if (e.key === 'Escape') closeThread()
     })
+    // Escape closes the thread from the name field too, not only from the comment.
+    nameIn.addEventListener('keydown', (e) => {
+      e.stopPropagation()
+      if (e.key === 'Escape') closeThread()
+    })
     if (t) {
       for (const m of [{ ...t, root: true }, ...t.replies]) {
         msgs.append(h('div', { class: 'msg' },
@@ -1700,8 +1705,8 @@
       sel ? { label: `Download ${sel}`, icon: 'download', run: () => downloadFile(sel) } : null,
       serve ? { label: 'Rename', run: rename } : null,
       serve && !data.memory && !local ? { label: 'Refresh from the prototypes', run: rebuild } : null,
-      // On a phone the top bar has no room for the layout's links, so they are here.
-      ...(matchMedia('(max-width: 640px)').matches && data.links?.length ? ['-', ...data.links.filter((l) => /^https?:\/\//i.test(l?.href ?? '') && l.text).map((l) => ({ label: String(l.text), run: () => open(l.href, '_blank', 'noopener') }))] : []),
+      // Under 900 px the top bar has no room for the layout's links, so they are here.
+      ...(matchMedia('(max-width: 900px)').matches && data.links?.length ? ['-', ...data.links.filter((l) => /^https?:\/\//i.test(l?.href ?? '') && l.text).map((l) => ({ label: String(l.text), run: () => open(l.href, '_blank', 'noopener') }))] : []),
     ].filter(Boolean))
   })
   async function downloadCanvas() {

@@ -1604,9 +1604,20 @@
     setPlayWidth(width ?? (f.meta.fluid ? 'fill' : store.get('playWidth') || 'fill'))
     closeMenu()
   }
+  /** On a touch screen a fixed width as wide as the screen or wider does nothing a finger can use. */
+  const widthFits = (n) => !matchMedia('(pointer: coarse)').matches || n < innerWidth - 24
+  function showPlayWidths() {
+    let any = false
+    for (const b of play.querySelectorAll('[data-width]')) {
+      if (!/^\d+$/.test(b.dataset.width)) continue
+      b.hidden = !widthFits(Number(b.dataset.width))
+      any ||= !b.hidden
+    }
+    $('#play .head .sep').hidden = !any
+  }
   function setPlayWidth(w) {
-    // A fixed width wider than the screen a phone has is the screen's width.
-    if (/^\d+$/.test(String(w)) && Number(w) > innerWidth && innerWidth <= 640) w = 'fill'
+    showPlayWidths()
+    if (/^\d+$/.test(String(w)) && !widthFits(Number(w))) w = 'fill'
     playWidth = w
     store.set('playWidth', w)
     play.classList.toggle('fit', w === 'fit')

@@ -140,7 +140,6 @@ body.tiny .section-label { transform: scale(var(--iz, 1)) translateY(calc(-100% 
 body.tiny .section-label small { display: none; }
 /* Far out, a lock's dot would be bigger than what it is on; the padlock on the label says it close up. */
 body.tiny .item.locked::after { display: none; }
-#page-name[hidden] { display: none; }
 
 /* ── board objects ─────────────────────────────────────────── */
 .item { position: absolute; }
@@ -227,7 +226,6 @@ a.tool { text-decoration: none; font-size: 13px; }
   font-size: 11px; display: inline-grid; place-items: center; padding: 0 5px;
 }
 .tool[aria-pressed='true'] .count { background: rgb(0 0 0 / 0.12); color: inherit; }
-.count[hidden] { display: none; }
 
 /* The toolbar: one floating plane, every tool a circle on it. */
 #toolbar {
@@ -376,7 +374,6 @@ body.panel-open #panel { display: flex; }
   display: grid; gap: 6px; justify-items: center; text-align: center; max-width: calc(100vw - 48px);
   color: var(--ink-3); font-size: 13px;
 }
-#empty[hidden] { display: none; }
 #empty b { color: var(--ink-2); font-size: 15px; font-weight: 600; letter-spacing: 0.01em; }
 #empty button {
   pointer-events: auto; border: 0; border-radius: 999px; padding: 3px 12px; margin-right: 2px;
@@ -455,8 +452,6 @@ body.has-banner #panel { top: 88px; }
   .title-btn { max-width: 46vw; }
   #tool-play { padding: 0 10px; font-size: 0; }
   #tool-play::before { content: '▷'; font-size: 16px; }
-  /* Fixed widths wider than a phone do nothing on one; Fill and Fit stay. */
-  #play [data-width='390'], #play [data-width='1024'], #play [data-width='1440'], #play .head .sep { display: none; }
   #toolbar .ask { font-size: 0; }
   #toolbar .ask::before { content: '✦'; font-size: 14px; }
   /* The sheet's last line (Commenting as) stays above the floating toolbar. */

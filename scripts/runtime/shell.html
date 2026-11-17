@@ -10,8 +10,6 @@
 </style>
 </head>
 <body>
-<div id="viewport"><div id="world"></div><div id="overlay"></div></div>
-
 <header id="topbar">
   <div class="cluster" id="bar-left">
     <button type="button" class="tool pages-btn" id="page-switch" aria-haspopup="menu" title="Pages"><span class="count" id="page-count">1</span><span id="page-name">Page 1</span><span class="caret">▾</span></button>
@@ -50,6 +48,10 @@
   <textarea id="ask-text" rows="2" maxlength="4000" placeholder="Describe a change for the agent"></textarea>
   <div class="row"><span class="error" id="ask-error"></span><button type="button" class="btn quiet" id="ask-cancel">Cancel</button><button type="submit" class="btn">Send</button></div>
 </form>
+
+<!-- The board comes after the chrome, so Tab reaches the top bar and the tools first; every piece of
+     chrome has its own z-index, so it still draws over the board. -->
+<div id="viewport"><div id="world"></div><div id="overlay"></div></div>
 
 <aside id="panel" aria-label="Panel">
   <header class="tabs" role="tablist">

@@ -109,6 +109,14 @@ body.tool-text #viewport { cursor: text; }
 .frame-label button:hover { color: var(--ink); background: var(--panel-2); }
 .frame-label button.play { background: var(--panel-2); color: var(--ink); border-radius: 999px; padding: 0 10px; font-weight: 600; letter-spacing: 0.06em; }
 .frame-label button.play:hover { background: var(--ink); color: var(--bg); }
+/* With a mouse, a frame's secondary actions show when the pointer is on the frame or its label, or
+   the keyboard is in the label; Play and a lock that is on always show. A finger sees them all. */
+@media (hover: hover) {
+  .frame-label button:not(.play):not(.lock.on) { opacity: 0; transition: opacity 0.12s var(--ease); }
+  .frame:hover + .frame-label button:not(.play), .frame-label:hover button:not(.play),
+  .frame-label:focus-within button:not(.play) { opacity: 1; }
+  .frame:hover + .frame-label button.lock:not(.on), .frame-label:hover button.lock:not(.on) { opacity: 0.5; }
+}
 .frame-label button.lock { opacity: 0.5; }
 .frame-label button.lock.on { opacity: 1; color: #f5b14c; }
 .frame-label button.lock:disabled { cursor: default; background: transparent; }

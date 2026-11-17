@@ -1178,7 +1178,7 @@
     viewport.setPointerCapture(e.pointerId)
   }
   async function newArtboard(x, y, w, hgt) {
-    const name = prompt('Name the new prototype file (it is made in the canvas folder):', 'untitled')
+    const name = await question('Name the new prototype file. It is made in the canvas folder.', 'untitled')
     if (!name) return
     try {
       const res = await fetch('/api/artboard', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, x, y, w, h: hgt, page: pageId, by: me || 'someone' }) })
@@ -1493,7 +1493,7 @@
         msgs.append(h('div', { class: 'msg' },
           h('div', { class: 'who' }, h('b', {}, m.name), h('span', {}, when(m.at)),
             api ? h('button', { type: 'button', title: m.root ? 'Delete the whole thread' : 'Delete this reply', onclick: async () => {
-              if (!confirm(m.root ? 'Delete this thread and its replies for everyone?' : 'Delete this reply for everyone?')) return
+              if (!(await sure(m.root ? 'Delete this thread and its replies for everyone?' : 'Delete this reply for everyone?', 'Delete', true))) return
               try {
                 await send({ op: 'delete', to: m.id, name: me || 'someone' })
                 if (m.root) closeThread()
@@ -1585,7 +1585,7 @@
     e.preventDefault()
     const text = $('#ask-text').value.trim()
     if (!text) return
-    const name = me || prompt('Your name, to sign the request:') || ''
+    const name = me || (await question('Your name, to sign the request:')) || ''
     if (!name.trim()) return
     setName(name)
     let at
@@ -1714,6 +1714,36 @@
     // Opened from the keyboard, the first item takes the focus; arrows move it (menuKeys).
     if (anchor.matches?.(':focus-visible')) menuItems()[0]?.focus()
   }
+  // ── the question box: the page's own prompt and confirm ──
+  const dialog = $('#dialog')
+  let dialogDone = null
+  dialog.addEventListener('close', () => {
+    const done = dialogDone
+    dialogDone = null
+    done?.(dialog.returnValue === 'ok')
+  })
+  // Keys typed in the box are the box's, not the board's shortcuts.
+  dialog.addEventListener('keydown', (e) => e.stopPropagation())
+  function openDialog(message, { value = null, ok = 'OK', danger = false } = {}) {
+    if (dialog.open) dialog.close('cancel')
+    const input = $('#dialog-val')
+    $('#dialog-msg').textContent = message
+    input.hidden = value == null
+    input.value = value ?? ''
+    const okBtn = $('#dialog-ok')
+    okBtn.textContent = ok
+    okBtn.classList.toggle('danger', danger)
+    dialog.returnValue = ''
+    return new Promise((resolve) => {
+      dialogDone = (yes) => resolve(value == null ? yes : yes ? input.value : null)
+      dialog.showModal()
+      if (value != null) { input.focus(); input.select() } else okBtn.focus()
+    })
+  }
+  /** A line of text from the person, or null if they cancel. */
+  const question = (message, value = '') => openDialog(message, { value: String(value ?? '') })
+  /** Yes or no; `ok` names the yes button, `danger` colours it as a delete. */
+  const sure = (message, ok = 'OK', danger = false) => openDialog(message, { ok, danger })
   const menuItems = () => [...menu.querySelectorAll(':scope > .mi:not(:disabled)')]
   function closeMenu(refocus) {
     const was = menuFor
@@ -1761,7 +1791,7 @@
     save(name, asBuilt)
   }
   async function rename() {
-    const title = prompt('Rename the canvas:', data.title)
+    const title = await question('Rename the canvas:', data.title)
     if (!title?.trim() || title.trim() === data.title) return
     try {
       await sendBoard({ op: 'name', title: title.trim() })
@@ -1827,19 +1857,19 @@
         label: p.title, tick: p.id === pageId, keep: false, run: () => goPage(p.id),
         more: serve ? (btn) => openMenu(btn, [
           { label: 'Rename', run: async () => {
-            const title = prompt('Rename the page:', p.title)
+            const title = await question('Rename the page:', p.title)
             if (!title?.trim()) return
             try { await sendBoard({ op: 'page', id: p.id, title: title.trim() }); renderPage() } catch (err) { hint(err.message, 3000) }
           } },
           { label: 'Delete', danger: true, disabled: pages().length < 2, run: async () => {
-            if (!confirm(`Delete the page "${p.title}"? Its frames stay in their files; the page is hidden.`)) return
+            if (!(await sure(`Delete the page "${p.title}"? Its frames stay in their files; the page is hidden.`, 'Delete', true))) return
             try { await sendBoard({ op: 'page', id: p.id, removed: true }); if (p.id === pageId) goPage(firstPage()); else renderPage() } catch (err) { hint(err.message, 3000) }
           } },
         ]) : null,
       })),
       serve ? '-' : null,
       serve ? { label: 'New page', run: async () => {
-        const title = prompt('Name the new page:', `Page ${pages().length + 1}`)
+        const title = await question('Name the new page:', `Page ${pages().length + 1}`)
         if (!title?.trim()) return
         try {
           const ev = await sendBoard({ op: 'page', title: title.trim() })
@@ -2036,7 +2066,7 @@
     get threads() { return threads },
     overlay, viewport, world,
     toWorld, toScreen, frameAt, findFrame, showFrame, docFor, plainFile, reloadFile, relayout, downloadFile,
-    setTool, openPanel, setPanel, currentTab, openMenu, closeMenu, openPlay, goPage, moveFrameToPage,
+    setTool, openPanel, setPanel, currentTab, openMenu, closeMenu, question, sure, openPlay, goPage, moveFrameToPage,
     startComment, commentOn, openAsk, renderPins, pickItem, apply, sendBoard, showEmpty,
     setName: (n) => setName(n),
   }

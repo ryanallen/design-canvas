@@ -91,8 +91,8 @@
   }
   const section = (title, adds, ...body) => h('section', { class: 'psec' }, h('header', {}, h('b', {}, title), adds ? h('button', { type: 'button', class: 'mini', title: `Add a property to ${title}`, onclick: (e) => addProp(e.currentTarget, adds) }, '+') : null), ...body)
   function addProp(anchor, props) {
-    dc.openMenu(anchor, props.map((p) => ({ label: p, run: () => {
-      const v = prompt(`${p}:`, cs(ed.primary()).getPropertyValue(p))
+    dc.openMenu(anchor, props.map((p) => ({ label: p, run: async () => {
+      const v = await dc.question(`${p}:`, cs(ed.primary()).getPropertyValue(p))
       if (v != null) ed.setStyle({ [p]: v.trim() })
     } })))
   }
@@ -433,7 +433,7 @@
     }
   }
   async function askForLevers(f) {
-    const name = dc.me || prompt('Your name, to sign the request:') || ''
+    const name = dc.me || (await dc.question('Your name, to sign the request:')) || ''
     if (!name.trim()) return
     dc.setName(name)
     const res = await fetch('/api/canvas-comments', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ event: { op: 'add', name, agent: true, frame: f.key, x: 24, y: 24, text: `Add tweakable levers to ${f.file}: name the CSS variables worth tuning in <meta name="canvas-levers" content="--a, --b">, defining them in :root if they are not yet.` } }) })

@@ -375,6 +375,22 @@ body.panel-open #panel { display: flex; }
 #play iframe { border: 0; background: #fff; height: 100%; width: 100%; margin: 0 auto; flex: none; transform-origin: 0 0; }
 #play.fit .stage { overflow: hidden; }
 
+/* The page's own question box, in place of the browser's prompt and confirm. */
+#dialog {
+  width: min(360px, calc(100vw - 32px)); padding: 0; border: 0; border-radius: var(--r-lg);
+  background: var(--panel); color: var(--ink); box-shadow: var(--chrome-shadow), var(--edge);
+}
+#dialog::backdrop { background: rgb(0 0 0 / 0.45); }
+#dialog form { display: grid; gap: 12px; padding: 16px; }
+#dialog p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--ink); }
+#dialog input {
+  width: 100%; border: 1px solid transparent; border-radius: var(--r-sm); background: var(--panel-2);
+  color: var(--ink); padding: 8px 10px; font: inherit;
+}
+#dialog input:focus { outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent); border-color: var(--accent); }
+#dialog .row { display: flex; flex-direction: row-reverse; justify-content: flex-start; gap: 6px; }
+#dialog .btn.danger { background: var(--danger); color: #1a0b0e; }
+@media (pointer: coarse) { #dialog input { font-size: 16px; } #dialog .btn { min-height: 40px; padding: 0 18px; } }
 /* An empty page: one quiet line in the middle of the board, gone once anything is on it. */
 #empty {
   position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; pointer-events: none;

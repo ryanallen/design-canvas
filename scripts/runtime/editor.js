@@ -422,8 +422,8 @@
       editing.frame.doc.execCommand({ b: 'bold', i: 'italic', u: 'underline' }[e.key.toLowerCase()])
     } else if (mod && e.key.toLowerCase() === 'k') {
       e.preventDefault()
-      const href = prompt('Link to:', 'https://')
-      if (href) editing.frame.doc.execCommand('createLink', false, href)
+      const at = editing
+      dc.question('Link to:', 'https://').then((href) => linkInPlace(at, href))
     }
   }
   /** Wrap what is selected inside the text being edited in a span carrying one style. */
@@ -751,8 +751,8 @@
   }
   const alignGlyph = (a) => h('span', { class: 'align-glyph', 'data-a': a }, h('i'), h('i'), h('i'))
   function numberButton(title, glyph, prop, value) {
-    return h('button', { type: 'button', class: 'fbtn', title: `${title}: ${value}`, onclick: (e) => {
-      const v = prompt(`${title} (px, or any CSS value):`, value === 'Mixed' ? '' : value)
+    return h('button', { type: 'button', class: 'fbtn', title: `${title}: ${value}`, onclick: async () => {
+      const v = await dc.question(`${title} (px, or any CSS value):`, value === 'Mixed' ? '' : value)
       if (v == null) return
       setStyle({ [prop]: /^\d+(\.\d+)?$/.test(v.trim()) ? `${v.trim()}px` : v.trim() })
     } }, glyph)
@@ -783,23 +783,30 @@
       run: () => setStyle({ 'font-family': s.family, 'font-size': s.size, 'font-weight': s.weight, 'line-height': s.line, 'letter-spacing': s.spacing }),
     })))
   }
-  function link() {
+  async function link() {
     const el = primary()
     if (editing) {
-      const href = prompt('Link to:', 'https://')
-      if (href) editing.frame.doc.execCommand('createLink', false, href)
+      const at = editing
+      const href = await dc.question('Link to:', 'https://')
+      linkInPlace(at, href)
       return
     }
     if (!needEditable()) return
     if (el.localName === 'a') {
-      const href = prompt('Link to (empty to remove the address):', el.getAttribute('href') || '')
+      const href = await dc.question('Link to (empty to remove the address):', el.getAttribute('href') || '')
       if (href != null) send({ op: 'attr', cv: cvOf(el), name: 'href', value: href })
       return
     }
-    const href = prompt('Link to:', '')
+    const href = await dc.question('Link to:', '')
     if (!href) return
     const inner = el.innerHTML.replace(/\s+data-cv="\d+"/g, '')
     send({ op: 'inner', cv: cvOf(el), html: `<a href="${href.replace(/"/g, '&quot;')}">${inner}</a>` })
+  }
+  /** A link made in text being typed: the dialog took the focus, so the text gets it back first, with its selection. */
+  function linkInPlace(at, href) {
+    if (!href || editing !== at) return
+    at.el.focus()
+    at.frame.doc.execCommand('createLink', false, href)
   }
   function list() {
     const el = primary()

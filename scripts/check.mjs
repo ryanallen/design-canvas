@@ -14,6 +14,25 @@ import { launchChromium } from './lib/browser.mjs'
 
 const sha = (t) => crypto.createHash('sha1').update(t).digest('hex')
 
+// The canvas asks its questions in its own dialog (#dialog), not the browser's prompt: the check
+// answers it as it would a prompt, with the answer it holds or else the dialog's own default.
+const answerDialogs = async (page, answer) => {
+  await page.exposeFunction('__checkAnswer', answer)
+  await page.addInitScript(() => {
+    document.addEventListener('DOMContentLoaded', () => {
+      const d = document.getElementById('dialog')
+      if (!d) return
+      new MutationObserver(async () => {
+        if (!d.open) return
+        const v = await window.__checkAnswer()
+        const input = document.getElementById('dialog-val')
+        if (!input.hidden && v != null) input.value = v
+        d.close('ok')
+      }).observe(d, { attributes: true, attributeFilter: ['open'] })
+    })
+  })
+}
+
 /** `with` is { buildCanvas, serveCanvas }, handed in by canvas.mjs, which imports this file. */
 export async function check(options, { buildCanvas, serveCanvas } = {}) {
   if (!buildCanvas) ({ buildCanvas, serveCanvas } = await import('./canvas.mjs'))
@@ -55,6 +74,7 @@ export async function check(options, { buildCanvas, serveCanvas } = {}) {
   })
   let answer = null
   page.on('dialog', (d) => d.accept(answer ?? undefined))
+  await answerDialogs(page, () => answer)
   // Start with nothing remembered, once: the name set below has to survive the reloads.
   await page.addInitScript(() => {
     try {
@@ -589,6 +609,7 @@ export async function check(options, { buildCanvas, serveCanvas } = {}) {
     p2.on('pageerror', (e) => problems.push(`from disk, thrown: ${e.message} (${(e.stack || '').split(/\n/).slice(1, 3).join(' ').trim()})`))
     let p2answer = 'canvas check'
     p2.on('dialog', (d) => d.accept(p2answer))
+    await answerDialogs(p2, () => p2answer)
     // The page asks a static host for comments before editing is on; those are answered 404 and
     // are not errors. Anything after editing is on must never reach the network.
     let editingOn = false

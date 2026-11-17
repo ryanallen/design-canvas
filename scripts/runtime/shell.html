@@ -90,6 +90,15 @@
   <div class="stage"><iframe title="Prototype"></iframe></div>
 </div>
 <div id="hint" role="status"></div>
+<!-- One question at a time, in the page's own look: a name, a link, a value, or yes to a delete.
+     OK is first in the form so Enter takes it; the row shows Cancel first. -->
+<dialog id="dialog" aria-labelledby="dialog-msg">
+  <form method="dialog">
+    <p id="dialog-msg"></p>
+    <input id="dialog-val" autocomplete="off" spellcheck="false" aria-labelledby="dialog-msg">
+    <div class="row"><button value="ok" class="btn" id="dialog-ok">OK</button><button value="cancel" class="btn quiet" formnovalidate>Cancel</button></div>
+  </form>
+</dialog>
 <div id="empty" hidden></div>
 
 <script type="application/json" id="rc-data">__DATA__</script>

@@ -292,12 +292,14 @@ a.tool { text-decoration: none; font-size: 13px; }
 body.panel-open #panel { display: flex; }
 #panel .tabs { display: flex; align-items: center; gap: 2px; padding: 8px 8px 8px; box-shadow: 0 1px 0 rgb(255 255 255 / 0.05); }
 #panel .tabs [role='tab'] {
-  border: 0; background: none; color: var(--ink-3); padding: 5px 10px; border-radius: 999px; font-weight: 500;
+  border: 0; background: none; color: var(--ink-3); padding: 5px 9px; border-radius: 999px; font-weight: 500;
   transition: background-color 0.15s var(--ease), color 0.15s var(--ease);
 }
 #panel .tabs [role='tab']:hover { color: var(--ink); }
 #panel .tabs [role='tab'][aria-selected='true'] { color: var(--bg); background: var(--ink); }
 #panel .tabs .close { margin-left: auto; height: 26px; min-width: 26px; }
+#panel .tabs .close { flex: none; }
+#toolbar > * { flex: none; }
 #panel .tab-body { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
 #panel .tab-body > #tweaks, #panel .tab-body[data-body='comments'] > .list { flex: 1; min-height: 0; overflow: auto; }
 #panel .list-head { padding: 8px 12px; color: var(--ink-2); font-size: 12px; }
@@ -420,7 +422,7 @@ body.has-banner #panel { top: 88px; }
   #toolbar .tool { height: 44px; min-width: 44px; }
   #toolbar [data-tool='hand'] { display: none; }
   .tool { min-height: 40px; }
-  #panel .tabs [role='tab'] { padding: 8px 12px; }
+  #panel .tabs [role='tab'] { padding: 8px 6px; }
   #panel .tabs .close { min-width: 40px; height: 40px; }
   #menu .mi { min-height: 44px; }
   #menu .mi .dots { min-width: 36px; min-height: 36px; font-size: 16px; }
@@ -429,7 +431,14 @@ body.has-banner #panel { top: 88px; }
 #topbar { padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
 #toolbar { bottom: max(16px, env(safe-area-inset-bottom)); }
 /* The toolbar sits in the middle of the board that shows, not under the panel. */
-@media (min-width: 641px) { body.panel-open #toolbar { left: calc((100vw - 320px) / 2); } }
+@media (min-width: 641px) {
+  body.panel-open #toolbar { left: calc((100vw - 320px) / 2); max-width: calc(100vw - 336px); overflow-x: auto; scrollbar-width: none; }
+}
+/* Beside an open panel on a narrower window, Ask agent is its ✦ alone, as on a phone, so the tools fit. */
+@media (min-width: 641px) and (max-width: 1100px) {
+  body.panel-open #toolbar .ask { font-size: 0; padding: 0 12px; }
+  body.panel-open #toolbar .ask::before { content: '✦'; font-size: 14px; }
+}
 /* Under 900 px the layout's links move into the canvas menu, so the canvas's name has the room. */
 @media (max-width: 900px) { #bar-right a.link { display: none; } }
 

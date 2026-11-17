@@ -279,6 +279,7 @@
     renderPins()
     $('#page-name').textContent = pages().find((p) => p.id === pageId)?.title ?? ''
     $('#page-count').textContent = String(pages().length)
+    samePageName()
     updateSub()
     call('onPage', pageId)
   }
@@ -288,7 +289,7 @@
     const page = data.pages.find((p) => p.id === pageId)
     for (const section of page?.sections ?? []) {
       if (!section.groups.some((g) => g.frames.some((f) => allFrames.get(f._key ?? frameKey(f))?.page === pageId))) continue
-      sectionEls.push(h('div', { class: 'label section-label', style: `left:${section.bounds.x}px;top:${section.bounds.y}px` }, section.title, section.sub ? h('small', {}, section.sub) : null))
+      sectionEls.push(h('div', { class: 'label section-label', title: section.sub ? `${section.title} · ${section.sub}` : section.title, style: `left:${section.bounds.x}px;top:${section.bounds.y}px;--w:${section.bounds.w}` }, h('span', { class: 'name' }, section.title), section.sub ? h('small', {}, section.sub) : null))
     }
     for (const { page: p, group: g, x, y, w, h: ht } of boxes) {
       if (p !== pageId) continue
@@ -394,6 +395,7 @@
   const panelWidth = () => (document.body.classList.contains('panel-open') && viewport.clientWidth > 640 ? 320 : 0)
   function fitTo(box, pad = 60) {
     const vw = viewport.clientWidth - panelWidth()
+    pad = Math.min(pad, Math.round(vw / 24))
     const top = 48
     const vh = viewport.clientHeight - top - 64
     const z = Math.min(1, MAX_Z, Math.max(MIN_Z, Math.min((vw - pad * 2) / box.w, (vh - pad * 2) / box.h)))
@@ -1569,6 +1571,8 @@
     closeMenu()
   }
   function setPlayWidth(w) {
+    // A fixed width wider than the screen a phone has is the screen's width.
+    if (/^\d+$/.test(String(w)) && Number(w) > innerWidth && innerWidth <= 640) w = 'fill'
     playWidth = w
     store.set('playWidth', w)
     play.classList.toggle('fit', w === 'fit')
@@ -1690,6 +1694,12 @@
     const title = board.name || data.title
     $('#canvas-title').textContent = title
     document.title = title
+    samePageName()
+  }
+  /** A page named the same as the canvas shows only its count in the top bar, not the name twice. */
+  function samePageName() {
+    const name = $('#page-name')
+    name.hidden = name.textContent.trim().toLowerCase() === $('#canvas-title').textContent.trim().toLowerCase()
   }
   function updateSub() {
     const n = allFrames.size

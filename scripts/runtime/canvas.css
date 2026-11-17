@@ -122,9 +122,15 @@ body.tool-text #viewport { cursor: text; }
   transform: scale(var(--iz, 1)) translateY(calc(-100% - 36px));
   font-size: 15px; font-weight: 600; color: var(--ink);
 }
-.section-label small { font-weight: 400; color: var(--ink-3); font-size: 12px; margin-left: 6px; }
+.section-label { max-width: max(160px, calc(var(--w) * var(--z, 1) * 1px)); }
+.section-label .name { overflow: hidden; text-overflow: ellipsis; flex: none; max-width: 100%; }
+.section-label small { font-weight: 400; color: var(--ink-3); font-size: 12px; margin-left: 2px; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 body.tiny .frame-label { display: none; }
-body.tiny .section-label { transform: scale(var(--iz, 1)) translateY(calc(-100% - 10px)); }
+body.tiny .section-label { transform: scale(var(--iz, 1)) translateY(calc(-100% - 10px)); font-size: 13px; }
+body.tiny .section-label small { display: none; }
+/* Far out, a lock's dot would be bigger than what it is on; the padlock on the label says it close up. */
+body.tiny .item.locked::after { display: none; }
+#page-name[hidden] { display: none; }
 
 /* ── board objects ─────────────────────────────────────────── */
 .item { position: absolute; }
@@ -330,7 +336,8 @@ body.panel-open #panel { display: flex; }
 .composer input:focus, .composer textarea:focus, #ask textarea:focus { outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent); border-color: var(--accent); }
 .composer .row { display: flex; gap: 6px; align-items: center; }
 .composer .row span { flex: 1; color: var(--ink-3); font-size: 11px; }
-.composer .row label { display: flex; gap: 4px; align-items: center; color: var(--ink-2); font-size: 11px; flex: 1; }
+.composer .row label { display: flex; gap: 6px; align-items: center; color: var(--ink-2); font-size: 12px; flex: 1; white-space: nowrap; cursor: pointer; }
+.composer input[type='checkbox'] { width: 16px; height: 16px; padding: 0; margin: 0; flex: none; accent-color: var(--agent); }
 .btn { border: 0; border-radius: 999px; padding: 6px 16px; background: var(--accent); color: var(--accent-ink); font-weight: 600; transition: filter 0.15s var(--ease); }
 .btn:not(:disabled):hover { filter: brightness(1.12); }
 .btn:disabled { opacity: 0.5; cursor: default; }
@@ -409,9 +416,16 @@ body.has-banner #panel { top: 88px; }
   #toolbar .sep { margin: 0 2px; }
   #toolbar .ask { padding: 0 12px; }
   #hint { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 70px); }
-  .sub, .mode, #page-name, .title-btn .caret { display: none; }
-  .title-btn { max-width: 38vw; }
-  #tool-play { padding: 0 6px; }
+  .sub, .mode, #page-name, .title-btn .caret, .pages-btn .caret { display: none; }
+  /* The comment count rides on its icon as a badge, so the canvas's name has the room. */
+  #tool-comments { position: relative; padding: 0 10px; }
+  #tool-comments .count { position: absolute; top: 3px; right: 1px; min-width: 16px; height: 16px; padding: 0 4px; font-size: 10px; line-height: 16px; }
+  #bar-right { gap: 0; }
+  .title-btn { max-width: 46vw; }
+  #tool-play { padding: 0 10px; font-size: 0; }
+  #tool-play::before { content: '▷'; font-size: 16px; }
+  /* Fixed widths wider than a phone do nothing on one; Fill and Fit stay. */
+  #play [data-width='390'], #play [data-width='1024'], #play [data-width='1440'], #play .head .sep { display: none; }
   #toolbar .ask { font-size: 0; }
   #toolbar .ask::before { content: '✦'; font-size: 14px; }
   #panel { left: 0; width: auto; top: auto; height: 55vh; box-shadow: 0 -1px 0 rgb(255 255 255 / 0.06), 0 -12px 32px rgb(0 0 0 / 0.5); border-radius: var(--r-lg) var(--r-lg) 0 0; }

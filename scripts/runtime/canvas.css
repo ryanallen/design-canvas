@@ -12,7 +12,8 @@
   --line: #2a2a2f;
   --ink: #f4f4f6;
   --ink-2: #a8a8b2;
-  --ink-3: #72727d;
+  /* The faintest text is still 4.5:1 on every surface it sits on (bg, panel, panel-2). */
+  --ink-3: #8a8a95;
   --accent: #3e6ae1;
   --accent-ink: #ffffff;
   --pin: #3e6ae1;

@@ -179,6 +179,7 @@ button.mode:disabled { cursor: default; }
 .tool:hover { background: var(--panel-2); color: var(--ink); }
 .tool[aria-pressed='true'] { background: var(--accent); color: var(--accent-ink); }
 .tool:disabled { opacity: 0.4; cursor: default; }
+a.tool { text-decoration: none; font-size: 13px; }
 .zoom { min-width: 56px; font-variant-numeric: tabular-nums; }
 .sep { width: 1px; height: 20px; background: var(--line); margin: 0 2px; flex: none; }
 .count {

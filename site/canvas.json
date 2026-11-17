@@ -1,0 +1,17 @@
+{
+  "title": "Design canvas",
+  "play": true,
+  "links": [
+    { "text": "★ Star", "href": "https://github.com/ryanallen/design-canvas" },
+    { "text": "Get it", "href": "https://github.com/ryanallen/design-canvas#install" }
+  ],
+  "pages": [
+    {
+      "title": "Design canvas",
+      "sections": [
+        { "title": "Design canvas", "sub": "what it is, how to get it, what to try", "groups": [{ "kind": "flat", "frames": [{ "file": "start-here.html", "hash": "", "label": "start-here" }] }] },
+        { "title": "Prototypes to play with", "sub": "levers, script and links, fluid", "groups": [{ "kind": "flat", "frames": [{ "file": "home.html", "hash": "", "label": "home" }, { "file": "detail.html", "hash": "", "label": "detail" }, { "file": "pricing.html", "hash": "", "label": "pricing" }] }] }
+      ]
+    }
+  ]
+}

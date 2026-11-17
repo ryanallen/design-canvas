@@ -4,12 +4,17 @@
 // and written into the prototype's file, and every comment, edit and board line is written into
 // canvas.html, with the prototype's inlined copy refreshed so the file opened later shows it.
 // The folder is remembered (IndexedDB), so after the first time Edit only asks to allow it again.
+//
+// A canvas built with "play" in its layout and opened from a website edits with no folder: the
+// same answers, from the prototypes inlined in the page, and every change kept in that browser
+// (localStorage) for that visitor alone.
 ;(() => {
   const dc = window.designCanvas
   const data = dc.data
   const mode = document.getElementById('canvas-mode')
   const supported = typeof window.showDirectoryPicker === 'function'
-  if (location.protocol !== 'file:' && !new URLSearchParams(location.search).has('local')) return
+  const play = dc.web && !!data.play && !data.serve
+  if (!play && location.protocol !== 'file:' && !new URLSearchParams(location.search).has('local')) return
   if (data.serve) return
 
   // ── remembering the folder ──
@@ -59,9 +64,44 @@
     return d.getFileHandle(parts[parts.length - 1], { create })
   }
   const readText = async (rel) => (await (await fileHandle(rel)).getFile()).text()
+
+  // ── playing: what this visitor changed, kept in their browser ──
+  const keepKey = `dc:${data.key}:play`
+  let builtLines = 0
+  const builtFiles = new Set()
+  const edited = new Set()
+  let full = false
+  const keep = () => {
+    const made = (data.loose ?? []).filter((l) => !builtFiles.has(l.file))
+    const kept = {
+      lines: lines.slice(builtLines),
+      files: Object.fromEntries([...edited].map((f) => [f, raw.get(f)])),
+      loose: made,
+      meta: Object.fromEntries(made.map((l) => [l.file, data.meta[l.file]])),
+    }
+    try {
+      localStorage.setItem(keepKey, JSON.stringify(kept))
+    } catch {
+      if (!full) dc.hint('This browser has no room to keep more changes: they last until the page is closed', 5000)
+      full = true
+    }
+  }
+  const kept = () => {
+    try {
+      return JSON.parse(localStorage.getItem(keepKey))
+    } catch {
+      return null
+    }
+  }
+
   // One write at a time, in the order asked.
   let queue = Promise.resolve()
   const write = (rel, text) => {
+    if (play) {
+      edited.add(rel)
+      keep()
+      return Promise.resolve()
+    }
     queue = queue.then(async () => {
       const w = await (await fileHandle(rel, true)).createWritable()
       await w.write(text)
@@ -125,7 +165,7 @@
     })
     return html
   }
-  const served = async (file) => inline(canvasHtml.tag(raw.get(file)))
+  const served = async (file) => (play ? canvasHtml.tag(raw.get(file)) : inline(canvasHtml.tag(raw.get(file))))
 
   // ── canvas.html: its payload and its lines, rewritten after every change ──
   const sha = async (text) => {
@@ -140,7 +180,7 @@
       const a = text.indexOf(OPEN) + OPEN.length
       const b = text.indexOf('</script>', a)
       const payload = JSON.parse(text.slice(a, b))
-      for (const file of changed) payload.files[file] = await inline(raw.get(file))
+      for (const file of changed) payload.files[file] = play ? raw.get(file) : await inline(raw.get(file))
       payload.assets = data.assets
       payload.meta = data.meta
       payload.loose = data.loose
@@ -151,7 +191,8 @@
     const end = text.lastIndexOf('</body>')
     text = `${text.slice(0, end)}${lines.map((l) => `${l}\n`).join('')}${text.slice(end)}`
     canvasText = text
-    await write(canvasName, text)
+    if (play) keep()
+    else await write(canvasName, text)
   }
   const lineOf = (event, kind) => `<!-- ${kind} ${JSON.stringify(event).replace(/--/g, '-\\u002d')} -->`
 
@@ -234,7 +275,7 @@
         const back = u.pathname.endsWith('/undo')
         const step = (back ? undo : redo).pop()
         if (!step) return answer(200, { none: true })
-        const now = await readText(step.file)
+        const now = play ? raw.get(step.file) : await readText(step.file)
         if (now !== (back ? step.after : step.before)) {
           ;(back ? undo : redo).push(step)
           return answer(409, { error: `${step.file} changed outside the canvas since; nothing was undone` })
@@ -264,10 +305,13 @@
         if (!base) return answer(400, { error: 'the artboard needs a name' })
         const file = `${base}.html`
         if (/^canvas(-[a-z0-9-]+)?\.html$/.test(file)) return answer(400, { error: `${file} is the name of a canvas` })
-        try {
-          await fileHandle(file)
-          return answer(409, { error: `${file} is already in the folder` })
-        } catch {}
+        if (raw.has(file)) return answer(409, { error: `${file} is already on this canvas` })
+        if (!play) {
+          try {
+            await fileHandle(file)
+            return answer(409, { error: `${file} is already in the folder` })
+          } catch {}
+        }
         const w = Math.max(240, Math.min(3840, Math.round(Number(body.w) || 1440)))
         const title = String(body.name).trim().slice(0, 120).replace(/</g, '&lt;')
         const html = `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>${title}</title>\n<style>\n  body { margin: 0; font-family: system-ui, sans-serif; }\n</style>\n</head>\n<body>\n<main style="min-height: ${Math.max(240, Math.round(Number(body.h) || 900))}px; max-width: ${w}px">\n</main>\n</body>\n</html>\n`
@@ -333,6 +377,45 @@
       }
     }, 2000)
   }
+  /** Edit from the page itself, as a visitor to the site it is on: nothing to pick, kept in this browser. */
+  async function usePage() {
+    canvasName = decodeURIComponent(location.pathname.split('/').pop() || '') || 'index.html'
+    try {
+      canvasText = await (await realFetch(location.pathname, { cache: 'no-store' })).text()
+    } catch {
+      canvasText = `<!doctype html>\n${document.documentElement.outerHTML}`
+    }
+    for (const file of Object.keys(data.files)) {
+      raw.set(file, data.files[file])
+      builtFiles.add(file)
+    }
+    lines = storedLines(document.documentElement.outerHTML)
+    builtLines = lines.length
+    const before = kept()
+    if (before) {
+      for (const l of before.loose ?? []) {
+        if (builtFiles.has(l.file) || typeof before.files?.[l.file] !== 'string') continue
+        ;(data.loose ??= []).push(l)
+        data.meta[l.file] = before.meta?.[l.file] ?? { levers: [], fluid: false, play: false }
+      }
+      for (const [file, text] of Object.entries(before.files ?? {})) {
+        if (typeof text !== 'string') continue
+        raw.set(file, text)
+        edited.add(file)
+      }
+      for (const l of before.lines ?? []) if (typeof l === 'string') lines.push(l)
+    }
+    for (const file of raw.keys()) data.files[file] = canvasHtml.tag(raw.get(file))
+    on = true
+    dc.enableLocal('here', 'Edit, draw and comment: everything is kept in this browser, for you alone')
+    dc.refreshBoard()
+  }
+  if (play) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(usePage))
+    else setTimeout(usePage)
+    return
+  }
+
   async function start() {
     try {
       let handle = await recall()

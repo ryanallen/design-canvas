@@ -37,6 +37,8 @@ Measuring each prototype's height needs a Chromium: `scripts/lib/browser.mjs` fi
 - **Levers**: `<meta name="canvas-levers" content="--accent, --gap">` names the CSS variables shown under Tweaks.
 - **Fluid**: `<meta name="canvas-fluid">` marks a prototype that reflows to any width.
 - **Where comments go**: `"comments": "<address>"` in `canvas.json`, or `--comments <address>` on build. Served by node, comments go to the server; editing from disk, into `canvas.html` itself; anywhere else, to that address, or to the hosting site's own `/api/canvas-comments` when none is set.
+- **Play**: `"play": true` in `canvas.json` makes the canvas, opened from any website, edit for every visitor with nothing to pick: edits, board objects, artboards and comments are kept in that visitor's browser (localStorage) and seen by nobody else.
+- **Links**: `"links": [{ "text": "★ Star", "href": "https://…" }]` in `canvas.json` puts those links at the right of the top bar.
 
 ## The lines in `canvas.html`
 

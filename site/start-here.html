@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design canvas</title>
+<style>
+  body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: #1c1d24; background: #fbfaf7; }
+  main { max-width: 1240px; padding: 48px 56px 64px; }
+  h1 { font-size: 48px; line-height: 1.1; margin: 0 0 12px; }
+  .lead { color: #4a4c59; font-size: 19px; margin: 0 0 28px; max-width: 820px; }
+  .get { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 0 0 16px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; height: 46px; padding: 0 20px; border-radius: 12px; background: #1c1d24; color: #fff; font-weight: 600; text-decoration: none; }
+  .btn.quiet { background: #ecebe6; color: #1c1d24; }
+  pre { margin: 0 0 12px; padding: 14px 18px; border-radius: 12px; background: #1c1d24; color: #e9e8e3; font: 14px/1.6 ui-monospace, Consolas, monospace; overflow-x: auto; max-width: 820px; }
+  .small { color: #5b5d6b; font-size: 14px; margin: 0 0 40px; max-width: 820px; }
+  hr { border: 0; border-top: 1px solid #e3e1da; margin: 0 0 32px; }
+  h2.try { font-size: 28px; margin: 0 0 6px; }
+  .cols { columns: 2; column-gap: 48px; }
+  section { break-inside: avoid; margin: 0 0 28px; }
+  h3 { font-size: 18px; margin: 0 0 8px; }
+  label { display: flex; gap: 10px; align-items: flex-start; padding: 4px 0; cursor: pointer; }
+  input { margin-top: 5px; flex: none; }
+  label:has(input:checked) span { color: #8a8c99; text-decoration: line-through; }
+  kbd { font: 13px ui-monospace, Consolas, monospace; background: #ecebe6; border-radius: 4px; padding: 0 5px; }
+  code { font: 14px ui-monospace, Consolas, monospace; }
+  .count { color: #5b5d6b; font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Design canvas</h1>
+  <p class="lead">Every HTML prototype in a folder, on one board. View them, play them, edit their text, styles and structure by pointing at them, comment on them, and draw around them. Every edit is written back into the prototype's own <code>.html</code>. Node only, nothing to install.</p>
+  <div class="get">
+    <a class="btn" href="https://github.com/ryanallen/design-canvas" target="_blank" rel="noopener">★ Star on GitHub</a>
+    <a class="btn quiet" href="https://github.com/ryanallen/design-canvas/archive/refs/heads/main.zip" target="_blank" rel="noopener">Download ZIP</a>
+  </div>
+  <pre>git clone https://github.com/ryanallen/design-canvas .agents/skills/design-canvas
+node .agents/skills/design-canvas/scripts/canvas.mjs build &lt;folder of prototypes&gt;</pre>
+  <p class="small">As a skill, it goes in a project's <code>.agents/skills/design-canvas/</code> (or <code>.claude/skills/design-canvas/</code>), and an agent reads <code>SKILL.md</code>. Without a terminal, double-click <b>Design Canvas.cmd</b> (Windows) or <b>Design Canvas.command</b> (Mac) and pick a folder.</p>
+  <hr>
+  <h2 class="try">Try it on this board</h2>
+  <p class="lead">Everything you do here is kept in your browser, for you alone. Tick each thing as it works: press <b>▷ PLAY</b> on this frame to tick. <span class="count" id="count"></span></p>
+  <div class="cols">
+    <section>
+      <h3>1. The board</h3>
+      <label><input type="checkbox"><span>Scroll to pan, <kbd>Ctrl</kbd>+wheel to zoom, <kbd>F</kbd> to fit, hold <kbd>Space</kbd> to drag.</span></label>
+      <label><input type="checkbox"><span>Zoom menu at the top right: 50%, 100%, 200%.</span></label>
+      <label><input type="checkbox"><span>Drag a frame by its name to move it; reload and it stays.</span></label>
+      <label><input type="checkbox"><span>Pages, top left: New page, rename it, delete it.</span></label>
+    </section>
+    <section>
+      <h3>2. Select</h3>
+      <label><input type="checkbox"><span>Hover shows an outline; click selects, with a name tag and handles.</span></label>
+      <label><input type="checkbox"><span>Click one card on <b>home</b>: all three are selected. <kbd>Alt</kbd>+click selects one.</span></label>
+      <label><input type="checkbox"><span><kbd>Esc</kbd> goes to the parent, <kbd>Enter</kbd> to the first child, <kbd>Tab</kbd> to the next sibling.</span></label>
+      <label><input type="checkbox"><span><kbd>Ctrl</kbd>+<kbd>\</kbd> opens the panel; layers follow the selection both ways.</span></label>
+    </section>
+    <section>
+      <h3>3. Text</h3>
+      <label><input type="checkbox"><span>Double-click the headline on <b>home</b>, retype it, <kbd>Enter</kbd>.</span></label>
+      <label><input type="checkbox"><span>While typing, select a word and press <kbd>Ctrl</kbd>+<kbd>B</kbd>; colour a word from the toolbar.</span></label>
+      <label><input type="checkbox"><span>Press <kbd>T</kbd> and click inside a frame: a new paragraph opens for typing.</span></label>
+    </section>
+    <section>
+      <h3>4. Style</h3>
+      <label><input type="checkbox"><span>The floating toolbar: colour, bold, align, fill, layout, radius, padding.</span></label>
+      <label><input type="checkbox"><span>Properties: width Hug, Fixed, Fill; padding; font size; colour shows a contrast reading.</span></label>
+      <label><input type="checkbox"><span>With all three cards selected, change the radius: one rule changes them all.</span></label>
+      <label><input type="checkbox"><span>Code tab: edit a declaration, an <code>@attribute</code>, and the source HTML, then Apply.</span></label>
+      <label><input type="checkbox"><span>Tweaks on <b>home</b>: drag <code>--gap</code>, pick a new <code>--accent</code>.</span></label>
+    </section>
+    <section>
+      <h3>5. Structure</h3>
+      <label><input type="checkbox"><span>Drag a card before another one: a blue line shows where it lands.</span></label>
+      <label><input type="checkbox"><span>Drag a selection's right handle to resize it.</span></label>
+      <label><input type="checkbox"><span><kbd>Ctrl</kbd>+<kbd>D</kbd>, <kbd>Delete</kbd>, <kbd>Ctrl</kbd>+<kbd>G</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd>, <kbd>Ctrl</kbd>+<kbd>C</kbd> then <kbd>Ctrl</kbd>+<kbd>V</kbd>.</span></label>
+      <label><input type="checkbox"><span><kbd>Alt</kbd>+<kbd>↓</kbd> moves it one place; "…" offers Wrap in flex row, column, grid.</span></label>
+      <label><input type="checkbox"><span><kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes each one, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> redoes.</span></label>
+    </section>
+    <section>
+      <h3>6. Comments</h3>
+      <label><input type="checkbox"><span><kbd>C</kbd> then click an element: comment, reply, resolve, delete.</span></label>
+      <label><input type="checkbox"><span>Move that element: the pin follows it.</span></label>
+      <label><input type="checkbox"><span>Select something, <b>✦ Ask agent</b> at the bottom, type, <kbd>Enter</kbd>: an orange pin, work for an agent.</span></label>
+    </section>
+    <section>
+      <h3>7. On the board</h3>
+      <label><input type="checkbox"><span><kbd>N</kbd> sticky note, typed, recoloured; <kbd>R</kbd> rectangle; the ▴ beside it for ellipse, section, line, arrow, layout guide.</span></label>
+      <label><input type="checkbox"><span>Draw an arrow from a note to a frame, then move the frame: the arrow follows.</span></label>
+      <label><input type="checkbox"><span><kbd>P</kbd> pencil; <kbd>T</kbd> on empty board for a title.</span></label>
+      <label><input type="checkbox"><span>Drag a selection box around notes and frames, then move them together.</span></label>
+      <label><input type="checkbox"><span><kbd>A</kbd> and drag out an artboard: a new prototype appears, ready to edit.</span></label>
+    </section>
+    <section>
+      <h3>8. Play</h3>
+      <label><input type="checkbox"><span>▷ PLAY on <b>home</b>, click <b>Download free</b>: it moves on to <b>detail</b>.</span></label>
+      <label><input type="checkbox"><span>390, 1024, 1440, Fill, Fit; <kbd>Esc</kbd> back.</span></label>
+      <label><input type="checkbox"><span>Full screen on <b>pricing</b> reflows to the window (it is fluid).</span></label>
+    </section>
+    <section>
+      <h3>9. It all stays</h3>
+      <label><input type="checkbox"><span>Reload the page: every edit, comment, note and page is still there.</span></label>
+      <label><input type="checkbox"><span>Title menu → Download the canvas, and download one prototype.</span></label>
+    </section>
+  </div>
+</main>
+<script>
+  const boxes = [...document.querySelectorAll('input[type=checkbox]')]
+  const key = 'design-canvas-site'
+  let saved = []
+  try { saved = JSON.parse(localStorage.getItem(key)) || [] } catch {}
+  boxes.forEach((b, i) => { b.checked = !!saved[i] })
+  const count = () => { document.getElementById('count').textContent = `${boxes.filter((b) => b.checked).length} of ${boxes.length} done.` }
+  for (const b of boxes) b.addEventListener('change', () => {
+    try { localStorage.setItem(key, JSON.stringify(boxes.map((x) => x.checked))) } catch {}
+    count()
+  })
+  count()
+</script>
+</body>
+</html>

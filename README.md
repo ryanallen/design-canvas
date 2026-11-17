@@ -42,3 +42,4 @@ node scripts/canvas.mjs accept <folder> <prototype.html>
 | [scripts/runtime/panel.js](scripts/runtime/panel.js) | The right panel: layers, Properties, Code, Tweaks |
 | [scripts/runtime/editor.css](scripts/runtime/editor.css) | The editor's and the panel's look |
 | [examples/plain/](examples/plain/) | Three small prototypes (levers, script and links, fluid) to build, serve and check against |
+| [site/](site/), [index.html](index.html) | The canvas at [ryanallen.com/design-canvas](https://ryanallen.com/design-canvas/), built in play mode: `node scripts/canvas.mjs build site --out index.html` |

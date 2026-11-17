@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="canvas-levers" content="--accent, --gap">
+<title>Tidewater: home</title>
+<style>
+  :root { --accent: #0e6e6e; --gap: 24px; --ink: #14202b; }
+  body { margin: 0; font-family: system-ui, sans-serif; color: var(--ink); background: #f7f5f0; }
+  .top { display: flex; align-items: center; justify-content: space-between; padding: 20px 48px; }
+  .brand { font-weight: 700; font-size: 20px; }
+  .nav { display: flex; gap: 24px; }
+  .nav a { color: inherit; text-decoration: none; }
+  .hero { padding: 96px 48px 64px; max-width: 760px; }
+  .hero h1 { font-size: 56px; line-height: 1.05; margin: 0 0 16px; }
+  .hero p { font-size: 19px; line-height: 1.5; color: #4a5560; margin: 0 0 28px; }
+  .btn { display: inline-flex; align-items: center; height: 52px; padding: 0 26px; border-radius: 14px; background: var(--accent); color: #fff; font-weight: 600; text-decoration: none; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap); padding: 0 48px 96px; }
+  .card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px rgb(0 0 0 / 0.08); }
+  .card h3 { margin: 0 0 8px; font-size: 18px; }
+  .card p { margin: 0; color: #4a5560; line-height: 1.5; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">Tidewater</div>
+  <nav class="nav"><a href="#tides">Tides</a><a href="detail.html">Spots</a><a href="#about">About</a></nav>
+</header>
+<section class="hero" id="hero">
+  <h1>Know when to paddle out.</h1>
+  <p>Tides, swell and wind for every break near you, in one glance.</p>
+  <a class="btn" href="detail.html">Download free</a>
+</section>
+<section class="cards" id="tides">
+  <div class="card"><h3>Tides</h3><p>High and low for the week, to the minute.</p></div>
+  <div class="card"><h3>Swell</h3><p>Height, period and direction from three models.</p></div>
+  <div class="card"><h3>Wind</h3><p>Offshore or onshore, hour by hour.</p></div>
+</section>
+</body>
+</html>

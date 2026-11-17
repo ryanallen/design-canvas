@@ -1691,13 +1691,13 @@
   }
 
   /** Editing switched on without a server: local.js answers /api/ itself from the folder it was given. */
-  function enableLocal(folderName) {
+  function enableLocal(folderName, title = 'Edits and comments are written into this folder by the page itself') {
     serve = true
     api = '/api/canvas-comments'
     local = true
     document.body.classList.add('serving', 'commenting')
     $('#canvas-mode').textContent = `Editing ${folderName}`
-    $('#canvas-mode').title = 'Edits and comments are written into this folder by the page itself'
+    $('#canvas-mode').title = title
     for (const file of Object.keys(data.files)) {
       delete fileHtml[file]
       for (const f of allFrames.values()) if (f.file === file && f.loaded && f.el) loadFrame(f)
@@ -1711,7 +1711,7 @@
     get serve() { return serve },
     get local() { return local },
     get commenting() { return !!api },
-    data, web, hooks, h, icon, store, hint, readOnly, fileChanged, enableLocal, relayoutAll: () => { layoutAll(); renderPage() },
+    data, web, hooks, h, icon, store, hint, readOnly, fileChanged, enableLocal, refreshBoard, relayoutAll: () => { layoutAll(); renderPage() },
     get view() { return view },
     get tool() { return tool },
     get page() { return pageId },
@@ -1731,6 +1731,10 @@
   }
 
   // ── start ──
+  // Links the layout names (the project's home, its repository) sit at the right of the top bar.
+  for (const link of [...(data.links ?? [])].reverse()) {
+    if (/^https?:\/\//i.test(link?.href ?? '') && link.text) $('#bar-right').prepend(h('a', { class: 'tool link', href: link.href, target: '_blank', rel: 'noopener' }, String(link.text)))
+  }
   document.body.classList.toggle('serving', serve)
   document.body.classList.toggle('commenting', !!api)
   $('#canvas-mode').textContent = serve ? (data.memory ? 'Editing (held in memory)' : 'Editing') : 'Viewing'

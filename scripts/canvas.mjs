@@ -64,7 +64,7 @@ function readLayout(folder, layoutPath, title) {
     const layout = typeof layoutPath === 'object' ? layoutPath : JSON.parse(fs.readFileSync(layoutPath, 'utf8'))
     const name = title ?? layout.title ?? path.basename(path.resolve(folder))
     const pages = Array.isArray(layout.pages) ? layout.pages : [{ title: layout.pageTitle ?? 'Page 1', sections: layout.sections ?? [] }]
-    return { title: name, comments: layout.comments ?? null, pages: pages.map((p, i) => ({ id: `p${i + 1}`, title: p.title ?? `Page ${i + 1}`, sections: p.sections ?? [] })) }
+    return { title: name, comments: layout.comments ?? null, play: !!layout.play, links: Array.isArray(layout.links) ? layout.links : [], pages: pages.map((p, i) => ({ id: `p${i + 1}`, title: p.title ?? `Page ${i + 1}`, sections: p.sections ?? [] })) }
   }
   const own = path.join(folder, 'canvas.json')
   if (fs.existsSync(own)) return readLayout(folder, own, title)
@@ -242,6 +242,9 @@ export async function buildCanvas(options) {
     crop: String(cropToOption),
     // Where comments go when nothing nearer takes them: a host's own endpoint, the same shape as serve's.
     comments: options.comments ?? layout.comments ?? null,
+    // Opened from a website, it edits for every visitor, each in their own browser.
+    play: !!layout.play,
+    links: (layout.links ?? []).filter((l) => l && typeof l.text === 'string' && /^https?:\/\//i.test(l.href ?? '')).map((l) => ({ text: l.text, href: l.href })),
     serve: false,
   }
   fs.writeFileSync(out, renderPage(payload, lines))

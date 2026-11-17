@@ -31,7 +31,7 @@ Measuring each prototype's height needs a Chromium: `scripts/lib/browser.mjs` fi
 
 ## What it reads
 
-- **Prototypes**: every `.html` in the folder that is not a `canvas*.html`. A prototype whose screens are `<section class="screen-page" id="…">` is one frame per screen.
+- **Prototypes**: every `.html` in the folder that is not a `canvas*.html`. A prototype whose screens are `<section class="screen-page" id="…">` is one frame per screen. A folder with none, or one that does not exist yet, builds as a **whiteboard**: one empty page named Board.
 - **Layout**: `canvas.json` beside the prototypes, or `--layout`: `{ "title": "…", "pages": [{ "title": "…", "sections": [{ "title": "…", "sub": "…", "groups": [{ "kind": "flat", "frames": [{ "file": "a.html", "hash": "", "label": "a" }] }] }] }] }`. `{ "title", "sections" }` is one page. Group kinds are `flat`, `option` (`letter`, `title`, `info`, `recommended`; the first frame large, the rest under it) and `other`. A frame may carry `crop: "A"` to show one option's column of a comparison board. With no layout, every prototype goes in one grid.
 - **Opening on a page**: `canvas.html#page=<id or title>`, such as `#page=summary`, opens on that page, matched without regard to case, ahead of the page last viewed in that browser.
 - **Levers**: `<meta name="canvas-levers" content="--accent, --gap">` names the CSS variables shown under Tweaks.
@@ -42,9 +42,13 @@ Measuring each prototype's height needs a Chromium: `scripts/lib/browser.mjs` fi
 
 Everything people do is a line before `</body>`, one JSON event each, never rewritten:
 
-- `<!-- comment {…} -->`: `add` (with `file` and `anchor` when pinned to an element, `agent: true` when it is work for an agent), `reply`, `resolve`, `delete`, `agent`.
+- `<!-- comment {…} -->`: `add` (with `file` and `anchor` when pinned to an element, `box` and `items` when it is about a region of the board, `agent: true` when it is work for an agent), `reply`, `resolve`, `delete`, `agent`.
 - `<!-- edit {…} -->`: who, when, the file, the change in words, and a fingerprint of the file after it. The exact change is the file's own diff.
-- `<!-- board {…} -->`: notes, titles, shapes, guides, pages, frames moved by hand, the canvas's own name.
+- `<!-- board {…} -->`: notes, titles, rectangles and ellipses (each with its own text), sections, lines, arrows, pencil strokes, guides, pages, frames moved by hand, the canvas's own name. A line or arrow with `from` and `to` (a board object's id or a frame's key) is drawn between those two wherever they move; an empty `from` or `to` lets go.
+
+## The whiteboard
+
+Every page is a whiteboard, with or without prototypes on it. Sticky note (N), text (T), pencil (P), and under the shape button rectangle (R), ellipse, section (S), line, arrow and layout guide. Double-click a note, a rectangle, an ellipse or a section to type in it. A section is a labelled area drawn under everything else: dragged by its label or its border, it carries every object and frame wholly inside it, and a drag anywhere else inside it draws a selection box. A line or arrow begun or ended on a note, shape, section or frame holds on to it and follows it; dragging the line itself lets go. While editing, a drag from empty board with the select tool draws a selection box: what is wholly inside moves together, Delete removes its board objects, and **✦ Ask agent** leaves the agent a thread carrying the box and everything in it. Served, every open copy of the canvas redraws when anyone changes the board.
 
 `build` refuses a prototype whose file no longer matches its last edit line, so a rebuild by its own script never drops a canvas edit silently: carry the edits into the script, then `accept`.
 
@@ -52,8 +56,9 @@ Everything people do is a line before `</body>`, one JSON event each, never rewr
 
 From disk, an agent reads the threads straight from `canvas.html`: `parseEvents` and `foldEvents` in `scripts/lib/events.mjs` fold its comment lines, and a thread with `agent: true` is work for it. While `serve` runs, the same is answered over HTTP:
 
-- `GET /api/selection`: what is selected on the board: `file`, `cvs` (source offsets) and each element's source HTML.
-- `GET /api/agent`: every open thread marked for the agent, with its file, its anchor and its replies.
+- `GET /api/selection`: what is selected on the board: `file`, `cvs` (source offsets) and each element's source HTML; or, after a selection box, `board` with its `page`, `box`, the board objects inside it in full and the keys of the frames inside it.
+- `GET /api/agent`: every open thread marked for the agent, with its file, its anchor (or its `box` and `items`) and its replies.
+- `GET /api/board`: every board line, and `board`, the lines folded: `items`, `moved`, `pages`, `name`. To change the board, `POST /api/board` with `{ "event": { "op": "item", "kind": "note", "x": 0, "y": 0, "w": 360, "h": 260, "text": "…", "page": "p1", "name": "agent" } }` (an `id` updates that object), `{ "op": "remove", "id": "…" }`, or `{ "op": "move", "key": "<frame>", "x": …, "y": … }`.
 - To answer one: edit the prototype's file (the canvas reloads its frames on its own), then reply on the thread with `POST /api/canvas-comments` and `{ "event": { "op": "reply", "to": "<thread id>", "name": "agent", "text": "…" } }`; resolve it with `{ "op": "resolve", "to": "<id>", "name": "agent" }`.
 
 

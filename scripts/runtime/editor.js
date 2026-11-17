@@ -90,7 +90,8 @@
   // An element of a frame that has since been redrawn belongs to a document with no window.
   const live = (el) => !!el && el.isConnected && !!el.ownerDocument.defaultView
   const primary = () => (live(sel?.els[0]) ? sel.els[0] : null)
-  function select(frame, els, { quiet = false } = {}) {
+  // `keep` leaves the server's selection alone, for a drag box that is about to set its own.
+  function select(frame, els, { quiet = false, keep = false } = {}) {
     if (editing) stopEditing(true)
     els = (els || []).filter(live)
     sel = frame && els.length ? { frame, els } : null
@@ -98,7 +99,7 @@
     renderFloat()
     if (!quiet) dc.pickItem(null)
     api.onChange()
-    if (dc.serve) {
+    if (dc.serve && !keep) {
       const body = sel ? { file: sel.frame.file, frame: sel.frame.key, cvs: sel.els.map(cvOf).filter((x) => x != null), names: sel.els.map((e) => nameOf(e).text) } : null
       fetch('/api/selection', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selection: body }) }).catch(() => {})
     }
@@ -209,6 +210,7 @@
     if (f.doc) pick(f, f.doc.body, { alone: true })
   }
   hooks.onItemPick = () => select(null, [], { quiet: true })
+  hooks.onMarquee = () => select(null, [], { quiet: true, keep: true })
   hooks.onView = () => {
     draw()
     placeFloat()

@@ -105,3 +105,26 @@ test('makeBoardEvent refuses kinds, page ids and points it does not know', () =>
   assert.throws(() => board({ op: 'name', title: '' }), /title is required/)
   assert.equal(board({ op: 'item', kind: 'guide', frame: 'home.html', cols: 12, gutter: 24, margin: 80 }).cols, 12)
 })
+
+test('an arrow binds its ends to objects or frames, and an end let go of folds away', () => {
+  const box = board({ op: 'item', kind: 'rect', x: 0, y: 0, w: 100, h: 80, text: 'Start' })
+  const section = board({ op: 'item', kind: 'section', x: -50, y: -50, w: 900, h: 600, text: 'Plan' })
+  const arrow = board({ op: 'item', kind: 'arrow', x: 0, y: 0, w: 10, h: 10, points: [0, 0, 10, 10], from: box.id, to: 'home.html#s-quiz' })
+  assert.deepEqual([arrow.from, arrow.to], [box.id, 'home.html#s-quiz'])
+  const f = foldBoard([box, section, arrow, board({ op: 'item', id: arrow.id, to: '' })])
+  const a = f.items.find((i) => i.id === arrow.id)
+  assert.deepEqual([a.from, a.to], [box.id, ''])
+  assert.deepEqual(f.items.find((i) => i.id === box.id).text, 'Start')
+  assert.equal(f.items.find((i) => i.id === section.id).kind, 'section')
+})
+
+test('a comment about a region keeps its box and the objects in it', () => {
+  const e = make({ op: 'add', name: 'A', text: 'what is missing here?', frame: null, x: 10, y: 20, agent: true, box: { x: 10.4, y: 20, w: 300, h: -5 }, items: ['b-abcdef', 'home.html'] })
+  assert.deepEqual(e.box, { x: 10, y: 20, w: 300, h: 0 })
+  assert.deepEqual(e.items, ['b-abcdef', 'home.html'])
+  const [t] = foldEvents([e])
+  assert.deepEqual([t.box, t.items], [e.box, e.items])
+  assert.throws(() => make({ op: 'add', name: 'A', text: 't', frame: null, x: 0, y: 0, items: 'b-abcdef' }), /items is not a list/)
+  const plain = make({ op: 'add', name: 'A', text: 't', frame: null, x: 0, y: 0 })
+  assert.equal('box' in plain || 'items' in plain, false)
+})

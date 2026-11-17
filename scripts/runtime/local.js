@@ -194,7 +194,10 @@
         return answer(200, { event })
       }
       case '/api/board': {
-        if (!post) return answer(200, { events: parseLines(lines.join('\n'), 'board') })
+        if (!post) {
+          const events = parseLines(lines.join('\n'), 'board')
+          return answer(200, { events, board: foldBoard(events) })
+        }
         const event = makeBoardEvent(body.event)
         lines.push(lineOf(event, 'board'))
         await writeCanvas()

@@ -1,5 +1,6 @@
 // The board: pages of prototypes laid out live, pan and zoom, frame headers, comments pinned to
-// elements, board objects (notes, titles, shapes, pencil, layout guides), the window's chrome and
+// elements, the whiteboard (notes, titles, shapes with text, sections, lines and arrows that hold
+// on to what they join, pencil, layout guides, a selection box), the window's chrome and
 // Present. Runs after lib/events.mjs, inlined above it with its exports stripped, so parseLines,
 // foldEvents, foldBoard and LIMITS are in scope. The editor (editor.js) runs after it and works
 // through `window.designCanvas`.
@@ -44,6 +45,7 @@
     line: '<path d="M3 13L13 3" stroke-linecap="round"/>',
     arrow: '<path d="M3 13L13 3M7 3h6v6" stroke-linecap="round" stroke-linejoin="round"/>',
     guide: '<path d="M2.5 2.5h11v11h-11z M6 2.5v11 M10 2.5v11" stroke-linejoin="round"/>',
+    section: '<path d="M2.5 5.5h11v8h-11z M2.5 5.5v-3h5v3" stroke-linejoin="round"/>',
     comment: '<path d="M3 3h10v7H7l-3 3v-3H3z" stroke-linejoin="round"/>',
     panel: '<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M10 2.5v11"/>',
     download: '<path d="M8 2.5v8M4.5 7L8 10.5 11.5 7M3 13.5h10" stroke-linecap="round" stroke-linejoin="round"/>',
@@ -246,6 +248,8 @@
   const overlay = $('#overlay')
   let sectionEls = []
   const itemLayer = h('div', { class: 'items' })
+  // Sections sit under the frames, so a prototype inside one is still clicked as a prototype.
+  const sectionLayer = h('div', { class: 'items sections' })
   const pinLayer = h('div', { class: 'pins' })
 
   function renderPage() {
@@ -258,6 +262,7 @@
     world.replaceChildren()
     sectionEls = []
     drawGroups()
+    world.append(sectionLayer)
     for (const f of frames()) drawFrame(f)
     world.append(itemLayer, pinLayer)
     renderItems()
@@ -460,20 +465,21 @@
   let tool = 'select'
   let shapeKind = store.get('shape') || 'rect'
   let spaceHeld = false
-  const DRAW = ['note', 'rect', 'ellipse', 'line', 'arrow', 'pencil', 'artboard']
+  const DRAW = ['note', 'rect', 'ellipse', 'section', 'line', 'arrow', 'pencil', 'artboard']
+  const SHAPES = ['rect', 'ellipse', 'section', 'line', 'arrow', 'guide']
   function setTool(t) {
     tool = t
     document.body.className = document.body.className.replace(/\btool-\S+/g, '').trim()
     document.body.classList.add(`tool-${t}`)
     for (const b of document.querySelectorAll('#toolbar [data-tool]')) {
-      const on = b.dataset.tool === t || (b.id === 'shape-tool' && ['rect', 'ellipse', 'line', 'arrow', 'guide'].includes(t))
+      const on = b.dataset.tool === t || (b.id === 'shape-tool' && SHAPES.includes(t))
       b.setAttribute('aria-pressed', String(on))
     }
     if (t !== 'comment' && draft) closeThread()
     if (t !== 'select') pickItem(null)
     call('onTool', t)
   }
-  const SHAPE_NAMES = { rect: 'Rectangle (R)', ellipse: 'Ellipse', line: 'Line', arrow: 'Arrow', guide: 'Layout guide' }
+  const SHAPE_NAMES = { rect: 'Rectangle (R)', ellipse: 'Ellipse', section: 'Section (S)', line: 'Line', arrow: 'Arrow', guide: 'Layout guide' }
   function setShape(kind) {
     shapeKind = kind
     store.set('shape', kind)
@@ -485,7 +491,7 @@
     setTool(kind)
   }
   for (const b of document.querySelectorAll('#toolbar [data-tool]')) b.addEventListener('click', () => setTool(b.dataset.tool))
-  $('#shape-more').addEventListener('click', (e) => openMenu(e.currentTarget, ['rect', 'ellipse', 'line', 'arrow', 'guide'].map((k) => ({ label: SHAPE_NAMES[k], icon: k, tick: shapeKind === k, run: () => setShape(k) }))))
+  $('#shape-more').addEventListener('click', (e) => openMenu(e.currentTarget, SHAPES.map((k) => ({ label: SHAPE_NAMES[k], icon: k, tick: shapeKind === k, run: () => setShape(k) }))))
 
   // Pointer on the board: the editor sees it first; then panning, drawing, picking board objects.
   let drag = null
@@ -498,9 +504,17 @@
     const panning = e.button === 1 || tool === 'hand' || spaceHeld
     if (!panning && e.button === 0) {
       if (call('onPointerDown', e, { frame: f, point: p, tool, item: itemEl?.dataset.id ?? null })) return
+      // A section is taken by its label or its border; a press anywhere else inside it draws a selection box.
+      if (tool === 'select' && itemEl && serve && itemEl.classList.contains('section') && !e.target.closest('.txt')) {
+        const s = board.items.find((i) => i.id === itemEl.dataset.id)
+        const edge = 24 / view.z
+        if (s && p.x > s.x + edge && p.x < s.x + s.w - edge && p.y > s.y + edge && p.y < s.y + s.h - edge) return startMarquee(e, p)
+      }
       if (tool === 'select' && itemEl && serve) return startItemDrag(e, itemEl.dataset.id)
       if (DRAW.includes(tool) || (tool === 'guide')) return startDraw(e, p, f)
       if (tool === 'text' && !f) return newTitle(p)
+      // While editing, a drag from empty board draws a selection box; Space, the middle button, the hand or the wheel pan.
+      if (tool === 'select' && !f && serve) return startMarquee(e, p)
     }
     if (e.button !== 0 && e.button !== 1) return
     drag = { kind: 'pan', id: e.pointerId, sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false, forced: panning }
@@ -530,6 +544,9 @@
     viewport.classList.remove('panning')
     if (d.kind !== 'pan') return d.end?.(e, d.moved)
     if (d.moved || d.forced) return
+    emptyClick(e)
+  }
+  function emptyClick(e) {
     if (tool === 'comment') return startComment(e.clientX, e.clientY)
     pickItem(null)
     closeThread()
@@ -539,7 +556,9 @@
   viewport.addEventListener('pointercancel', endDrag)
   viewport.addEventListener('dblclick', (e) => {
     if (e.target.closest('button, .pin, .frame-label')) return
-    const itemEl = e.target.closest('.item')
+    // A press on an object captures the pointer to the board, so the double-click lands on the
+    // board itself: the object is the one under the pointer.
+    const itemEl = e.target.closest('.item') ?? document.elementsFromPoint(e.clientX, e.clientY).find((el) => el.matches('.item:not(.guide)'))
     if (itemEl && tool === 'select') return editItemText(itemEl.dataset.id)
     call('onDblClick', e, { frame: frameAt(e.clientX, e.clientY), point: toWorld(e.clientX, e.clientY) })
   })
@@ -572,7 +591,10 @@
   // ── board objects ──
   const NOTE_COLORS = ['#fde68a', '#bfdbfe', '#ddd6fe', '#fbcfe8', '#bbf7d0', '#fed7aa']
   const SHAPE_COLORS = ['#8a8a96', '#3b82f6', '#a855f7', '#ec4899', '#22c55e', '#f59e0b', '#ef4444', '#ffffff']
+  const SECTION_COLORS = ['#8a8a96', '#3b82f6', '#a855f7', '#ec4899', '#22c55e', '#f59e0b']
   let picked = null
+  // What a drag box took in: board objects and frames, and the box itself.
+  let chosen = null
   const items = () => board.items.filter((i) => (i.page ?? firstPage()) === pageId)
   // Redrawing removes a note being typed in, whose blur saves it and asks for another redraw:
   // that one waits until this one is done.
@@ -585,7 +607,10 @@
     }
     drawingItems = true
     try {
-      itemLayer.replaceChildren(...items().map(itemEl).filter(Boolean))
+      const all = items()
+      sectionLayer.replaceChildren(...all.filter((i) => i.kind === 'section').map(itemEl).filter(Boolean))
+      itemLayer.replaceChildren(...all.filter((i) => i.kind !== 'section').map(itemEl).filter(Boolean))
+      for (const f of frames()) f.el?.classList.toggle('chosen', !!chosen?.frames.has(f.key))
     } finally {
       drawingItems = false
     }
@@ -595,12 +620,65 @@
     }
     placeItemBar()
   }
+  // ── arrows that hold on: an end bound to an object or a frame is drawn at that one's edge ──
+  const BINDS = ['note', 'rect', 'ellipse', 'section']
+  /** The box a `from` or `to` names on this page: a board object's, or a frame's. */
+  function boxOfRef(ref) {
+    if (!ref) return null
+    const it = board.items.find((i) => i.id === ref)
+    if (it) return BINDS.includes(it.kind) && (it.page ?? firstPage()) === pageId ? { x: it.x, y: it.y, w: it.w ?? 0, h: it.h ?? 0 } : null
+    const f = allFrames.get(ref)
+    return f && f.page === pageId ? { x: f.x, y: f.y, w: f.W, h: f.H } : null
+  }
+  /** Where the line from a box's centre towards a point leaves the box. */
+  function edgeToward(b, p) {
+    const cx = b.x + b.w / 2
+    const cy = b.y + b.h / 2
+    const dx = p.x - cx
+    const dy = p.y - cy
+    if (!dx && !dy) return { x: cx, y: cy }
+    const t = Math.min(dx ? b.w / 2 / Math.abs(dx) : Infinity, dy ? b.h / 2 / Math.abs(dy) : Infinity)
+    return { x: cx + dx * Math.min(1, t), y: cy + dy * Math.min(1, t) }
+  }
+  /** A line or arrow as it is drawn now: its own points, or, for a bound end, the edge it holds. */
+  function geometryOf(it) {
+    const pts = it.points ?? []
+    if (!['line', 'arrow'].includes(it.kind) || pts.length < 4) return it
+    let a = { x: it.x + pts[0], y: it.y + pts[1] }
+    let b = { x: it.x + pts[pts.length - 2], y: it.y + pts[pts.length - 1] }
+    const A = boxOfRef(it.from)
+    const B = boxOfRef(it.to)
+    if (!A && !B) return it
+    const centre = (r) => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 })
+    if (A && B) {
+      a = edgeToward(A, centre(B))
+      b = edgeToward(B, centre(A))
+    } else if (A) a = edgeToward(A, b)
+    else b = edgeToward(B, a)
+    const x = Math.round(Math.min(a.x, b.x))
+    const y = Math.round(Math.min(a.y, b.y))
+    return { ...it, x, y, w: Math.round(Math.abs(a.x - b.x)), h: Math.round(Math.abs(a.y - b.y)), points: [a.x - x, a.y - y, b.x - x, b.y - y].map(Math.round) }
+  }
+  /** What a line drawn from or to this point holds on to: the smallest note or shape under it, else
+   * a frame, else the smallest section — a section lies under everything it holds. */
+  function bindAt(p) {
+    const under = items().filter((i) => BINDS.includes(i.kind) && p.x >= i.x && p.x <= i.x + i.w && p.y >= i.y && p.y <= i.y + i.h)
+    under.sort((a, b) => a.w * a.h - b.w * b.h)
+    const shape = under.find((i) => i.kind !== 'section')
+    if (shape) return shape.id
+    const f = frames().findLast((f) => p.x >= f.x && p.x <= f.x + f.W && p.y >= f.y && p.y <= f.y + f.H)
+    if (f) return f.key
+    return under[0]?.id ?? null
+  }
+
   function itemEl(it) {
-    const cls = `item ${it.kind}${picked === it.id ? ' on' : ''}`
+    it = geometryOf(it)
+    const cls = `item ${it.kind}${picked === it.id || chosen?.items.has(it.id) ? ' on' : ''}`
     const box = `left:${it.x}px;top:${it.y}px;width:${it.w ?? 0}px;height:${it.h ?? 0}px`
     if (it.kind === 'note') return h('div', { class: cls, 'data-id': it.id, style: `${box};background:${it.color || NOTE_COLORS[0]}` }, it.text ?? '')
     if (it.kind === 'title') return h('div', { class: cls, 'data-id': it.id, style: `left:${it.x}px;top:${it.y}px;${it.color ? `color:${it.color}` : ''}` }, it.text || 'Title')
-    if (it.kind === 'rect' || it.kind === 'ellipse') return h('div', { class: cls, 'data-id': it.id, style: `${box};--c:${it.color || SHAPE_COLORS[0]}` })
+    if (it.kind === 'rect' || it.kind === 'ellipse') return h('div', { class: cls, 'data-id': it.id, style: `${box};--c:${it.color || SHAPE_COLORS[0]}` }, h('span', { class: 'txt' }, it.text ?? ''))
+    if (it.kind === 'section') return h('div', { class: cls, 'data-id': it.id, style: `${box};--c:${it.color || SECTION_COLORS[0]}` }, h('span', { class: 'txt' }, it.text ?? ''))
     if (it.kind === 'guide') {
       const f = findFrame(it.frame)
       if (!f || f.page !== pageId) return null
@@ -615,7 +693,7 @@
       const d = pts.reduce((s, v, i) => s + (i % 2 ? `,${v}` : `${i ? ' L' : 'M'}${v}`), '')
       const color = it.color || SHAPE_COLORS[0]
       const marker = it.kind === 'arrow' ? `<defs><marker id="ah-${it.id}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${color}"/></marker></defs>` : ''
-      const svg = `<svg width="${Math.max(1, it.w)}" height="${Math.max(1, it.h)}" viewBox="0 0 ${Math.max(1, it.w)} ${Math.max(1, it.h)}">${marker}<path d="${d}" fill="none" stroke="${color}" stroke-width="${it.kind === 'pencil' ? 5 : 4}" stroke-linecap="round" stroke-linejoin="round"${it.kind === 'arrow' ? ` marker-end="url(#ah-${it.id})"` : ''}/><path d="${d}" fill="none" stroke="transparent" stroke-width="24"/></svg>`
+      const svg = `<svg width="${Math.max(1, it.w)}" height="${Math.max(1, it.h)}" viewBox="0 0 ${Math.max(1, it.w)} ${Math.max(1, it.h)}">${marker}<path class="ink" d="${d}" fill="none" stroke="${color}" stroke-width="${it.kind === 'pencil' ? 5 : 4}" stroke-linecap="round" stroke-linejoin="round"${it.kind === 'arrow' ? ` marker-end="url(#ah-${it.id})"` : ''}/><path class="hit" d="${d}" fill="none" stroke="transparent" stroke-width="24"/></svg>`
       return h('div', { class: `${cls} svg`, 'data-id': it.id, style: box, html: svg })
     }
     return null
@@ -625,18 +703,80 @@
   document.body.append(itemBar)
   function pickItem(id) {
     if (id && !serve) return
-    if (picked === id) return
+    if (picked === id && !chosen) return
     picked = id
+    chosen = null
     renderItems()
     if (id) call('onItemPick', id)
   }
+  /** Everything wholly inside a box on this page. */
+  function inside(b) {
+    const within = (x, y, w, hh) => x >= b.x && y >= b.y && x + w <= b.x + b.w && y + hh <= b.y + b.h
+    return {
+      items: items().map(geometryOf).filter((i) => i.kind !== 'guide' && within(i.x, i.y, i.w ?? 0, i.h ?? 0)).map((i) => i.id),
+      frames: frames().filter((f) => within(f.x, f.y, f.W, f.H)).map((f) => f.key),
+    }
+  }
+  function choose(box) {
+    const got = inside(box)
+    picked = null
+    chosen = got.items.length || got.frames.length ? { box, items: new Set(got.items), frames: new Set(got.frames) } : null
+    call('onMarquee')
+    renderItems()
+    // The agent reads it at GET /api/selection.
+    if (serve) fetch('/api/selection', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selection: chosen ? { board: { page: pageId, box, items: [...chosen.items], frames: [...chosen.frames] } } : null }) }).catch(() => {})
+  }
+  async function removeChosen() {
+    const ids = [...(chosen?.items ?? [])]
+    chosen = null
+    try {
+      for (const id of ids) await sendBoard({ op: 'remove', id })
+    } catch (err) {
+      hint(err.message, 3000)
+    }
+    renderItems()
+  }
+  // A drag box: from empty board, with the select tool, while editing.
+  function startMarquee(e, p) {
+    const ghost = h('div', { class: 'draft-shape marquee' })
+    world.append(ghost)
+    let last = p
+    const box = () => ({ x: Math.round(Math.min(p.x, last.x)), y: Math.round(Math.min(p.y, last.y)), w: Math.round(Math.abs(last.x - p.x)), h: Math.round(Math.abs(last.y - p.y)) })
+    drag = {
+      kind: 'marquee', id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false,
+      move: (ev) => {
+        last = toWorld(ev.clientX, ev.clientY)
+        const b = box()
+        Object.assign(ghost.style, { left: `${b.x}px`, top: `${b.y}px`, width: `${b.w}px`, height: `${b.h}px` })
+      },
+      end: (ev, moved) => {
+        ghost.remove()
+        if (!moved) return emptyClick(ev)
+        choose(box())
+      },
+    }
+    viewport.setPointerCapture(e.pointerId)
+  }
   function placeItemBar() {
+    if (chosen) {
+      const n = chosen.items.size + chosen.frames.size
+      itemBar.replaceChildren(
+        h('span', { class: 'count-note' }, `${n} selected`),
+        api ? h('button', { type: 'button', class: 'tool', title: 'Ask the agent about what is in the box', onclick: () => openAsk() }, '✦ Ask agent') : null,
+        chosen.items.size ? h('button', { type: 'button', class: 'tool', title: 'Delete (Delete)', onclick: () => removeChosen() }, 'Delete') : null,
+      )
+      const top = toScreen(chosen.box.x, chosen.box.y)
+      itemBar.style.left = `${Math.max(8, Math.min(innerWidth - 300, top.x))}px`
+      itemBar.style.top = `${Math.max(56, top.y - 46)}px`
+      itemBar.classList.add('open')
+      return
+    }
     const it = picked && board.items.find((i) => i.id === picked)
     if (!it || it.kind === 'guide' && !findFrame(it.frame)) {
       itemBar.classList.remove('open')
       return
     }
-    const colors = it.kind === 'note' ? NOTE_COLORS : it.kind === 'guide' ? [] : SHAPE_COLORS
+    const colors = it.kind === 'note' ? NOTE_COLORS : it.kind === 'section' ? SECTION_COLORS : it.kind === 'guide' ? [] : SHAPE_COLORS
     itemBar.replaceChildren(...[
       ...colors.map((c) => h('button', { type: 'button', class: `swatch${(it.color || colors[0]) === c ? ' on' : ''}`, style: `background:${c}`, title: c, onclick: () => updateItem(it.id, { color: c }) })),
       ...(it.kind === 'guide'
@@ -687,36 +827,72 @@
   function startItemDrag(e, id) {
     const it = board.items.find((i) => i.id === id)
     if (!it) return
-    pickItem(id)
+    const group = chosen?.items.has(id) ? chosen : null
+    if (!group) pickItem(id)
     if (it.kind === 'guide') return
-    const x0 = it.x
-    const y0 = it.y
     // Near the bottom-right corner it resizes; anywhere else it moves.
     const p = toWorld(e.clientX, e.clientY)
-    const resize = ['note', 'rect', 'ellipse'].includes(it.kind) && p.x > it.x + it.w - 24 / view.z && p.y > it.y + it.h - 24 / view.z
+    const resize = !group && ['note', 'rect', 'ellipse', 'section'].includes(it.kind) && p.x > it.x + it.w - 24 / view.z && p.y > it.y + it.h - 24 / view.z
     const w0 = it.w
     const h0 = it.h
+    // What moves with it: everything a drag box took in, or everything inside a section.
+    const along = group ? { items: [...group.items], frames: [...group.frames] } : it.kind === 'section' && !resize ? inside(it) : { items: [id], frames: [] }
+    if (!along.items.includes(id)) along.items.push(id)
+    // A line moved by hand lets go of what it held, and stays where it was drawn.
+    const moving = along.items.map((x) => board.items.find((i) => i.id === x)).filter((i) => i && i.kind !== 'guide')
+    for (const m of moving) {
+      if (m.id !== id || (!m.from && !m.to)) continue
+      Object.assign(m, geometryOf(m), { from: '', to: '' })
+    }
+    const starts = new Map(moving.map((m) => [m.id, { x: m.x, y: m.y }]))
+    const frameList = along.frames.map((k) => allFrames.get(k)).filter(Boolean)
+    const frameStarts = new Map(frameList.map((f) => [f.key, { x: f.x, y: f.y }]))
+    const boxStart = group ? { ...group.box } : null
     drag = {
       kind: 'item', id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false,
       move: (_, dx, dy) => {
         if (resize) Object.assign(it, { w: Math.max(40, Math.round(w0 + dx)), h: Math.max(30, Math.round(h0 + dy)) })
-        else Object.assign(it, { x: Math.round(x0 + dx), y: Math.round(y0 + dy) })
+        else {
+          for (const m of moving) Object.assign(m, { x: Math.round(starts.get(m.id).x + dx), y: Math.round(starts.get(m.id).y + dy) })
+          for (const f of frameList) {
+            Object.assign(f, { x: Math.round(frameStarts.get(f.key).x + dx), y: Math.round(frameStarts.get(f.key).y + dy) })
+            positionFrame(f)
+          }
+          if (group) Object.assign(group.box, { x: Math.round(boxStart.x + dx), y: Math.round(boxStart.y + dy) })
+        }
         renderItems()
+        if (frameList.length) {
+          renderPins()
+          call('onView')
+        }
       },
-      end: (_, moved) => {
+      end: async (_, moved) => {
         if (!moved) return
-        updateItem(id, resize ? { w: it.w, h: it.h } : { x: it.x, y: it.y })
+        if (resize) return updateItem(id, { w: it.w, h: it.h })
+        try {
+          for (const m of moving) {
+            const change = { x: m.x, y: m.y }
+            if (m.from === '' || m.to === '') Object.assign(change, { w: m.w, h: m.h, points: m.points, from: '', to: '' })
+            await sendBoard({ op: 'item', id: m.id, ...change })
+          }
+          for (const f of frameList) await sendBoard({ op: 'move', key: f.key, x: f.x, y: f.y, page: pageId })
+        } catch (err) {
+          hint(err.message, 3000)
+        }
+        renderItems()
       },
     }
     viewport.setPointerCapture(e.pointerId)
   }
   function editItemText(id) {
     const it = board.items.find((i) => i.id === id)
-    if (!it || !['note', 'title'].includes(it.kind)) return
+    if (!it || !['note', 'title', 'rect', 'ellipse', 'section'].includes(it.kind)) return
     if (!serve) return
-    const el = itemLayer.querySelector(`[data-id="${id}"]`)
+    const box = (it.kind === 'section' ? sectionLayer : itemLayer).querySelector(`[data-id="${id}"]`)
+    const el = box?.querySelector('.txt') ?? box
+    if (!el) return
+    box.classList.add('editing')
     el.contentEditable = 'plaintext-only'
-    el.classList.add('editing')
     el.focus()
     document.getSelection().selectAllChildren(el)
     const done = () => {
@@ -729,7 +905,7 @@
     el.addEventListener('blur', done)
     el.addEventListener('keydown', (e) => {
       e.stopPropagation()
-      if (e.key === 'Escape' || (e.key === 'Enter' && (it.kind === 'title' || e.metaKey || e.ctrlKey))) {
+      if (e.key === 'Escape' || (e.key === 'Enter' && (it.kind === 'title' || it.kind === 'section' || e.metaKey || e.ctrlKey))) {
         e.preventDefault()
         el.blur()
       }
@@ -800,21 +976,28 @@
           w = Math.max(...xs) - x
           hgt = Math.max(...ys) - y
           item = { kind, x, y, w, h: hgt, points: all.map((v, i) => Math.round(v - (i % 2 ? y : x))) }
+          // A line or arrow begun or ended on an object or a frame holds on to it.
+          if (kind !== 'pencil') {
+            const from = bindAt(p)
+            const to = bindAt(last)
+            if (from) item.from = from
+            if (to && to !== from) item.to = to
+          }
         } else {
           if (!moved || w < 10) {
-            w = kind === 'note' ? 360 : 400
-            hgt = kind === 'note' ? 260 : 300
+            w = kind === 'note' ? 360 : kind === 'section' ? 1600 : 400
+            hgt = kind === 'note' ? 260 : kind === 'section' ? 1000 : 300
             x = p.x
             y = p.y
           }
-          item = { kind, x, y, w, h: hgt, ...(kind === 'note' ? { text: '', color: NOTE_COLORS[0] } : {}) }
+          item = { kind, x, y, w, h: hgt, ...(kind === 'note' ? { text: '', color: NOTE_COLORS[0] } : kind === 'section' ? { text: 'Section' } : {}) }
         }
         const id = await addItem(item)
         if (kind !== 'pencil') setTool('select')
         if (id) {
           renderItems()
           if (kind !== 'pencil') pickItem(id)
-          if (kind === 'note') editItemText(id)
+          if (kind === 'note' || kind === 'section') editItemText(id)
         }
       },
     }
@@ -1104,10 +1287,13 @@
   // ── Ask agent ──
   const ask = $('#ask')
   let askTarget = null
+  let askRegion = null
   function openAsk() {
     if (!api) return hint(readOnly, 3000)
-    askTarget = call('selectionTarget') ?? null
-    $('#ask-on').textContent = askTarget ? `On ${askTarget.label}` : 'On the board, where the view is centred'
+    askRegion = chosen ? { box: { ...chosen.box }, items: [...chosen.items, ...chosen.frames] } : null
+    askTarget = askRegion ? null : call('selectionTarget') ?? null
+    const n = askRegion?.items.length
+    $('#ask-on').textContent = askRegion ? `On the ${n} thing${n === 1 ? '' : 's'} in the box` : askTarget ? `On ${askTarget.label}` : 'On the board, where the view is centred'
     ask.classList.add('open')
     $('#tool-ask').setAttribute('aria-pressed', 'true')
     $('#ask-error').textContent = ''
@@ -1135,7 +1321,10 @@
     if (!name.trim()) return
     setName(name)
     let at
-    if (askTarget) {
+    if (askRegion) {
+      const b = askRegion.box
+      at = { frame: null, x: b.x + b.w, y: b.y, box: b, items: askRegion.items }
+    } else if (askTarget) {
       const f = askTarget.frame
       at = { frame: f.key, x: Math.round((askTarget.wx - f.x) / f.s), y: Math.round((askTarget.wy - f.y) / f.s), file: askTarget.file, anchor: askTarget.anchor }
     } else {
@@ -1293,7 +1482,7 @@
   }
   function updateSub() {
     const n = allFrames.size
-    $('#canvas-sub').textContent = `${n} screen${n === 1 ? '' : 's'}`
+    $('#canvas-sub').textContent = n ? `${n} screen${n === 1 ? '' : 's'}` : 'Whiteboard'
   }
 
   /** The page `#page=<id or title>` names, matched on its id or its title without regard to case. */
@@ -1441,13 +1630,16 @@
       if (menu.classList.contains('open')) closeMenu()
       else if (ask.classList.contains('open')) closeAsk()
       else if (thread.classList.contains('open')) closeThread()
-      else if (picked) pickItem(null)
+      else if (picked || chosen) pickItem(null)
       else setTool('select')
+    } else if ((e.key === 'Delete' || e.key === 'Backspace') && chosen?.items.size) {
+      removeChosen()
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && picked) {
       removeItem(picked)
     } else if (TOOL_KEYS[k]) {
       if (usable(TOOL_KEYS[k])) setTool(TOOL_KEYS[k])
-    } else if (k === 'r' && serve) setShape(['rect', 'ellipse', 'line', 'arrow', 'guide'].includes(tool) ? tool : shapeKind)
+    } else if (k === 'r' && serve) setShape(SHAPES.includes(tool) && tool !== 'section' ? tool : shapeKind === 'section' ? 'rect' : shapeKind)
+    else if (k === 's' && serve) setShape('section')
     else if (k === 'f' || (e.key === '!' && e.shiftKey)) fitAll()
     else if (e.key === '=' || e.key === '+') zoomAt(view.z * 1.25, centre().x, centre().y)
     else if (e.key === '-') zoomAt(view.z / 1.25, centre().x, centre().y)
@@ -1475,12 +1667,25 @@
       }
     } catch {}
   }
+  /** Someone else changed the board: take its lines again. Not mid-drag or mid-typing; the next change brings it. */
+  async function refreshBoard() {
+    if (drag || document.querySelector('.items .editing')) return
+    try {
+      const res = await fetch('/api/board', { cache: 'no-store' })
+      const body = await res.json()
+      if (!res.ok || !Array.isArray(body.events) || body.events.length === boardEvents.length) return
+      boardEvents = body.events
+      board = foldBoard(boardEvents)
+      relayout()
+    } catch {}
+  }
   // ── the server's news ──
   if (serve) {
     try {
       const stream = new EventSource('/api/stream')
       stream.addEventListener('file', (e) => fileChanged(JSON.parse(e.data).file))
       stream.addEventListener('lines', refresh)
+      stream.addEventListener('board', refreshBoard)
       stream.addEventListener('reload', () => location.reload())
     } catch {}
   }
@@ -1514,6 +1719,8 @@
     get frames() { return frames() },
     get allFrames() { return [...allFrames.values()] },
     get items() { return items() },
+    get chosen() { return chosen && { box: chosen.box, items: [...chosen.items], frames: [...chosen.frames] } },
+    choose, geometryOf,
     get pages() { return pages() },
     get threads() { return threads },
     overlay, viewport, world,

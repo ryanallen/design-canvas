@@ -1,6 +1,6 @@
 # design-canvas
 
-A skill that lays any folder of HTML prototypes out on one board, to view, play, edit and comment on them as HTML and CSS, with every edit written back into the prototype's own `.html`. Node only: nothing to install, no build step, nothing fetched by the canvas.
+A skill that lays any folder of HTML prototypes out on one board, to view, play, edit and comment on them as HTML and CSS, with every edit written back into the prototype's own `.html`. Every page is also a whiteboard (notes, shapes with text, sections, arrows that stay attached, a selection box to ask an agent about), and a folder with no prototypes builds as a whiteboard alone. Node only: nothing to install, no build step, nothing fetched by the canvas.
 
 ## Install
 
@@ -36,7 +36,7 @@ node scripts/canvas.mjs accept <folder> <prototype.html>
 | [scripts/lib/crop.mjs](scripts/lib/crop.mjs) | One option's column cut out of a comparison board |
 | [scripts/lib/browser.mjs](scripts/lib/browser.mjs) | Finds a Chromium the machine already has, to measure and to check |
 | [scripts/runtime/shell.html](scripts/runtime/shell.html) | The page: top bar, board, panels, toolbars |
-| [scripts/runtime/board.js](scripts/runtime/board.js) | Pages, layout, pan and zoom, frames, comments, board objects, Play |
+| [scripts/runtime/board.js](scripts/runtime/board.js) | Pages, layout, pan and zoom, frames, comments, the whiteboard's objects and selection box, Play |
 | [scripts/runtime/canvas.css](scripts/runtime/canvas.css) | The window's look |
 | [scripts/runtime/editor.js](scripts/runtime/editor.js) | Selection, the selection box, the floating toolbar, text in place, structure edits, keys, comment anchors |
 | [scripts/runtime/panel.js](scripts/runtime/panel.js) | The right panel: layers, Properties, Code, Tweaks |

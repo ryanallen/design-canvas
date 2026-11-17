@@ -15,9 +15,14 @@
 // `anchor`, which pin it to an element; a host that does not know them ignores them, and the pin
 // falls back to its `x` and `y`.
 //
-// A board line is `item` (a note, title, shape, pencil stroke or layout guide, last line for an
-// id wins), `remove`, `move` (a frame placed by hand, on a page), `page` (a page made, renamed or
-// removed) and `name` (the canvas's own title).
+// A board line is `item` (a note, title, shape, section, line, arrow, pencil stroke or layout
+// guide, last line for an id wins), `remove`, `move` (a frame placed by hand, on a page), `page` (a
+// page made, renamed or removed) and `name` (the canvas's own title). A line or arrow may carry
+// `from` and `to`, each a board object's id or a frame's key, and is then drawn between those two
+// wherever they are; its own `points` are where it is drawn once either end is gone.
+//
+// A comment `add` may carry `box` ({ x, y, w, h } on the board) and `items` (board object ids and
+// frame keys): the region of the board it is about, as a drag-box selection left it.
 //
 // This file is inlined into the page and used by the server, so it has no imports.
 
@@ -87,6 +92,16 @@ const anchorOf = (a) => {
   return { path, dx: coord(a.dx ?? 0, 'anchor.dx'), dy: coord(a.dy ?? 0, 'anchor.dy') }
 }
 
+const boxOf = (b) => {
+  if (!b || typeof b !== 'object') return undefined
+  return { x: coord(b.x, 'box.x'), y: coord(b.y, 'box.y'), w: Math.max(0, coord(b.w, 'box.w')), h: Math.max(0, coord(b.h, 'box.h')) }
+}
+const refsOf = (list, field) => {
+  if (list == null) return undefined
+  if (!Array.isArray(list) || list.length > 400) throw new Error(`${field} is not a list`)
+  return list.map((v, i) => text(v, LIMITS.frame, `${field}[${i}]`))
+}
+
 /** What a client sent, checked and stamped. The server gives the id and the time, so neither
  * can be forged into an order the file did not see. */
 export function makeEvent(input, { now = new Date(), newId = randomId } = {}) {
@@ -100,6 +115,10 @@ export function makeEvent(input, { now = new Date(), newId = randomId } = {}) {
       const anchor = anchorOf(input.anchor)
       if (anchor) Object.assign(event, { file: text(input.file ?? (frame ?? '').split('#')[0], LIMITS.frame, 'file'), anchor })
       if (input.agent) event.agent = true
+      const box = boxOf(input.box)
+      if (box) event.box = box
+      const about = refsOf(input.items, 'items')
+      if (about?.length) event.items = about
       return event
     }
     case 'reply':
@@ -127,7 +146,7 @@ export function foldEvents(events) {
   const owner = new Map()
   for (const e of events) {
     if (e.op === 'add' && !threads.has(e.id)) {
-      threads.set(e.id, { id: e.id, at: e.at, name: e.name, text: e.text, frame: e.frame ?? null, x: e.x, y: e.y, file: e.file ?? null, anchor: e.anchor ?? null, agent: !!e.agent, resolved: false, resolvedBy: null, replies: [] })
+      threads.set(e.id, { id: e.id, at: e.at, name: e.name, text: e.text, frame: e.frame ?? null, x: e.x, y: e.y, file: e.file ?? null, anchor: e.anchor ?? null, box: e.box ?? null, items: e.items ?? [], agent: !!e.agent, resolved: false, resolvedBy: null, replies: [] })
     } else if (e.op === 'reply' && threads.has(e.to)) {
       threads.get(e.to).replies.push({ id: e.id, at: e.at, name: e.name, text: e.text })
       owner.set(e.id, e.to)
@@ -164,7 +183,7 @@ export function foldBoard(events) {
   return { items: [...items.values()], moved: Object.fromEntries(moved), pages: [...pages.values()], name }
 }
 
-const BOARD_KINDS = ['note', 'title', 'rect', 'ellipse', 'line', 'arrow', 'pencil', 'guide']
+const BOARD_KINDS = ['note', 'title', 'rect', 'ellipse', 'section', 'line', 'arrow', 'pencil', 'guide']
 const pageId = (value) => {
   if (typeof value !== 'string' || !/^[a-z0-9-]{1,40}$/.test(value)) throw new Error('page is not a page id')
   return value
@@ -192,6 +211,8 @@ export function makeBoardEvent(input, { now = new Date(), newId = randomId } = {
       if (input.text != null) event.text = String(input.text).slice(0, LIMITS.text)
       if (input.color != null) event.color = String(input.color).slice(0, 40)
       if (input.frame != null) event.frame = text(input.frame, LIMITS.frame, 'frame')
+      // An end let go of is written as an empty string, so the fold drops what an earlier line bound.
+      for (const k of ['from', 'to']) if (input[k] != null) event[k] = input[k] === '' ? '' : text(input[k], LIMITS.frame, k)
       for (const k of ['cols', 'gutter', 'margin']) if (input[k] != null) event[k] = coord(input[k], k)
       if (input.points != null) {
         if (!Array.isArray(input.points) || input.points.length > 4000) throw new Error('points is not a list of numbers')

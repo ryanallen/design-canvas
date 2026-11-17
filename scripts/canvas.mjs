@@ -70,6 +70,8 @@ function readLayout(folder, layoutPath, title) {
   if (fs.existsSync(own)) return readLayout(folder, own, title)
   const files = prototypeFiles(folder)
   const name = title ?? path.basename(path.resolve(folder))
+  // A folder with no prototypes is a whiteboard: one empty page for notes, shapes and arrows.
+  if (!files.length) return { title: name, pages: [{ id: 'p1', title: 'Board', sections: [] }] }
   return { title: name, pages: [{ id: 'p1', title: 'Page 1', sections: [{ title: name, sub: `${files.length} prototype${files.length === 1 ? '' : 's'}`, groups: [{ kind: 'flat', frames: framesFor(folder, files) }] }] }] }
 }
 const prototypeFiles = (folder) => fs.readdirSync(folder).filter((f) => f.endsWith('.html') && !isCanvas(f) && !f.startsWith('.')).sort()
@@ -150,7 +152,7 @@ function renderPage(payload, lines) {
     .replace(/__TITLE__/g, esc(payload.title))
     .replace(/__KEY__/g, esc(payload.key))
     .replace(/__MARK__/g, CANVAS_MARK)
-    .replace('__SUB__', `${frames} screen${frames === 1 ? '' : 's'}`)
+    .replace('__SUB__', frames ? `${frames} screen${frames === 1 ? '' : 's'}` : 'Whiteboard')
     .replace('/*__CSS__*/', () => css)
     .replace('__DATA__', () => json)
     .replace('/*__LIBRARY__*/', () => scriptSafe(library()))
@@ -172,11 +174,11 @@ export async function buildCanvas(options) {
   const folder = path.resolve(options.folder)
   const out = path.resolve(options.out ?? path.join(folder, 'canvas.html'))
   const warnings = []
+  fs.mkdirSync(folder, { recursive: true })
   const layout = readLayout(folder, options.layout, options.title)
   const sections = layout.pages.flatMap((p) => p.sections)
   const frames = sections.flatMap((s) => s.groups.flatMap((g) => g.frames))
   for (const f of frames) if (!fs.existsSync(path.join(folder, f.file))) throw new Error(`the layout names ${f.file}, which is not in ${folder}`)
-  if (!frames.length) throw new Error(`${folder} has no prototypes to lay out`)
 
   // Every line already in the canvas file, and in another copy of it, comments ordered by time.
   const lines = []
@@ -216,7 +218,8 @@ export async function buildCanvas(options) {
     for (const d of drifted) lines.push(`<!-- edit ${JSON.stringify({ op: 'carried', id: randomId('e'), at: new Date().toISOString(), name: 'build', file: d.file, sha: d.now })} -->`)
   }
 
-  if (options.measure === false) for (const f of frames) Object.assign(f, { w: f.w ?? WIDTH, h: f.h ?? 1000 })
+  if (!frames.length) {}
+  else if (options.measure === false) for (const f of frames) Object.assign(f, { w: f.w ?? WIDTH, h: f.h ?? 1000 })
   else await measure(folder, frames, warnings)
 
   const assets = {}
@@ -400,10 +403,14 @@ export function serveCanvas(built, { port = 4410, quiet = false, memory = false 
         return json(res, 200, { event })
       }
       if (url.pathname === '/api/board') {
-        if (req.method === 'GET') return json(res, 200, { events: parseLines(lines.join('\n'), 'board') })
+        if (req.method === 'GET') {
+          const events = parseLines(lines.join('\n'), 'board')
+          return json(res, 200, { events, board: foldBoard(events) })
+        }
         const event = makeBoardEvent((await readBody(req)).event)
         lines.push(insertEvent('', event, 'board').trim())
         writeOut()
+        tell('board', {})
         return json(res, 200, { event })
       }
       if (url.pathname === '/api/canvas') {
@@ -481,9 +488,21 @@ export function serveCanvas(built, { port = 4410, quiet = false, memory = false 
       if (url.pathname === '/api/selection') {
         if (req.method === 'POST') {
           const asked = (await readBody(req)).selection ?? null
+          // A drag box on the board: the region, and the objects and frames inside it.
+          if (asked?.board) {
+            const b = asked.board
+            const refs = (list) => (Array.isArray(list) ? list.slice(0, 400).map(String) : [])
+            selection = { board: { page: String(b.page ?? ''), box: { x: Number(b.box?.x) || 0, y: Number(b.box?.y) || 0, w: Number(b.box?.w) || 0, h: Number(b.box?.h) || 0 }, items: refs(b.items), frames: refs(b.frames) } }
+            return json(res, 200, { ok: true })
+          }
           if (asked && (!payload.files[asked.file] || !Array.isArray(asked.cvs))) return json(res, 404, { error: `${asked.file} is not on this canvas` })
           selection = asked
           return json(res, 200, { ok: true })
+        }
+        if (selection?.board) {
+          const all = foldBoard(parseLines(lines.join('\n'), 'board')).items
+          const b = selection.board
+          return json(res, 200, { selection: { board: { ...b, items: b.items.map((id) => all.find((i) => i.id === id)).filter(Boolean) } } })
         }
         if (!selection || !payload.files[selection.file]) return json(res, 200, { selection: null })
         const src = readFile(selection.file)

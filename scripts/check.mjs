@@ -440,6 +440,90 @@ export async function check(options, { buildCanvas, serveCanvas } = {}) {
       must(!(await page.evaluate(() => window.designCanvas.items.some((i) => i.text === 'note from the check'))), 'the note was not deleted')
     })
 
+    await step('Whiteboard: a section, labelled boxes, an arrow that follows, a drag box asked about and deleted', async () => {
+      await page.evaluate(() => { const dc = window.designCanvas; dc.view.y = 900 - Math.max(...dc.frames.map((f) => (f.y + f.H) * dc.view.z)) - 400; dc.apply() })
+      const dragOn = async (a, b) => {
+        await page.mouse.move(a[0], a[1])
+        await page.mouse.down()
+        await page.mouse.move((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, { steps: 4 })
+        await page.mouse.move(b[0], b[1], { steps: 4 })
+        await page.mouse.up()
+        await wait(400)
+      }
+      const newest = (kind) => page.evaluate((k) => window.designCanvas.items.filter((i) => i.kind === k).at(-1) ?? null, kind)
+      await page.keyboard.press('s')
+      await dragOn([150, 560], [1000, 800])
+      await page.keyboard.type('Plan')
+      await page.mouse.click(1000, 120)
+      await wait(400)
+      const section = await newest('section')
+      must(section?.text === 'Plan', `the section reads ${JSON.stringify(section?.text)}`)
+      const boxes = []
+      for (const [a, b, words] of [[[250, 620], [420, 720], 'Start'], [[700, 620], [870, 720], 'Ship']]) {
+        await page.evaluate(() => window.designCanvas.setTool('rect'))
+        await dragOn(a, b)
+        await page.mouse.dblclick((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
+        await wait(200)
+        await page.keyboard.press('ControlOrMeta+a')
+        await page.keyboard.type(words)
+        await page.mouse.click(1000, 120)
+        await wait(400)
+        boxes.push(await newest('rect'))
+      }
+      must(boxes.map((b) => b?.text).join() === 'Start,Ship', `the boxes read ${boxes.map((b) => b?.text).join()}`)
+      await page.evaluate(() => window.designCanvas.setTool('arrow'))
+      await dragOn([335, 670], [785, 670])
+      const arrow = await newest('arrow')
+      must(arrow?.from === boxes[0].id && arrow?.to === boxes[1].id, `the arrow holds ${arrow?.from} → ${arrow?.to}`)
+      await page.keyboard.press('Escape')
+      await dragOn([850, 640], [850, 760])
+      const moved = await page.evaluate((ids) => {
+        const dc = window.designCanvas
+        const b = dc.items.find((i) => i.id === ids.b)
+        const g = dc.geometryOf(dc.items.find((i) => i.id === ids.a))
+        const endY = g.y + g.points[3]
+        return { endY, top: b.y, bottom: b.y + b.h }
+      }, { a: arrow.id, b: boxes[1].id })
+      must(moved.endY >= moved.top - 2 && moved.endY <= moved.bottom + 2, `the arrow's end did not follow the box: ${JSON.stringify(moved)}`)
+      await page.keyboard.press('Escape')
+      await dragOn([120, 535], [1100, 880])
+      await shot('whiteboard')
+      const chosen = await page.evaluate(() => window.designCanvas.chosen)
+      const ours = [section.id, ...boxes.map((b) => b.id), arrow.id]
+      must(chosen && ours.every((id) => chosen.items.includes(id)), `the drag box took ${JSON.stringify(chosen?.items)}`)
+      const sel = await page.evaluate(() => fetch('/api/selection').then((r) => r.json()))
+      must(sel.selection?.board?.items?.length >= 4 && sel.selection.board.items.some((i) => i.text === 'Ship'), `the agent sees ${JSON.stringify(sel).slice(0, 200)}`)
+      await page.click('#itembar button[title^="Ask the agent"]')
+      await page.fill('#ask-text', 'what is missing between these?')
+      await page.press('#ask-text', 'Enter')
+      await wait(500)
+      const asked = await page.evaluate(() => fetch('/api/agent').then((r) => r.json()))
+      const t = asked.threads.find((x) => x.text === 'what is missing between these?')
+      must(t?.box && ours.every((id) => t.items.includes(id)), `the agent's thread carries ${JSON.stringify(t ? { box: t.box, items: t.items } : null)}`)
+      await page.evaluate((id) => fetch('/api/canvas-comments', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ event: { op: 'delete', to: id, name: 'canvas check' } }) }), t.id)
+      await page.click('#itembar button[title^="Delete"]')
+      await wait(600)
+      const left = await page.evaluate((ids) => window.designCanvas.items.filter((i) => ids.includes(i.id)).length, ours)
+      must(!left, `${left} of the board objects were not deleted`)
+    })
+
+    await step('Whiteboard: a folder with no prototypes builds as an empty board', async () => {
+      const empty = fs.mkdtempSync(path.join(tmp, 'board-'))
+      await buildCanvas({ folder: empty, measure: false, quiet: true })
+      const p4 = await browser.newPage({ viewport: { width: 1200, height: 800 } })
+      const thrown = []
+      p4.on('pageerror', (e) => thrown.push(e.message))
+      try {
+        await p4.goto(new URL(`file:///${path.join(empty, 'canvas.html').replace(/\\/g, '/')}`).href, { waitUntil: 'load' })
+        await p4.waitForTimeout(600)
+        const r = await p4.evaluate(() => ({ frames: window.designCanvas.frames.length, page: document.querySelector('#page-name').textContent }))
+        must(!thrown.length, `thrown: ${thrown.join('; ')}`)
+        must(r.frames === 0 && r.page === 'Board', JSON.stringify(r))
+      } finally {
+        await p4.close().catch(() => {})
+      }
+    })
+
     await step('Play: open it and follow a link', async () => {
       const f = await page.evaluate(() => {
         const dc = window.designCanvas

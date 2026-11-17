@@ -1411,6 +1411,8 @@
     renderPins()
   }
   function showThread(what, keepTyping = false) {
+    // One dialog at a time: the ask box keeps what was typed in it for when it opens again.
+    if ($('#ask').classList.contains('open')) closeAsk()
     const typed = keepTyping ? thread.querySelector('textarea')?.value : ''
     const t = what.id ? threads.find((x) => x.id === what.id) : null
     const msgs = h('div', { class: 'msgs' })
@@ -1518,6 +1520,7 @@
   let askRegion = null
   function openAsk() {
     if (!api) return hint(readOnly, 3000)
+    if (thread.classList.contains('open')) closeThread()
     askRegion = chosen ? { box: { ...chosen.box }, items: [...chosen.items, ...chosen.frames] } : null
     askTarget = askRegion ? null : call('selectionTarget') ?? null
     const n = askRegion?.items.length

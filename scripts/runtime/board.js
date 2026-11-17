@@ -718,6 +718,21 @@
       renderItems()
     }
     placeItemBar()
+    showEmpty()
+  }
+  /** A page with nothing on it says, once, in one quiet line, what can be done with it from here. */
+  function showEmpty() {
+    const el = $('#empty')
+    if (!el) return
+    const empty = !frames().length && !items().length
+    el.hidden = !empty
+    if (!empty) return
+    const edit = !serve && document.querySelector('button#canvas-mode:not(:disabled)')
+    el.replaceChildren(
+      h('b', {}, 'An empty board'),
+      serve ? h('span', {}, 'Pick a tool below to add text, notes, drawings and shapes.')
+        : edit ? h('span', {}, h('button', { type: 'button', onclick: () => edit.click() }, 'Edit'), ' and pick this folder to draw on it.')
+          : h('span', {}, 'Nothing has been put on this page yet.'))
   }
   // ── arrows that hold on: an end bound to an object or a frame is drawn at that one's edge ──
   const BINDS = ['note', 'rect', 'ellipse', 'section']
@@ -1292,7 +1307,9 @@
       }, String(number(t))))
     }
     if (draft) pinLayer.append(h('div', { class: 'pin active', style: `left:${draft.wx}px;top:${draft.wy}px` }, '+'))
-    $('#comment-count').textContent = String(threads.filter((t) => !t.resolved).length)
+    const open = threads.filter((t) => !t.resolved).length
+    $('#comment-count').textContent = String(open)
+    $('#comment-count').hidden = !open
     renderList()
   }
   function renderList() {
@@ -1938,6 +1955,7 @@
     document.body.classList.add('serving', 'commenting')
     $('#canvas-mode').textContent = `Editing ${folderName}`
     $('#canvas-mode').title = title
+    showEmpty()
     for (const file of Object.keys(data.files)) {
       delete fileHtml[file]
       for (const f of allFrames.values()) if (f.file === file && f.loaded && f.el) loadFrame(f)
@@ -1968,7 +1986,7 @@
     overlay, viewport, world,
     toWorld, toScreen, frameAt, findFrame, showFrame, docFor, plainFile, reloadFile, relayout, downloadFile,
     setTool, openPanel, setPanel, currentTab, openMenu, closeMenu, openPlay, goPage, moveFrameToPage,
-    startComment, commentOn, openAsk, renderPins, pickItem, apply, sendBoard,
+    startComment, commentOn, openAsk, renderPins, pickItem, apply, sendBoard, showEmpty,
     setName: (n) => setName(n),
   }
 

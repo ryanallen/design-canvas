@@ -451,6 +451,7 @@
   button.disabled = !supported
   button.addEventListener('click', () => !on && start())
   mode.replaceWith(button)
+  dc.showEmpty?.()
   dc.useFolder = useFolder
   if (supported) dc.startLocal = () => !on && start()
 

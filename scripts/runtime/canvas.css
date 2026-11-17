@@ -219,6 +219,7 @@ a.tool { text-decoration: none; font-size: 13px; }
   font-size: 11px; display: inline-grid; place-items: center; padding: 0 5px;
 }
 .tool[aria-pressed='true'] .count { background: rgb(0 0 0 / 0.12); color: inherit; }
+.count[hidden] { display: none; }
 
 /* The toolbar: one floating plane, every tool a circle on it. */
 #toolbar {
@@ -361,6 +362,20 @@ body.panel-open #panel { display: flex; }
 #play iframe { border: 0; background: #fff; height: 100%; width: 100%; margin: 0 auto; flex: none; transform-origin: 0 0; }
 #play.fit .stage { overflow: hidden; }
 
+/* An empty page: one quiet line in the middle of the board, gone once anything is on it. */
+#empty {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; pointer-events: none;
+  display: grid; gap: 6px; justify-items: center; text-align: center; max-width: calc(100vw - 48px);
+  color: var(--ink-3); font-size: 13px;
+}
+#empty[hidden] { display: none; }
+#empty b { color: var(--ink-2); font-size: 15px; font-weight: 600; letter-spacing: 0.01em; }
+#empty button {
+  pointer-events: auto; border: 0; border-radius: 999px; padding: 3px 12px; margin-right: 2px;
+  background: var(--ink); color: var(--bg); font-weight: 600; font-size: 13px; cursor: pointer;
+}
+body.panel-open #empty { left: calc(50% - 160px); }
+@media (max-width: 640px) { body.panel-open #empty { display: none; } }
 /* What cannot work where the canvas is open is not shown: drawing and making need editing on,
    commenting needs somewhere to save comments. */
 body:not(.serving) #toolbar [data-tool='text'], body:not(.serving) #toolbar [data-tool='artboard'],

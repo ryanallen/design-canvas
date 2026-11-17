@@ -115,7 +115,11 @@
 .nine button { width: 14px; height: 14px; border: 0; border-radius: 3px; background: var(--panel-3); padding: 0; }
 .nine button[aria-pressed='true'] { background: var(--accent); }
 .colorf { display: flex; gap: 4px; align-items: center; flex: 1; min-width: 0; }
-.colorf input[type='color'] { width: 26px; height: 26px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; flex: none; }
+/* Every colour field is a round swatch of its colour, not the browser's grey box. */
+#panel input[type='color'] { width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: none; flex: none; cursor: pointer; box-shadow: 0 0 0 1px var(--line); }
+#panel input[type='color']::-webkit-color-swatch-wrapper { padding: 0; }
+#panel input[type='color']::-webkit-color-swatch { border: 0; border-radius: 50%; }
+#panel input[type='color']::-moz-color-swatch { border: 0; border-radius: 50%; }
 .colorf input:not([type]) { flex: 1; width: 0; }
 .contrast { margin: 0 0 4px 84px; font-size: 11px; }
 .contrast.ok { color: #7ee2a8; } .contrast.mid { color: #f5c26b; } .contrast.bad { color: var(--danger); }
@@ -124,7 +128,7 @@
 .chipbtn:hover { color: var(--ink); border-color: var(--ink-3); }
 .chead { padding: 10px 12px 4px; font-size: 11px; color: var(--ink-3); font-weight: 600; overflow-wrap: anywhere; }
 .decl { display: grid; grid-template-columns: minmax(80px, 40%) 1fr auto; gap: 4px; padding: 1px 12px; align-items: center; font: 12px/1.4 ui-monospace, 'Cascadia Code', Consolas, monospace; }
-.decl .p { color: #9cdcfe; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.decl .p { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .decl.ro .v { color: var(--ink-2); overflow-wrap: anywhere; }
 .decl input { font: inherit; height: 24px !important; }
 .decl.add input.p { color: var(--ink); }

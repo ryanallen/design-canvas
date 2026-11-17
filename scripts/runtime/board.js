@@ -713,6 +713,11 @@
   const NOTE_COLORS = ['#fde68a', '#bfdbfe', '#ddd6fe', '#fbcfe8', '#bbf7d0', '#fed7aa']
   const SHAPE_COLORS = ['#8a8a96', '#3b82f6', '#a855f7', '#ec4899', '#22c55e', '#f59e0b', '#ef4444', '#ffffff']
   const SECTION_COLORS = ['#8a8a96', '#3b82f6', '#a855f7', '#ec4899', '#22c55e', '#f59e0b']
+  /** What each swatch is called, for its tooltip and for a screen reader. */
+  const COLOR_NAMES = {
+    '#fde68a': 'Yellow', '#bfdbfe': 'Blue', '#ddd6fe': 'Lavender', '#fbcfe8': 'Pink', '#bbf7d0': 'Green', '#fed7aa': 'Peach',
+    '#8a8a96': 'Grey', '#3b82f6': 'Blue', '#a855f7': 'Purple', '#ec4899': 'Pink', '#22c55e': 'Green', '#f59e0b': 'Amber', '#ef4444': 'Red', '#ffffff': 'White',
+  }
   let picked = null
   // What a drag box took in: board objects and frames, and the box itself.
   let chosen = null
@@ -944,7 +949,7 @@
     } else {
     const colors = it.kind === 'note' ? NOTE_COLORS : it.kind === 'section' ? SECTION_COLORS : it.kind === 'guide' ? [] : SHAPE_COLORS
     itemBar.replaceChildren(...[
-      ...colors.map((c) => h('button', { type: 'button', class: `swatch${(it.color || colors[0]) === c ? ' on' : ''}`, style: `background:${c}`, title: c, onclick: () => updateItem(it.id, { color: c }) })),
+      ...colors.map((c) => h('button', { type: 'button', class: `swatch${(it.color || colors[0]) === c ? ' on' : ''}`, style: `background:${c}`, title: COLOR_NAMES[c] ?? c, 'aria-label': COLOR_NAMES[c] ?? c, 'aria-pressed': String((it.color || colors[0]) === c), onclick: () => updateItem(it.id, { color: c }) })),
       ...(it.kind === 'guide'
         ? [
             h('label', {}, 'Cols', h('input', { type: 'number', min: 1, max: 24, value: it.cols ?? 12, onchange: (e) => updateItem(it.id, { cols: Number(e.target.value) || 12 }) })),

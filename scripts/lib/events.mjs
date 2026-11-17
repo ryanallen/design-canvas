@@ -187,6 +187,13 @@ export function foldBoard(events) {
   return { items: [...items.values()], moved: Object.fromEntries(moved), pages: [...pages.values()], name, locked: [...locked] }
 }
 
+/** A board object's colour: a hex, a colour name, or rgb()/hsl() numbers. Anything else is refused,
+ * since the colour is drawn into a style and an SVG. */
+const colorOf = (value) => {
+  const c = typeof value === 'string' ? value.trim() : ''
+  if (c === '' || /^(#[0-9a-f]{3,8}|[a-z]{3,20}|(?:rgb|hsl)a?\([\d.,%\s/]+\))$/i.test(c)) return c
+  throw new Error('color is not a colour')
+}
 const BOARD_KINDS = ['note', 'title', 'rect', 'ellipse', 'section', 'line', 'arrow', 'pencil', 'guide']
 const pageId = (value) => {
   if (typeof value !== 'string' || !/^[a-z0-9-]{1,40}$/.test(value)) throw new Error('page is not a page id')
@@ -213,7 +220,7 @@ export function makeBoardEvent(input, { now = new Date(), newId = randomId } = {
       if (input.page != null) event.page = pageId(input.page)
       for (const k of ['x', 'y', 'w', 'h']) if (input[k] != null) event[k] = coord(input[k], k)
       if (input.text != null) event.text = String(input.text).slice(0, LIMITS.text)
-      if (input.color != null) event.color = String(input.color).slice(0, 40)
+      if (input.color != null) event.color = colorOf(input.color)
       if (input.frame != null) event.frame = text(input.frame, LIMITS.frame, 'frame')
       // An end let go of is written as an empty string, so the fold drops what an earlier line bound.
       for (const k of ['from', 'to']) if (input[k] != null) event[k] = input[k] === '' ? '' : text(input[k], LIMITS.frame, k)

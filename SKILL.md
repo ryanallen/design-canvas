@@ -11,6 +11,8 @@ It works the way HTML and CSS work: the layers are the DOM, the properties are t
 
 On the board, a plain click on a link, button, checkbox or field inside an artboard works it: a link to the web opens in a new tab, a link to another artboard goes to it on the board, a `#` link moves within the artboard. Ctrl or ⌘ + click (or Shift, or Alt) selects it instead, to edit it.
 
+On a phone or tablet, one finger drags the board with any tool that does not draw, two fingers pinch to zoom, and a tap does what a click does. On a narrow screen the layout's links are in the canvas menu under the title, and a comment thread opens over the bottom of the screen.
+
 ## Commands
 
 Run from this folder (or give the path to `scripts/canvas.mjs`):

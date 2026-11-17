@@ -142,11 +142,27 @@ const library = () =>
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 /** The canvas page: chrome, the payload, the runtime, and every stored line after it. */
+// The page's own code, read and made script-safe once, and again only when one of its files
+// changes on disk: a served canvas renders the page after every edit, comment and board change.
+const PARTS = ['runtime/board.js', 'runtime/editor.js', 'runtime/panel.js', 'runtime/local.js', 'runtime/canvas.css', 'runtime/editor.css', 'runtime/shell.html', 'lib/events.mjs', 'lib/html.mjs']
+let partsCache = null
+function pageParts() {
+  const stamp = PARTS.map((f) => fs.statSync(path.join(here, f)).mtimeMs).join(',')
+  if (partsCache?.stamp === stamp) return partsCache
+  const read = (f) => fs.readFileSync(path.join(here, 'runtime', f), 'utf8')
+  partsCache = {
+    stamp,
+    runtime: scriptSafe(['board.js', 'editor.js', 'panel.js', 'local.js'].map(read).join('\n')),
+    css: ['canvas.css', 'editor.css'].map(read).join('\n'),
+    shell: read('shell.html'),
+    library: scriptSafe(library()),
+  }
+  return partsCache
+}
+
 function renderPage(payload, lines) {
   const json = JSON.stringify(payload).replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
-  const runtime = ['board.js', 'editor.js', 'panel.js', 'local.js'].map((f) => fs.readFileSync(path.join(here, 'runtime', f), 'utf8')).join('\n')
-  const css = ['canvas.css', 'editor.css'].map((f) => fs.readFileSync(path.join(here, 'runtime', f), 'utf8')).join('\n')
-  const shell = fs.readFileSync(path.join(here, 'runtime', 'shell.html'), 'utf8')
+  const { runtime, css, shell, library: lib } = pageParts()
   const frames = payload.pages.reduce((n, p) => n + p.sections.reduce((m, s) => m + s.groups.reduce((k, g) => k + g.frames.length, 0), 0), 0)
   return shell
     .replace(/__TITLE__/g, esc(payload.title))
@@ -155,8 +171,8 @@ function renderPage(payload, lines) {
     .replace('__SUB__', frames ? `${frames} screen${frames === 1 ? '' : 's'}` : 'Whiteboard')
     .replace('/*__CSS__*/', () => css)
     .replace('__DATA__', () => json)
-    .replace('/*__LIBRARY__*/', () => scriptSafe(library()))
-    .replace('/*__RUNTIME__*/', () => scriptSafe(runtime))
+    .replace('/*__LIBRARY__*/', () => lib)
+    .replace('/*__RUNTIME__*/', () => runtime)
     .replace('<!--__LINES__-->', () => `${lines.join('\n')}${lines.length ? '\n' : ''}`)
 }
 
@@ -281,9 +297,11 @@ export function serveCanvas(built, { port = 4410, quiet = false, memory = false 
   }
   const ownWrites = new Map()
   let canvasText = fs.readFileSync(out, 'utf8')
+  // Held in memory, the page is rendered only when asked for (server.canvas.text, /api/canvas), never after each change.
   const writeOut = () => {
+    if (memory) return
     canvasText = renderPage(payload, lines)
-    if (!memory) fs.writeFileSync(out, canvasText)
+    fs.writeFileSync(out, canvasText)
   }
   const servedFile = (file) => inlineFile(folder, file, tag(readShown(file)), payload.assets, [])
   const servedPage = () => renderPage({ ...payload, serve: true, memory, canvas: path.basename(out), files: Object.fromEntries(Object.keys(payload.files).map((f) => [f, servedFile(f)])) }, lines)
@@ -360,19 +378,33 @@ export function serveCanvas(built, { port = 4410, quiet = false, memory = false 
     lines.push(`<!-- edit ${JSON.stringify(event).replace(/--/g, '-\\u002d')} -->`)
   }
 
+  // Only a file the canvas draws counts as on it: an own key, so `constructor` or `__proto__` is not.
+  const onCanvas = (file) => typeof file === 'string' && Object.hasOwn(payload.files, file)
   const json = (res, status, body) => {
     res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' })
     res.end(JSON.stringify(body))
   }
+  // The body is gathered as bytes and decoded once, so a character split between two chunks stays whole.
+  const MAX_BODY = 4_000_000
   const readBody = (req) =>
     new Promise((resolve, reject) => {
-      let body = ''
+      const chunks = []
+      let size = 0
       req.on('data', (c) => {
-        body += c
-        if (body.length > 4_000_000) req.destroy()
+        size += c.length
+        if (size > MAX_BODY) {
+          reject(Object.assign(new Error(`the request is larger than ${MAX_BODY / 1_000_000} MB`), { status: 413 }))
+          req.removeAllListeners('data')
+          req.resume()
+          return
+        }
+        chunks.push(c)
       })
+      req.on('error', reject)
       req.on('end', () => {
+        if (size > MAX_BODY) return
         try {
+          const body = Buffer.concat(chunks).toString('utf8')
           resolve(body ? JSON.parse(body) : {})
         } catch (err) {
           reject(err)
@@ -395,6 +427,11 @@ export function serveCanvas(built, { port = 4410, quiet = false, memory = false 
   }
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1')
+    // No other site may frame the editor (and click through it), sniff a response into another type, or be told where it came from.
+    res.setHeader('x-content-type-options', 'nosniff')
+    res.setHeader('x-frame-options', 'SAMEORIGIN')
+    res.setHeader('referrer-policy', 'no-referrer')
+    res.setHeader('cross-origin-resource-policy', 'same-origin')
     if (!allowed(req, url)) return json(res, 403, { error: 'only the canvas served here may call it' })
     try {
       if (url.pathname === '/api/canvas-comments') {
@@ -446,19 +483,19 @@ export function serveCanvas(built, { port = 4410, quiet = false, memory = false 
       }
       if (url.pathname === '/api/file') {
         const file = url.searchParams.get('f')
-        if (!payload.files[file]) return json(res, 404, { error: `${file} is not on this canvas` })
+        if (!onCanvas(file)) return json(res, 404, { error: `${file} is not on this canvas` })
         return json(res, 200, { html: servedFile(file) })
       }
       if (url.pathname === '/api/source') {
         const file = url.searchParams.get('f')
-        if (!payload.files[file]) return json(res, 404, { error: `${file} is not on this canvas` })
+        if (!onCanvas(file)) return json(res, 404, { error: `${file} is not on this canvas` })
         const src = readFile(file)
         const el = parse(src).byStart.get(Number(url.searchParams.get('cv')))
         return json(res, 200, { html: el ? src.slice(el.start, el.end) : null })
       }
       if (url.pathname === '/api/edit' && req.method === 'POST') {
         const { file, edit, name } = await readBody(req)
-        if (!payload.files[file]) return json(res, 404, { error: `${file} is not on this canvas` })
+        if (!onCanvas(file)) return json(res, 404, { error: `${file} is not on this canvas` })
         const before = readFile(file)
         const frameLocked = foldBoard(lines.flatMap((l) => parseLines(l, 'board'))).locked.some((k) => k === file || k.startsWith(`${file}#`))
         const refused = frameLocked ? 'This artboard is locked: unlock it on the board first' : lockedFor(before, edit, { owner: true })
@@ -501,7 +538,7 @@ export function serveCanvas(built, { port = 4410, quiet = false, memory = false 
             selection = { board: { page: String(b.page ?? ''), box: { x: Number(b.box?.x) || 0, y: Number(b.box?.y) || 0, w: Number(b.box?.w) || 0, h: Number(b.box?.h) || 0 }, items: refs(b.items), frames: refs(b.frames) } }
             return json(res, 200, { ok: true })
           }
-          if (asked && (!payload.files[asked.file] || !Array.isArray(asked.cvs))) return json(res, 404, { error: `${asked.file} is not on this canvas` })
+          if (asked && (!onCanvas(asked.file) || !Array.isArray(asked.cvs))) return json(res, 404, { error: `${asked.file} is not on this canvas` })
           selection = asked
           return json(res, 200, { ok: true })
         }
@@ -510,7 +547,7 @@ export function serveCanvas(built, { port = 4410, quiet = false, memory = false 
           const b = selection.board
           return json(res, 200, { selection: { board: { ...b, items: b.items.map((id) => all.find((i) => i.id === id)).filter(Boolean) } } })
         }
-        if (!selection || !payload.files[selection.file]) return json(res, 200, { selection: null })
+        if (!selection || !onCanvas(selection.file)) return json(res, 200, { selection: null })
         const src = readFile(selection.file)
         const els = selection.cvs.map((cv) => parse(src).byStart.get(Number(cv))).filter(Boolean)
         return json(res, 200, { selection: { ...selection, source: els.map((el) => ({ cv: el.start, html: src.slice(el.start, el.end) })) } })
@@ -530,8 +567,10 @@ export function serveCanvas(built, { port = 4410, quiet = false, memory = false 
       // frames its screens by file name, and answering those with the canvas nested the whole board
       // inside every board frame, again inside each of those, until the browser ran out of memory.
       const asked = decodeURIComponent(url.pathname.slice(1))
-      if (asked.endsWith('.html') && asked !== path.basename(out) && !asked.includes('..')) {
-        const html = payload.files[asked] ? servedFile(asked) : fs.existsSync(path.join(folder, asked)) ? inlineFile(folder, asked, readFile(asked), payload.assets, []) : null
+      // Only a page inside the folder: no climbing out, no drive or absolute path, no NUL.
+      const within = (p) => path.resolve(folder, p).startsWith(path.resolve(folder) + path.sep)
+      if (asked.endsWith('.html') && asked !== path.basename(out) && !asked.includes('..') && !asked.includes('\0') && within(asked)) {
+        const html = onCanvas(asked) ? servedFile(asked) : fs.existsSync(path.join(folder, asked)) ? inlineFile(folder, asked, readFile(asked), payload.assets, []) : null
         if (html != null) {
           // Its stylesheets are written back in, the way a frame draws them.
           const page = html.replace(/<link\b[^>]*__RC_ASSET__\(([^)]+)\)[^>]*>/g, (_, a) => (payload.assets[a] ? `<style>${payload.assets[a].text}</style>` : ''))
@@ -547,7 +586,7 @@ export function serveCanvas(built, { port = 4410, quiet = false, memory = false 
       json(res, 404, { error: 'not found' })
     } catch (err) {
       if (res.headersSent) res.end()
-      else json(res, 400, { error: err.message })
+      else json(res, err.status ?? 400, { error: err.message })
     }
   })
   server.canvas = { get text() { return memory ? renderPage(payload, lines) : canvasText }, readFile, get lines() { return lines }, get payload() { return payload }, outside: (file, text) => (memory ? mem.set(file, text) : fs.writeFileSync(path.join(folder, file), text)) }

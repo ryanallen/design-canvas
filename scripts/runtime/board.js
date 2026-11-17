@@ -27,6 +27,12 @@
     for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(kid)
     return el
   }
+  const s = (tag, attrs = {}, ...kids) => {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', tag)
+    for (const [k, v] of Object.entries(attrs)) if (v != null) el.setAttribute(k, v)
+    el.append(...kids)
+    return el
+  }
   const store = {
     get(key) {
       try { return JSON.parse(localStorage.getItem(`dc:${data.key}:${key}`)) } catch { return null }
@@ -348,18 +354,33 @@
   const MAX_Z = 4
   const zoomLabel = $('#zoom-level')
   let loadTimer = 0
+  let placeFrame = 0
+  let lastZ = 0
+  // The board moves at once; what floats over it is placed once a frame, however many pointer and
+  // wheel events arrive in it; the view is saved and frames load once the move has settled.
   function apply() {
     world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.z})`
-    world.style.setProperty('--z', view.z)
-    world.style.setProperty('--iz', 1 / view.z)
-    zoomLabel.textContent = `${Math.round(view.z * 100)}%`
-    document.body.classList.toggle('tiny', 1440 * view.z < 150)
-    placeThread()
-    placeItemBar()
-    call('onView')
+    // A pan leaves the zoom as it was: the counter-scaled labels, pins and strokes are restyled only on a zoom.
+    if (view.z !== lastZ) {
+      lastZ = view.z
+      world.style.setProperty('--z', view.z)
+      world.style.setProperty('--iz', 1 / view.z)
+      zoomLabel.textContent = `${Math.round(view.z * 100)}%`
+      document.body.classList.toggle('tiny', 1440 * view.z < 150)
+    }
+    if (!placeFrame) {
+      placeFrame = requestAnimationFrame(() => {
+        placeFrame = 0
+        placeThread()
+        placeItemBar()
+        call('onView')
+      })
+    }
     clearTimeout(loadTimer)
-    loadTimer = setTimeout(loadVisible, 120)
-    store.set(`view:${pageId}`, view)
+    loadTimer = setTimeout(() => {
+      loadVisible()
+      store.set(`view:${pageId}`, view)
+    }, 120)
   }
   function zoomAt(z, sx, sy) {
     z = Math.min(MAX_Z, Math.max(MIN_Z, z))
@@ -506,7 +527,48 @@
 
   // Pointer on the board: the editor sees it first; then panning, drawing, picking board objects.
   let drag = null
+  // A finger is not a mouse: with the select or text tool it drags the board, and a tap (a press
+  // that does not move) is replayed as the press it would have been, so it still selects, follows
+  // a link or starts a comment. Two fingers pinch to zoom and pan together. A drawing tool draws.
+  const touches = new Map()
+  let pinch = null
+  const TAP_SLOP = 10
+  const capture = (id) => {
+    try { viewport.setPointerCapture(id) } catch {}
+  }
+  function startPinch() {
+    const [a, b] = [...touches.values()]
+    if (drag && drag.kind !== 'pan') drag.cancel?.()
+    drag = null
+    viewport.classList.remove('panning')
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+    pinch = { d0: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), z0: view.z, w: toWorld(mid.x, mid.y) }
+  }
+  function movePinch() {
+    const [a, b] = [...touches.values()]
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+    const z = Math.min(MAX_Z, Math.max(MIN_Z, (pinch.z0 * Math.hypot(a.x - b.x, a.y - b.y)) / pinch.d0))
+    view.z = z
+    view.x = mid.x - pinch.w.x * z
+    view.y = mid.y - pinch.w.y * z
+    apply()
+  }
   viewport.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch') {
+      touches.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      if (touches.size === 2) return startPinch()
+      if (touches.size > 2 || pinch) return
+      const onPicked = e.target.closest('.item.on')
+      if ((tool === 'select' || tool === 'text') && !onPicked && !e.target.closest('button, .pin, .frame-label, [contenteditable]')) {
+        closeMenu()
+        drag = { kind: 'pan', id: e.pointerId, sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false, forced: false, tap: e }
+        capture(e.pointerId)
+        return
+      }
+    }
+    pressDown(e)
+  })
+  function pressDown(e) {
     if (e.button === 1 || e.button === 0) closeMenu()
     if (e.target.closest('button, .pin, .frame-label, [contenteditable]')) return
     const p = toWorld(e.clientX, e.clientY)
@@ -529,9 +591,13 @@
     }
     if (e.button !== 0 && e.button !== 1) return
     drag = { kind: 'pan', id: e.pointerId, sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false, forced: panning }
-    viewport.setPointerCapture(e.pointerId)
-  })
+    capture(e.pointerId)
+  }
   viewport.addEventListener('pointermove', (e) => {
+    if (e.pointerType === 'touch' && touches.has(e.pointerId)) {
+      touches.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      if (pinch) return touches.size >= 2 ? movePinch() : undefined
+    }
     if (!drag) {
       if (!spaceHeld && tool !== 'hand') call('onHover', e, { frame: frameAt(e.clientX, e.clientY), point: toWorld(e.clientX, e.clientY), tool })
       return
@@ -539,7 +605,7 @@
     if (drag.id !== e.pointerId) return
     const dx = e.clientX - drag.sx
     const dy = e.clientY - drag.sy
-    if (!drag.moved && Math.hypot(dx, dy) < 4) return
+    if (!drag.moved && Math.hypot(dx, dy) < (drag.tap ? TAP_SLOP : 4)) return
     drag.moved = true
     if (drag.kind === 'pan') {
       viewport.classList.add('panning')
@@ -549,14 +615,32 @@
     } else drag.move?.(e, dx / view.z, dy / view.z)
   })
   const endDrag = (e) => {
+    if (e.pointerType === 'touch' && touches.has(e.pointerId)) {
+      touches.delete(e.pointerId)
+      if (pinch) {
+        // The pinch ends with its last finger; one finger left behind does not start a pan.
+        if (!touches.size) pinch = null
+        return
+      }
+    }
     if (!drag || drag.id !== e.pointerId) return
     const d = drag
     drag = null
     viewport.classList.remove('panning')
     if (d.kind !== 'pan') return d.end?.(e, d.moved)
     if (d.moved || d.forced) return
+    if (d.tap && e.type === 'pointerup') return replayTap(d.tap, e)
+    if (d.tap) return
     emptyClick(e)
   }
+  // A tap: the press it would have been, then its release, so whatever the press began ends at once.
+  function replayTap(down, up) {
+    pressDown(down)
+    const init = { bubbles: true, cancelable: true, pointerId: up.pointerId, pointerType: 'touch', isPrimary: true, button: 0, buttons: 0, clientX: up.clientX, clientY: up.clientY }
+    viewport.dispatchEvent(new PointerEvent('pointerup', init))
+  }
+  // Safari's own pinch would zoom the whole page, chrome and all, instead of the board.
+  for (const type of ['gesturestart', 'gesturechange']) document.addEventListener(type, (e) => e.preventDefault())
   function emptyClick(e) {
     if (tool === 'comment') return startComment(e.clientX, e.clientY)
     pickItem(null)
@@ -684,8 +768,13 @@
     return under[0]?.id ?? null
   }
 
+  // A colour is a hex, a name or rgb()/hsl() numbers, nothing else: a colour from a canvas file
+  // goes into a style, and a style may not fetch (url()) or break out of its declaration.
+  const safeColor = (c) => (typeof c === 'string' && /^(#[0-9a-f]{3,8}|[a-z]{3,20}|(?:rgb|hsl)a?\([\d.,%\s/]+\))$/i.test(c.trim()) ? c.trim() : '')
+  const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0)
   function itemEl(it) {
     it = geometryOf(it)
+    it = { ...it, color: safeColor(it.color), x: num(it.x), y: num(it.y), w: num(it.w), h: num(it.h) }
     const cls = `item ${it.kind}${picked === it.id || chosen?.items.has(it.id) ? ' on' : ''}${isLocked(it.id) ? ' locked' : ''}`
     const box = `left:${it.x}px;top:${it.y}px;width:${it.w ?? 0}px;height:${it.h ?? 0}px`
     if (it.kind === 'note') return h('div', { class: cls, 'data-id': it.id, style: `${box};background:${it.color || NOTE_COLORS[0]}` }, it.text ?? '')
@@ -695,19 +784,31 @@
     if (it.kind === 'guide') {
       const f = findFrame(it.frame)
       if (!f || f.page !== pageId) return null
-      const cols = it.cols || 12
-      const m = (it.margin ?? 80) * f.s
-      const g = (it.gutter ?? 24) * f.s
+      const cols = Math.min(48, Math.max(1, Math.round(num(it.cols)) || 12))
+      const m = num(it.margin ?? 80) * f.s
+      const g = num(it.gutter ?? 24) * f.s
       return h('div', { class: `item guide`, 'data-id': it.id, style: `left:${f.x + m}px;top:${f.y}px;width:${f.W - m * 2}px;height:${f.H}px;grid-template-columns:repeat(${cols},1fr);column-gap:${g}px` }, ...Array.from({ length: cols }, () => h('span'))
       )
     }
     if (['line', 'arrow', 'pencil'].includes(it.kind)) {
-      const pts = it.points ?? []
+      // Built as elements, never as markup: a canvas file's lines are anyone's, so nothing in one is parsed as HTML.
+      const pts = (Array.isArray(it.points) ? it.points : []).map(Number).filter(Number.isFinite)
       const d = pts.reduce((s, v, i) => s + (i % 2 ? `,${v}` : `${i ? ' L' : 'M'}${v}`), '')
       const color = it.color || SHAPE_COLORS[0]
-      const marker = it.kind === 'arrow' ? `<defs><marker id="ah-${it.id}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${color}"/></marker></defs>` : ''
-      const svg = `<svg width="${Math.max(1, it.w)}" height="${Math.max(1, it.h)}" viewBox="0 0 ${Math.max(1, it.w)} ${Math.max(1, it.h)}">${marker}<path class="ink" d="${d}" fill="none" stroke="${color}" stroke-width="${it.kind === 'pencil' ? 5 : 4}" stroke-linecap="round" stroke-linejoin="round"${it.kind === 'arrow' ? ` marker-end="url(#ah-${it.id})"` : ''}/><path class="hit" d="${d}" fill="none" stroke="transparent" stroke-width="24"/></svg>`
-      return h('div', { class: `${cls} svg`, 'data-id': it.id, style: box, html: svg })
+      const W = Math.max(1, Number(it.w) || 0)
+      const H = Math.max(1, Number(it.h) || 0)
+      const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}` })
+      const markerId = `ah-${String(it.id).replace(/[^\w-]/g, '')}`
+      if (it.kind === 'arrow') {
+        const marker = s('marker', { id: markerId, viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 5, markerHeight: 5, orient: 'auto-start-reverse' })
+        marker.append(s('path', { d: 'M0 0L10 5L0 10z', fill: color }))
+        svg.append(s('defs', {}, marker))
+      }
+      svg.append(
+        s('path', { class: 'ink', d, fill: 'none', stroke: color, 'stroke-width': it.kind === 'pencil' ? 5 : 4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'marker-end': it.kind === 'arrow' ? `url(#${markerId})` : null }),
+        s('path', { class: 'hit', d, fill: 'none', stroke: 'transparent', 'stroke-width': 24 }),
+      )
+      return h('div', { class: `${cls} svg`, 'data-id': it.id, style: box }, svg)
     }
     return null
   }
@@ -1557,6 +1658,8 @@
       sel ? { label: `Download ${sel}`, icon: 'download', run: () => downloadFile(sel) } : null,
       serve ? { label: 'Rename', run: rename } : null,
       serve && !data.memory && !local ? { label: 'Refresh from the prototypes', run: rebuild } : null,
+      // On a phone the top bar has no room for the layout's links, so they are here.
+      ...(matchMedia('(max-width: 640px)').matches && data.links?.length ? ['-', ...data.links.filter((l) => /^https?:\/\//i.test(l?.href ?? '') && l.text).map((l) => ({ label: String(l.text), run: () => open(l.href, '_blank', 'noopener') }))] : []),
     ].filter(Boolean))
   })
   async function downloadCanvas() {

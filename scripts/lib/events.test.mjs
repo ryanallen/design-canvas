@@ -128,3 +128,8 @@ test('a comment about a region keeps its box and the objects in it', () => {
   const plain = make({ op: 'add', name: 'A', text: 't', frame: null, x: 0, y: 0 })
   assert.equal('box' in plain || 'items' in plain, false)
 })
+
+test('a board colour is a colour, never markup or a style that fetches', () => {
+  for (const c of ['#fde68a', 'tomato', 'rgb(1, 2, 3)', 'hsla(10 50% 50% / 0.5)', '']) assert.equal(board({ op: 'item', kind: 'rect', color: c }).color, c)
+  for (const c of ['"><img src=x onerror=alert(1)>', 'red;background:url(//x)', 'url(//x)', 'expression(alert(1))']) assert.throws(() => board({ op: 'item', kind: 'arrow', color: c }), /color is not a colour/)
+})

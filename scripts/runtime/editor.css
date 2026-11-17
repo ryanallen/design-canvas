@@ -24,15 +24,15 @@
 /* ── the floating toolbar ── */
 #float {
   position: fixed; z-index: 14; display: none; align-items: center; gap: 2px; padding: 3px;
-  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--chrome-shadow);
+  background: var(--panel); border-radius: var(--r); box-shadow: var(--chrome-shadow), var(--edge);
 }
 #float.open { display: flex; }
 .fbtn {
-  height: 28px; min-width: 28px; padding: 0 6px; border: 0; border-radius: 6px; background: transparent; color: var(--ink-2);
+  height: 30px; min-width: 30px; padding: 0 7px; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--ink-2);
   display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 13px; position: relative; cursor: pointer;
 }
 .fbtn:hover { background: var(--panel-2); color: var(--ink); }
-.fbtn[aria-pressed='true'] { background: var(--panel-3); color: var(--ink); }
+.fbtn[aria-pressed='true'] { background: var(--ink); color: var(--bg); }
 .fbtn.wide { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; justify-content: space-between; }
 .fbtn .caret { margin-left: 2px; }
 .swatch-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
@@ -90,7 +90,7 @@
 .pf > label { color: var(--ink-3); font-size: 12px; }
 .pc { display: flex; gap: 4px; align-items: center; min-width: 0; flex-wrap: wrap; }
 #panel input:not([type]), #panel input[type='text'], #panel input[list], #panel select, #panel .pc input.n, #panel textarea {
-  min-width: 0; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; height: 26px; color: var(--ink);
+  min-width: 0; background: var(--panel-2); border: 1px solid transparent; border-radius: var(--r-sm); padding: 3px 8px; height: 28px; color: var(--ink);
 }
 #panel .pc > input:not([type]) { flex: 1; }
 #panel input.n { width: 58px; flex: none !important; font-variant-numeric: tabular-nums; }

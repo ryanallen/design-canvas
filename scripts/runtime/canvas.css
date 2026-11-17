@@ -102,6 +102,11 @@ body.tool-text #viewport { cursor: text; }
 }
 .frame-label .name { overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; padding: 2px 0; }
 .frame-label .name:hover { color: var(--ink); }
+/* Too narrow for the name and its buttons side by side: the name has its own line, the buttons under it. */
+.frame-label.stack { flex-wrap: wrap; row-gap: 2px; }
+.frame-label.stack .name { flex: 1 0 100%; }
+body.labels-stacked .section-label { transform: scale(var(--iz, 1)) translateY(calc(-100% - 58px)); }
+@media (pointer: coarse) { body.labels-stacked .section-label { transform: scale(var(--iz, 1)) translateY(calc(-100% - 76px)); } }
 .frame-label button {
   flex: none; border: 0; background: transparent; border-radius: 5px;
   padding: 0 5px; height: 22px; font-size: 11px; color: var(--ink-2); display: inline-flex; align-items: center; gap: 4px;

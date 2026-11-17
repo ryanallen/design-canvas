@@ -280,6 +280,7 @@
     $('#page-name').textContent = pages().find((p) => p.id === pageId)?.title ?? ''
     $('#page-count').textContent = String(pages().length)
     samePageName()
+    stackLabels()
     updateSub()
     call('onPage', pageId)
   }
@@ -359,6 +360,26 @@
   let lastZ = 0
   // The board moves at once; what floats over it is placed once a frame, however many pointer and
   // wheel events arrive in it; the view is saved and frames load once the move has settled.
+  /** A frame's label too narrow on screen for its name (up to 72px of it) and its buttons puts the
+      buttons on a line under the name. Widths are measured once per label and kept; this runs on a zoom only. */
+  function stackLabels() {
+    let any = false
+    for (const f of frames()) {
+      const l = f.labelEl
+      if (!l?.isConnected) continue
+      if (!f.actsW) {
+        f.actsW = [...l.querySelectorAll('button')].reduce((a, b) => a + b.offsetWidth + 4, 0)
+        // The text's own width: the name's box stretches to fill the label. On screen the label is at 1:1.
+        const r = document.createRange()
+        r.selectNodeContents(l.querySelector('.name') ?? l)
+        f.nameW = Math.min(72, Math.ceil(r.getBoundingClientRect().width))
+      }
+      const stack = !!f.actsW && f.W * view.z < f.actsW + f.nameW
+      l.classList.toggle('stack', stack)
+      any ||= stack
+    }
+    document.body.classList.toggle('labels-stacked', any)
+  }
   function apply() {
     world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.z})`
     // A pan leaves the zoom as it was: the counter-scaled labels, pins and strokes are restyled only on a zoom.
@@ -368,6 +389,7 @@
       world.style.setProperty('--iz', 1 / view.z)
       zoomLabel.textContent = `${Math.round(view.z * 100)}%`
       document.body.classList.toggle('tiny', 1440 * view.z < 150)
+      stackLabels()
     }
     if (!placeFrame) {
       placeFrame = requestAnimationFrame(() => {
@@ -1233,6 +1255,7 @@
   /** Each frame's lock in its header: a padlock when locked; for the owner, the button that toggles it. */
   function drawLock(f) {
     if (!f.labelEl) return
+    f.actsW = 0
     f.lockEl?.remove()
     const on = isLocked(f.key)
     if (!on && !owner()) return (f.lockEl = null)
@@ -1246,7 +1269,7 @@
     }, icon(on ? 'lock' : 'unlock'))
     f.labelEl.querySelector('.name')?.after(f.lockEl)
   }
-  const drawLocks = () => { for (const f of allFrames.values()) drawLock(f) }
+  const drawLocks = () => { for (const f of allFrames.values()) drawLock(f); stackLabels() }
 
   async function sendBoard(input) {
     if (!serve) throw new Error(readOnly)

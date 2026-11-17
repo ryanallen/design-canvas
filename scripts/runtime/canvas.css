@@ -126,7 +126,8 @@ body.tool-text #viewport { cursor: text; }
 .section-label .name { overflow: hidden; text-overflow: ellipsis; flex: none; max-width: 100%; }
 .section-label small { font-weight: 400; color: var(--ink-3); font-size: 12px; margin-left: 2px; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 body.tiny .frame-label { display: none; }
-body.tiny .section-label { transform: scale(var(--iz, 1)) translateY(calc(-100% - 10px)); font-size: 13px; }
+/* High enough that a comment pin on a frame's corner (28px tall) does not cover it. */
+body.tiny .section-label { transform: scale(var(--iz, 1)) translateY(calc(-100% - 32px)); font-size: 13px; }
 body.tiny .section-label small { display: none; }
 /* Far out, a lock's dot would be bigger than what it is on; the padlock on the label says it close up. */
 body.tiny .item.locked::after { display: none; }
@@ -428,6 +429,8 @@ body.has-banner #panel { top: 88px; }
   #play [data-width='390'], #play [data-width='1024'], #play [data-width='1440'], #play .head .sep { display: none; }
   #toolbar .ask { font-size: 0; }
   #toolbar .ask::before { content: '✦'; font-size: 14px; }
-  #panel { left: 0; width: auto; top: auto; height: 55vh; box-shadow: 0 -1px 0 rgb(255 255 255 / 0.06), 0 -12px 32px rgb(0 0 0 / 0.5); border-radius: var(--r-lg) var(--r-lg) 0 0; }
+  /* The sheet's last line (Commenting as) stays above the floating toolbar. */
+  #panel { padding-bottom: calc(max(16px, env(safe-area-inset-bottom)) + 66px); }
+  #panel { left: 0; width: auto; top: auto; height: 62vh; box-shadow: 0 -1px 0 rgb(255 255 255 / 0.06), 0 -12px 32px rgb(0 0 0 / 0.5); border-radius: var(--r-lg) var(--r-lg) 0 0; }
   #play .head { overflow-x: auto; }
 }

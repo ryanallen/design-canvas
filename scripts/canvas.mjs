@@ -32,6 +32,7 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { applyEdit, lockedFor, parse, tag } from './lib/html.mjs'
 import { inlineFile } from './lib/inline.mjs'
+import { writeFileAtomic } from './lib/write.mjs'
 import { cropToOption } from './lib/crop.mjs'
 import { launchChromium } from './lib/browser.mjs'
 import { CANVAS_MARK, foldBoard, foldEvents, insertEvent, makeBoardEvent, makeEvent, parseEvents, parseLines, randomId, storedLines } from './lib/events.mjs'
@@ -263,7 +264,7 @@ export async function buildCanvas(options) {
     links: (layout.links ?? []).filter((l) => l && typeof l.text === 'string' && /^https?:\/\//i.test(l.href ?? '')).map((l) => ({ text: l.text, href: l.href })),
     serve: false,
   }
-  fs.writeFileSync(out, renderPage(payload, lines))
+  writeFileAtomic(out, renderPage(payload, lines))
   if (!options.quiet) {
     const kb = Math.round(fs.statSync(out).size / 1024)
     console.log(`${path.relative(process.cwd(), out) || out}: ${layout.pages.length} page${layout.pages.length === 1 ? '' : 's'}, ${sections.length} section${sections.length === 1 ? '' : 's'}, ${frames.length} frames, ${lines.length} lines kept, ${kb} KB`)
@@ -292,7 +293,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
     if (memory) mem.set(file, text)
     else {
       ownWrites.set(file, text)
-      fs.writeFileSync(path.join(folder, file), text)
+      writeFileAtomic(path.join(folder, file), text)
     }
   }
   const ownWrites = new Map()
@@ -301,7 +302,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
   const writeOut = () => {
     if (memory) return
     canvasText = renderPage(payload, lines)
-    fs.writeFileSync(out, canvasText)
+    writeFileAtomic(out, canvasText)
   }
   const servedFile = (file) => inlineFile(folder, file, tag(readShown(file)), payload.assets, [])
   const servedPage = () => renderPage({ ...payload, serve: true, memory, canvas: path.basename(out), files: Object.fromEntries(Object.keys(payload.files).map((f) => [f, servedFile(f)])) }, lines)
@@ -474,7 +475,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         const title = String(body.name).trim().slice(0, 120)
         const html = `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>${esc(title)}</title>\n<style>\n  body { margin: 0; font-family: system-ui, sans-serif; }\n</style>\n</head>\n<body>\n<main style="min-height: ${Math.max(240, Math.round(Number(body.h) || 900))}px; max-width: ${w}px">\n</main>\n</body>\n</html>\n`
         if (memory) return json(res, 409, { error: 'a canvas held in memory makes no files' })
-        fs.writeFileSync(path.join(folder, file), html)
+        writeFileAtomic(path.join(folder, file), html)
         const event = makeBoardEvent({ op: 'move', key: file, x: Number(body.x) || 0, y: Number(body.y) || 0, page: body.page, name: body.by })
         lines.push(insertEvent('', event, 'board').trim())
         writeOut()
@@ -589,7 +590,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
       else json(res, err.status ?? 400, { error: err.message })
     }
   })
-  server.canvas = { get text() { return memory ? renderPage(payload, lines) : canvasText }, readFile, get lines() { return lines }, get payload() { return payload }, outside: (file, text) => (memory ? mem.set(file, text) : fs.writeFileSync(path.join(folder, file), text)) }
+  server.canvas = { get text() { return memory ? renderPage(payload, lines) : canvasText }, readFile, get lines() { return lines }, get payload() { return payload }, outside: (file, text) => (memory ? mem.set(file, text) : writeFileAtomic(path.join(folder, file), text)) }
   // A port another canvas (or anything else) already holds: unless this one was asked for by
   // name, the next free one up to 20 along; otherwise one plain line, not a stack.
   let at = port
@@ -615,7 +616,7 @@ export function acceptFiles(folder, files, out = path.join(folder, 'canvas.html'
     const event = { op: 'carried', id: randomId('e'), at: new Date().toISOString(), name: 'accept', file, sha: sha(fs.readFileSync(path.join(folder, file), 'utf8')) }
     text = insertEvent(text, event, 'edit')
   }
-  fs.writeFileSync(out, text)
+  writeFileAtomic(out, text)
 }
 
 // ── the command line ──

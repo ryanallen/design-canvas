@@ -31,8 +31,9 @@ node scripts/canvas.mjs accept <folder> <prototype.html>
 | [scripts/canvas.mjs](scripts/canvas.mjs) | `build`, `serve`, `check`, `accept`; `buildCanvas`, `serveCanvas` and `acceptFiles` for a caller that works its own layout out |
 | [scripts/check.mjs](scripts/check.mjs) | The gate, through a real browser, on a copy held in memory |
 | [scripts/lib/html.mjs](scripts/lib/html.mjs) | A prototype as elements with their source offsets, and every edit as a replacement at them |
-| [scripts/lib/html.test.mjs](scripts/lib/html.test.mjs) | Every edit op checked to change only its own bytes (`node --test scripts/lib`) |
+| [scripts/lib/html.test.mjs](scripts/lib/html.test.mjs) | Every edit op checked to change only its own bytes (`node --test scripts/lib/*.test.mjs`) |
 | [scripts/lib/events.mjs](scripts/lib/events.mjs) | Comment, edit and board lines: written, read, checked and folded |
+| [scripts/lib/write.mjs](scripts/lib/write.mjs) | Every file written whole or not at all: a hidden file beside it, flushed, renamed over it |
 | [scripts/lib/inline.mjs](scripts/lib/inline.mjs) | A prototype made self-contained |
 | [scripts/lib/crop.mjs](scripts/lib/crop.mjs) | One option's column cut out of a comparison board |
 | [scripts/lib/browser.mjs](scripts/lib/browser.mjs) | Finds a Chromium the machine already has, to measure and to check |

@@ -27,7 +27,7 @@ node scripts/canvas.mjs accept <folder> <prototype.html>…
 A person can skip the terminal: **Design Canvas.cmd** (Windows) or **Design Canvas.command** (Mac) asks for the folder and offers build and open, open, check and serve. A built canvas opened from disk in Chrome or Edge edits itself once **Viewing · Edit** is clicked and its folder picked, with no server.
 
 - **build** writes `<folder>/canvas.html`: every prototype inlined, the page's own code inlined, and every comment, edit and board line already in the file kept.
-- **serve** builds, then serves it on `http://127.0.0.1:4410/` (the next free port if that one is taken; a `--port` named is used or refused), reachable from this machine only. Edits go into the prototypes; comment, edit and board lines go into `canvas.html`.
+- **serve** builds, then serves it on `http://127.0.0.1:4410/` (the next free port if that one is taken; a `--port` named is used or refused), reachable from this machine only. Edits go into the prototypes; comment, edit and board lines go into `canvas.html`. Each file is written whole or not at all (a hidden file beside it, renamed over it), so a crash or a full disk leaves a prototype or `canvas.html` as it was.
 - **check** is the gate: through a real browser it makes each kind of edit, undoes each, leaves and reads back a comment and a sticky note, opens Play, looks at 390 wide, and fails on an error or any request off the machine. Nothing it does is written to disk.
 - **accept** says a prototype changed on purpose since its last canvas edit (its build script now carries the edits), so `build` stops refusing it.
 

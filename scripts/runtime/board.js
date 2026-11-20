@@ -457,6 +457,20 @@
     iframe.addEventListener('load', () => {
       f.el?.querySelector('.placeholder')?.remove()
       f.doc = iframe.contentDocument
+      // A wheel or a trackpad scroll that lands in the artboard's own page moves the board, as it does over empty board:
+      // Safari hands it to the frame under the pointer even though the frame takes no presses.
+      const toBoard = (x, y) => {
+        const r = iframe.getBoundingClientRect()
+        const k = iframe.clientWidth ? r.width / iframe.clientWidth : 1
+        return { x: r.left + x * k, y: r.top + y * k }
+      }
+      if (f.doc) {
+        f.doc.addEventListener('wheel', (e) => {
+          const at = toBoard(e.clientX, e.clientY)
+          boardWheel(e, at.x, at.y)
+        }, { passive: false })
+        listenForPinch(f.doc, toBoard)
+      }
       // An edit that makes the page taller or shorter makes the frame follow.
       if (serve && !f.crop && f.doc?.documentElement) {
         const tall = Math.min(MAX_H, Math.max(MIN_H, Math.ceil(f.doc.documentElement.scrollHeight)))
@@ -490,20 +504,23 @@
     if (playing?.file === file) playFrame.srcdoc = docFor(playing)
   }
 
-  viewport.addEventListener('wheel', (e) => {
+  function boardWheel(e, sx, sy) {
     e.preventDefault()
     // A mouse wheel's notch (lines, or a delta of 50 and up) moves the zoom shown by 2 points below
     // 100%, and by 2% of itself above; a trackpad pinch's small deltas zoom with the fingers.
+    // Safari's pinch zooms from its own gesture events below, so the Control-held wheels it also sends are left alone.
     if (e.ctrlKey || e.metaKey) {
+      if (trackpadPinch) return
       const notch = e.deltaMode === 1 || Math.abs(e.deltaY) >= 50
-      zoomAt(notch ? view.z - Math.sign(e.deltaY) * 0.02 * Math.max(1, view.z) : view.z * Math.exp(-e.deltaY * 0.01), e.clientX, e.clientY)
+      zoomAt(notch ? view.z - Math.sign(e.deltaY) * 0.02 * Math.max(1, view.z) : view.z * Math.exp(-e.deltaY * 0.01), sx, sy)
     }
     else {
       view.x -= e.shiftKey && !e.deltaX ? e.deltaY : e.deltaX
       view.y -= e.shiftKey && !e.deltaX ? 0 : e.deltaY
       apply()
     }
-  }, { passive: false })
+  }
+  viewport.addEventListener('wheel', (e) => boardWheel(e, e.clientX, e.clientY), { passive: false })
 
   const toWorld = (sx, sy) => ({ x: (sx - view.x) / view.z, y: (sy - view.y) / view.z })
   const toScreen = (wx, wy) => ({ x: wx * view.z + view.x, y: wy * view.z + view.y })
@@ -663,8 +680,26 @@
     const init = { bubbles: true, cancelable: true, pointerId: up.pointerId, pointerType: 'touch', isPrimary: true, button: 0, buttons: 0, clientX: up.clientX, clientY: up.clientY }
     viewport.dispatchEvent(new PointerEvent('pointerup', init))
   }
-  // Safari's own pinch would zoom the whole page, chrome and all, instead of the board.
-  for (const type of ['gesturestart', 'gesturechange']) document.addEventListener(type, (e) => e.preventDefault())
+  // Safari (and every Mac app built on it) reports a trackpad pinch as gesture events carrying the scale since the
+  // fingers went down; left alone it would zoom the whole page, chrome and all, so the board zooms from them instead.
+  let trackpadPinch = null
+  // A frame's own page passes its gestures here with `toBoard`, which takes its points to the board's.
+  function listenForPinch(doc, toBoard = (x, y) => ({ x, y })) {
+    doc.addEventListener('gesturestart', (e) => {
+      e.preventDefault()
+      const at = Number.isFinite(e.clientX) && (e.clientX || e.clientY) ? toBoard(e.clientX, e.clientY) : { x: innerWidth / 2, y: innerHeight / 2 }
+      trackpadPinch = { z: view.z, ...at }
+    })
+    doc.addEventListener('gesturechange', (e) => {
+      e.preventDefault()
+      if (trackpadPinch && Number.isFinite(e.scale) && e.scale > 0) zoomAt(trackpadPinch.z * e.scale, trackpadPinch.x, trackpadPinch.y)
+    })
+    doc.addEventListener('gestureend', (e) => {
+      e.preventDefault()
+      trackpadPinch = null
+    })
+  }
+  listenForPinch(document)
   function emptyClick(e) {
     if (tool === 'comment') return startComment(e.clientX, e.clientY)
     pickItem(null)

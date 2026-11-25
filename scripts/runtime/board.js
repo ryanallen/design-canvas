@@ -1785,6 +1785,7 @@
       return { kind: 'page', id: ev.id ?? null, state: p }
     }
     if (ev.op === 'lock') return { kind: 'lock', key: ev.key, state: b.locked.includes(ev.key) }
+    if (ev.op === 'name') return { kind: 'name', key: 'canvas', state: b.name || data.title }
     return null
   }
   function remember(before, after) {
@@ -1815,6 +1816,11 @@
         const other = back ? c.after : c.before
         if (c.kind === 'page') {
           await sendBoard(want ? { op: 'page', id: c.id, title: want.title, removed: want.removed } : { op: 'page', id: c.id, removed: true })
+          continue
+        }
+        if (c.kind === 'name') {
+          await sendBoard({ op: 'name', title: want })
+          setTitle(want)
           continue
         }
         if (c.kind === 'lock') {

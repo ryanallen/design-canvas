@@ -1198,6 +1198,7 @@
         anyGroup ? h('button', { type: 'button', class: 'tool', title: 'Ungroup (Ctrl+Shift+G)', onclick: () => groupChosen(false) }, 'Ungroup') : null,
         api ? h('button', { type: 'button', class: 'tool', title: 'Ask the agent about what is in the box', onclick: () => openAsk() }, '✦ Ask agent') : null,
         chosen.items.size ? h('button', { type: 'button', class: 'tool', title: 'Delete (Delete)', onclick: () => removeChosen() }, 'Delete') : null,
+        pageButton(),
         ...(owner() ? [
           [...chosen.items, ...chosen.frames].some((k) => !isLocked(k)) ? h('button', { type: 'button', class: 'tool', title: 'Lock everything selected', onclick: () => setLock([...chosen.items, ...chosen.frames], true) }, icon('lock'), 'Lock') : null,
           [...chosen.items, ...chosen.frames].some(isLocked) ? h('button', { type: 'button', class: 'tool', title: 'Unlock everything selected', onclick: () => setLock([...chosen.items, ...chosen.frames].filter(isLocked), false) }, icon('unlock'), 'Unlock') : null,
@@ -1233,6 +1234,7 @@
         : []),
       h('span', { class: 'sep' }),
       h('button', { type: 'button', class: 'tool', title: 'Delete (Delete)', onclick: () => removeItem(it.id) }, 'Delete'),
+      it.kind === 'guide' ? null : pageButton(),
       owner() ? h('button', { type: 'button', class: 'tool', title: 'Lock it: nobody moves, changes or deletes it, and visitors put nothing over it', onclick: () => setLock([it.id], true) }, icon('unlock'), 'Lock') : null,
     ].filter(Boolean))
     }
@@ -2443,6 +2445,30 @@
       } } : null,
     ].filter(Boolean))
   })
+  /** The board objects selected, and the frames a drag box took, go to another page at the same spot. */
+  async function moveSelectionToPage(page) {
+    const list = selectedItems().filter((i) => !isLocked(i.id))
+    const keys = chosen ? [...chosen.frames].filter((k) => !isLocked(k)) : []
+    const title = pages().find((p) => p.id === page)?.title ?? 'that page'
+    try {
+      for (const it of list) await sendBoard({ op: 'item', id: it.id, page })
+      for (const k of keys) {
+        const f = allFrames.get(k)
+        if (f) await sendBoard({ op: 'move', key: k, x: f.x, y: f.y, page })
+      }
+      pickItem(null)
+      layoutAll()
+      renderPage()
+      hint(`Moved ${list.length + keys.length === 1 ? 'it' : list.length + keys.length} to ${title}`, 1600)
+    } catch (err) {
+      hint(err.message, 3000)
+      takeBoardAgain()
+    }
+  }
+  /** The bar's Page button: the other pages, to move what is selected onto. */
+  const pageButton = () => (serve && pages().length > 1
+    ? h('button', { type: 'button', class: 'tool', title: 'Move to another page', 'aria-haspopup': 'menu', onclick: (e) => openMenu(e.currentTarget, pages().filter((p) => p.id !== pageId).map((p) => ({ label: p.title, run: () => moveSelectionToPage(p.id) }))) }, 'Page', h('span', { class: 'caret' }, '▾'))
+    : null)
   /** Put a frame on another page, at the same spot. */
   async function moveFrameToPage(f, page) {
     await sendBoard({ op: 'move', key: f.key, x: f.x, y: f.y, page })

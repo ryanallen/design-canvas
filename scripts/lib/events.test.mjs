@@ -129,6 +129,15 @@ test('a comment about a region keeps its box and the objects in it', () => {
   assert.equal('box' in plain || 'items' in plain, false)
 })
 
+test('board objects grouped share a group id, and an empty one ungroups', () => {
+  const a = board({ op: 'item', kind: 'note', x: 0, y: 0, w: 10, h: 10 })
+  const b = board({ op: 'item', kind: 'rect', x: 20, y: 0, w: 10, h: 10 })
+  const grouped = [a, b, board({ op: 'item', id: a.id, group: 'g-abc123def4' }), board({ op: 'item', id: b.id, group: 'g-abc123def4' })]
+  assert.deepEqual(foldBoard(grouped).items.map((i) => i.group), ['g-abc123def4', 'g-abc123def4'])
+  assert.deepEqual(foldBoard([...grouped, board({ op: 'item', id: a.id, group: '' })]).items.map((i) => i.group), ['', 'g-abc123def4'])
+  for (const g of ['x', '"><b>', 'g-ABC123DEF4', 5]) assert.throws(() => board({ op: 'item', id: a.id, group: g }), /group is not an id/)
+})
+
 test('a board colour is a colour, never markup or a style that fetches', () => {
   for (const c of ['#fde68a', 'tomato', 'rgb(1, 2, 3)', 'hsla(10 50% 50% / 0.5)', '']) assert.equal(board({ op: 'item', kind: 'rect', color: c }).color, c)
   for (const c of ['"><img src=x onerror=alert(1)>', 'red;background:url(//x)', 'url(//x)', 'expression(alert(1))']) assert.throws(() => board({ op: 'item', kind: 'arrow', color: c }), /color is not a colour/)

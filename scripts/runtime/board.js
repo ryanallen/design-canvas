@@ -771,6 +771,13 @@
       const all = items()
       sectionLayer.replaceChildren(...all.filter((i) => i.kind === 'section').map(itemEl).filter(Boolean))
       itemLayer.replaceChildren(...all.filter((i) => i.kind !== 'section').map(itemEl).filter(Boolean))
+      if (chosen) {
+        // Drawn round what is chosen as it is now, so it follows a drag.
+        const b = boxAround([...chosen.items], [...chosen.frames])
+        const members = [...chosen.items].map((id) => board.items.find((i) => i.id === id))
+        const grouped = members.length > 1 && members.every((i) => i?.group && i.group === members[0].group)
+        itemLayer.append(h('div', { class: `chosen-box${grouped ? ' grouped' : ''}`, style: `left:${b.x}px;top:${b.y}px;width:${b.w}px;height:${b.h}px` }))
+      }
       for (const f of frames()) f.el?.classList.toggle('chosen', !!chosen?.frames.has(f.key))
     } finally {
       drawingItems = false
@@ -910,14 +917,76 @@
       frames: frames().filter((f) => within(f.x, f.y, f.W, f.H)).map((f) => f.key),
     }
   }
-  function choose(box) {
-    const got = inside(box)
+  function choose(box, got = inside(box)) {
     picked = null
     chosen = got.items.length || got.frames.length ? { box, items: new Set(got.items), frames: new Set(got.frames) } : null
     call('onMarquee')
     renderItems()
     // The agent reads it at GET /api/selection.
     if (serve) fetch('/api/selection', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selection: chosen ? { board: { page: pageId, box, items: [...chosen.items], frames: [...chosen.frames] } } : null }) }).catch(() => {})
+  }
+  // ── groups: board objects that share a group id are picked, moved, coloured and deleted as one ──
+  const groupMembers = (gid) => (gid ? items().filter((i) => i.group === gid).map((i) => i.id) : [])
+  /** An object and everything grouped with it. */
+  const withGroup = (id) => {
+    const g = groupMembers(board.items.find((i) => i.id === id)?.group)
+    return g.length > 1 ? g : [id]
+  }
+  /** The box round some board objects and frames. */
+  function boxAround(ids, keys = []) {
+    const rs = [
+      ...ids.map((id) => board.items.find((i) => i.id === id)).filter(Boolean).map(geometryOf).map((i) => ({ x: i.x, y: i.y, w: i.w ?? 0, h: i.h ?? 0 })),
+      ...keys.map((k) => allFrames.get(k)).filter(Boolean).map((f) => ({ x: f.x, y: f.y, w: f.W, h: f.H })),
+    ]
+    if (!rs.length) return { x: 0, y: 0, w: 0, h: 0 }
+    const x = Math.min(...rs.map((r) => r.x))
+    const y = Math.min(...rs.map((r) => r.y))
+    return { x, y, w: Math.max(...rs.map((r) => r.x + r.w)) - x, h: Math.max(...rs.map((r) => r.y + r.h)) - y }
+  }
+  /** Board objects and frames chosen as one selection, without a drag box. */
+  function chooseItems(ids, keys = []) {
+    if (!ids.length && !keys.length) return pickItem(null)
+    if (ids.length === 1 && !keys.length) return pickItem(ids[0])
+    choose(boxAround(ids, keys), { items: ids, frames: keys })
+  }
+  /** Shift-click: an object, with its group, joins the selection, or leaves it if it is already in. */
+  function toggleChosen(id) {
+    const have = new Set(chosen ? chosen.items : picked ? withGroup(picked) : [])
+    const keys = chosen ? [...chosen.frames] : []
+    const add = withGroup(id)
+    const all = add.every((x) => have.has(x))
+    for (const x of add) all ? have.delete(x) : have.add(x)
+    chooseItems([...have], keys)
+  }
+  const newGroupId = () => 'g-' + Math.random().toString(36).slice(2, 12).padEnd(10, '0')
+  /** Ctrl+G: every board object selected becomes one group; Ctrl+Shift+G breaks the groups up. */
+  async function groupChosen(on) {
+    const ids = [...(chosen?.items ?? [])].filter((id) => !isLocked(id))
+    if (on && ids.length < 2) return hint('Select two or more board objects to group them', 2000)
+    const gid = on ? newGroupId() : ''
+    const change = ids.filter((id) => on || board.items.find((i) => i.id === id)?.group)
+    if (!change.length) return hint('Nothing selected is in a group', 1600)
+    for (const id of change) Object.assign(board.items.find((i) => i.id === id), { group: gid })
+    renderItems()
+    try {
+      for (const id of change) await sendBoard({ op: 'item', id, group: gid })
+      hint(on ? `Grouped ${change.length}: they now move, colour and delete as one` : 'Ungrouped', 1600)
+    } catch (err) {
+      hint(err.message, 3000)
+      takeBoardAgain()
+    }
+  }
+  /** One colour for every selected object that takes one. */
+  async function colorChosen(color) {
+    const ids = [...(chosen?.items ?? [])].filter((id) => !isLocked(id) && board.items.find((i) => i.id === id)?.kind !== 'guide')
+    for (const id of ids) Object.assign(board.items.find((i) => i.id === id), { color })
+    renderItems()
+    try {
+      for (const id of ids) await sendBoard({ op: 'item', id, color })
+    } catch (err) {
+      hint(err.message, 3000)
+      takeBoardAgain()
+    }
   }
   async function removeChosen() {
     const all = [...(chosen?.items ?? [])]
@@ -955,15 +1024,26 @@
   function placeItemBar() {
     if (chosen) {
       const n = chosen.items.size + chosen.frames.size
-      itemBar.replaceChildren(
-        h('span', { class: 'count-note' }, `${n} selected`),
+      const its = [...chosen.items].map((id) => board.items.find((i) => i.id === id)).filter((i) => i && i.kind !== 'guide')
+      // Every selected object takes the colour clicked; the swatches are those of the kind most of them are.
+      const paletteOf = (k) => (k === 'note' ? NOTE_COLORS : k === 'section' ? SECTION_COLORS : SHAPE_COLORS)
+      const colors = its.length ? paletteOf(its.filter((i) => i.kind === 'note').length * 2 > its.length ? 'note' : its.every((i) => i.kind === 'section') ? 'section' : 'shape') : []
+      const same = its.length && its.every((i) => (i.color || paletteOf(i.kind)[0]) === (its[0].color || paletteOf(its[0].kind)[0])) ? its[0].color || paletteOf(its[0].kind)[0] : null
+      const grouped = its.length > 1 && its.every((i) => i.group && i.group === its[0].group)
+      const anyGroup = its.some((i) => i.group)
+      itemBar.replaceChildren(...[
+        h('span', { class: 'count-note' }, grouped ? `Group of ${its.length}` : `${n} selected`),
+        ...colors.map((c) => h('button', { type: 'button', class: `swatch${same === c ? ' on' : ''}`, style: `background:${c}`, title: COLOR_NAMES[c] ?? c, 'aria-label': COLOR_NAMES[c] ?? c, 'aria-pressed': String(same === c), onclick: () => colorChosen(c) })),
+        colors.length ? h('span', { class: 'sep' }) : null,
+        its.length > 1 && !grouped ? h('button', { type: 'button', class: 'tool', title: 'Group them: they move, colour and delete as one (Ctrl+G)', onclick: () => groupChosen(true) }, 'Group') : null,
+        anyGroup ? h('button', { type: 'button', class: 'tool', title: 'Ungroup (Ctrl+Shift+G)', onclick: () => groupChosen(false) }, 'Ungroup') : null,
         api ? h('button', { type: 'button', class: 'tool', title: 'Ask the agent about what is in the box', onclick: () => openAsk() }, '✦ Ask agent') : null,
         chosen.items.size ? h('button', { type: 'button', class: 'tool', title: 'Delete (Delete)', onclick: () => removeChosen() }, 'Delete') : null,
         ...(owner() ? [
-          h('button', { type: 'button', class: 'tool', title: 'Lock everything in the box', onclick: () => setLock([...chosen.items, ...chosen.frames], true) }, icon('lock'), 'Lock'),
-          h('button', { type: 'button', class: 'tool', title: 'Unlock everything in the box', onclick: () => setLock([...chosen.items, ...chosen.frames].filter(isLocked), false) }, icon('unlock'), 'Unlock'),
+          [...chosen.items, ...chosen.frames].some((k) => !isLocked(k)) ? h('button', { type: 'button', class: 'tool', title: 'Lock everything selected', onclick: () => setLock([...chosen.items, ...chosen.frames], true) }, icon('lock'), 'Lock') : null,
+          [...chosen.items, ...chosen.frames].some(isLocked) ? h('button', { type: 'button', class: 'tool', title: 'Unlock everything selected', onclick: () => setLock([...chosen.items, ...chosen.frames].filter(isLocked), false) }, icon('unlock'), 'Unlock') : null,
         ] : []),
-      )
+      ].filter(Boolean))
       const top = toScreen(chosen.box.x, chosen.box.y)
       itemBar.style.left = `${Math.max(8, Math.min(innerWidth - 300, top.x))}px`
       itemBar.style.top = `${Math.max(56, top.y - 46)}px`
@@ -1038,6 +1118,9 @@
   function startItemDrag(e, id) {
     const it = board.items.find((i) => i.id === id)
     if (!it) return
+    if (e.shiftKey) return toggleChosen(id)
+    // A press on one object of a group takes the whole group.
+    if (!chosen?.items.has(id) && withGroup(id).length > 1) chooseItems(withGroup(id))
     const group = chosen?.items.has(id) ? chosen : null
     if (!group) pickItem(id)
     if (it.kind === 'guide') return
@@ -2001,6 +2084,10 @@
       document.body.classList.add('space')
       e.preventDefault()
       return
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'g' && chosen?.items.size && serve) {
+      e.preventDefault()
+      return groupChosen(!e.shiftKey)
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return
     const k = e.key.toLowerCase()

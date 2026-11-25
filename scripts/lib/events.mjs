@@ -224,6 +224,8 @@ export function makeBoardEvent(input, { now = new Date(), newId = randomId } = {
       if (input.frame != null) event.frame = text(input.frame, LIMITS.frame, 'frame')
       // An end let go of is written as an empty string, so the fold drops what an earlier line bound.
       for (const k of ['from', 'to']) if (input[k] != null) event[k] = input[k] === '' ? '' : text(input[k], LIMITS.frame, k)
+      // Objects grouped together share a group id; an empty string ungroups.
+      if (input.group != null) event.group = input.group === '' ? '' : id(input.group, 'group')
       for (const k of ['cols', 'gutter', 'margin']) if (input[k] != null) event[k] = coord(input[k], k)
       if (input.points != null) {
         if (!Array.isArray(input.points) || input.points.length > 4000) throw new Error('points is not a list of numbers')

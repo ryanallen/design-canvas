@@ -178,6 +178,9 @@ body.tiny .item.locked::after { display: none; }
 .item.editing { outline: calc(2px / var(--z, 1)) solid var(--accent); cursor: text; }
 .item.on { outline: calc(2px / var(--z, 1)) solid var(--accent); outline-offset: calc(2px / var(--z, 1)); }
 .draft-shape { position: absolute; border: calc(2px / var(--z, 1)) dashed var(--accent); pointer-events: none; }
+/* The box round a selection of several, so it reads as one thing; solid for a group. */
+.chosen-box { position: absolute; pointer-events: none; outline: calc(1.5px / var(--z, 1)) dashed var(--accent); outline-offset: calc(8px / var(--z, 1)); }
+.chosen-box.grouped { outline-style: solid; }
 
 /* ── pins ──────────────────────────────────────────────────── */
 .pin {

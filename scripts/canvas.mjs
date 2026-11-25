@@ -37,6 +37,9 @@ import { cropToOption } from './lib/crop.mjs'
 import { launchChromium } from './lib/browser.mjs'
 import { CANVAS_MARK, foldBoard, foldEvents, insertEvent, makeBoardEvent, makeEvent, parseEvents, parseLines, randomId, storedLines } from './lib/events.mjs'
 
+/** What the served canvas answers from a prototype's folder, by extension. */
+const SERVED_TYPES = { '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.avif': 'image/avif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.mp4': 'video/mp4', '.webm': 'video/webm', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.wasm': 'application/wasm' }
+
 const here = path.dirname(fileURLToPath(import.meta.url))
 const WIDTH = 1440
 const MIN_H = 480
@@ -315,7 +318,9 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
     canvasText = renderPage(payload, lines)
     writeFileAtomic(out, canvasText)
   }
-  const servedFile = (file) => inlineFile(folder, file, tag(readShown(file)), payload.assets, [])
+  // A prototype at the top of the folder keeps its own picture paths, which the server answers; one in a subfolder
+  // would resolve them from the canvas's address, so it has them written in.
+  const servedFile = (file) => inlineFile(folder, file, tag(readShown(file)), payload.assets, [], { keepMedia: !file.includes('/') })
   const servedPage = () => renderPage({ ...payload, serve: true, memory, canvas: path.basename(out), files: Object.fromEntries(Object.keys(payload.files).map((f) => [f, servedFile(f)])) }, lines)
   // Rebuild from the prototypes and the layout, keeping every line, and tell every open page.
   const rebuild = async () => {
@@ -598,6 +603,17 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
           const page = html.replace(/<link\b[^>]*__RC_ASSET__\(([^)]+)\)[^>]*>/g, (_, a) => (payload.assets[a] ? `<style>${payload.assets[a].text}</style>` : ''))
           res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
           return res.end(page)
+        }
+      }
+      // A prototype's own files that it asks for as it runs (a picture at another size from srcset, a module it imports,
+      // a depth map, a font): read from its folder, to this machine only, so they show on the board as in a browser.
+      // Hidden files and folders (.git, .env) are never served.
+      const type = SERVED_TYPES[path.extname(asked).toLowerCase()]
+      if (req.method === 'GET' && type && !asked.includes('\0') && !asked.split(/[\\/]/).some((s) => s.startsWith('.') || s === '') && within(asked)) {
+        const full = path.join(folder, asked)
+        if (fs.existsSync(full) && fs.statSync(full).isFile()) {
+          res.writeHead(200, { 'content-type': type, 'cache-control': 'no-cache' })
+          return res.end(fs.readFileSync(full))
         }
       }
       if (url.pathname === '/' || url.pathname.endsWith('.html')) {

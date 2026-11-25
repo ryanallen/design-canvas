@@ -40,7 +40,7 @@ function inlineCss(css, from, warnings) {
  * resolve. Stylesheets go into `assets` once, by their path, and the page refers to them with
  * `__RC_ASSET__(<path>)`, which the canvas swaps for the stylesheet when it draws the frame.
  */
-export function inlineFile(folder, file, html, assets, warnings) {
+export function inlineFile(folder, file, html, assets, warnings, { keepMedia = false } = {}) {
   const from = path.join(folder, file)
   html = html.replace(/<link\b[^>]*>/gi, (tag) => {
     const href = /\bhref="([^"]+)"/i.exec(tag)?.[1]
@@ -68,7 +68,9 @@ export function inlineFile(folder, file, html, assets, warnings) {
     const full = local(from, src)
     return full ? `<script${a}${b}>${fs.readFileSync(full, 'utf8').replace(/<\/script/gi, '<\\/script')}</script>` : tag
   })
-  html = html.replace(/(<(?:img|source|video|audio)\b[^>]*?\s(?:src|poster)=")([^"]+)(")/gi, (all, pre, ref, post) => {
+  // Served, pictures and media keep their paths and the server answers them, so a page script that reads an image's
+  // src still finds its file name; built, each is written in.
+  if (!keepMedia) html = html.replace(/(<(?:img|source|video|audio)\b[^>]*?\s(?:src|poster)=")([^"]+)(")/gi, (all, pre, ref, post) => {
     const full = local(from, ref)
     return full ? `${pre}${dataUri(full)}${post}` : all
   })

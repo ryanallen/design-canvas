@@ -390,13 +390,17 @@
     return { path: [root, ...steps].join(' > '), dx: Math.round(dx), dy: Math.round(dy), tag: el.localName, text: said(el) }
   }
   /** The start of what an element says, as an anchor keeps it. */
-  const said = (el) => (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 80)
+  // What an element says, its pieces of text joined by spaces ("Fort Point 4.8 mi", not "Fort Point4.8 mi"), as an agent reads it.
+  const said = (el) => excerpt(el, 80).replace(/…$/, '').slice(0, 80)
+  // Pins made before joined the pieces with nothing between: they are still found by those words.
+  const saidBefore = (el) => (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 80)
+  const says = (el, text) => said(el) === text || saidBefore(el) === text
   /** The element a comment is pinned to: by its path, checked against what it is and says; when
       something put before it has moved it, the element of that tag saying those words. */
   function resolveAnchor(doc, path, anchor = {}) {
     const byPath = followPath(doc, path)
-    if (!anchor.text || (byPath && byPath.localName === anchor.tag && said(byPath) === anchor.text)) return byPath
-    const same = [...doc.querySelectorAll(anchor.tag || '*')].filter((el) => said(el) === anchor.text)
+    if (!anchor.text || (byPath && byPath.localName === anchor.tag && says(byPath, anchor.text))) return byPath
+    const same = [...doc.querySelectorAll(anchor.tag || '*')].filter((el) => says(el, anchor.text))
     return same[0] ?? byPath
   }
   function followPath(doc, path) {

@@ -327,7 +327,7 @@
         }
         const w = Math.max(240, Math.min(3840, Math.round(Number(body.w) || 1440)))
         const title = String(body.name).trim().slice(0, 120).replace(/</g, '&lt;')
-        const html = `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>${title}</title>\n<style>\n  body { margin: 0; font-family: system-ui, sans-serif; }\n</style>\n</head>\n<body>\n<main style="min-height: ${Math.max(240, Math.round(Number(body.h) || 900))}px; max-width: ${w}px">\n</main>\n</body>\n</html>\n`
+        const html = `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>${title}</title>\n${w === 1440 ? '' : `<meta name="canvas-width" content="${w}">\n`}<style>\n  body { margin: 0; font-family: system-ui, sans-serif; }\n</style>\n</head>\n<body>\n<main style="min-height: ${Math.max(240, Math.round(Number(body.h) || 900))}px">\n</main>\n</body>\n</html>\n`
         raw.set(file, html)
         await write(file, html)
         data.files[file] = await served(file)

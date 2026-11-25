@@ -85,20 +85,31 @@ function metaOf(html) {
   return { levers, fluid, play }
 }
 
+/** The width a prototype asks to be drawn at, `<meta name="canvas-width" content="390">`, or null for the board's 1440. */
+function ownWidth(folder, file) {
+  try {
+    const n = Number(/<meta\s+name="canvas-width"\s+content="(\d+)"/i.exec(fs.readFileSync(path.join(folder, file), 'utf8'))?.[1])
+    return n >= 240 && n <= 3840 ? n : null
+  } catch {
+    return null
+  }
+}
+
 async function measure(folder, frames, warnings) {
+  for (const f of frames) if (!f.crop) f.w = ownWidth(folder, f.file) ?? f.w
   let browser
   try {
     ;({ browser } = await launchChromium(folder))
   } catch (err) {
     warnings.push(`no browser to measure with, so every frame is drawn ${WIDTH} × 1000 (${err.message.split('\n')[0]})`)
-    for (const f of frames) Object.assign(f, { w: WIDTH, h: 1000 })
+    for (const f of frames) Object.assign(f, { w: f.w ?? WIDTH, h: 1000 })
     return
   }
   const page = await browser.newPage({ viewport: { width: WIDTH, height: 1000 } })
   await page.route(/^https?:/, (route) => route.abort())
   for (const f of frames) {
     try {
-      await page.setViewportSize({ width: WIDTH, height: 1000 })
+      await page.setViewportSize({ width: f.crop ? WIDTH : f.w ?? WIDTH, height: 1000 })
       await page.goto(`${pathToFileURL(path.join(folder, f.file)).href}${f.hash ? `#${f.hash}` : ''}`, { waitUntil: 'load', timeout: 20000 })
       await page.evaluate(() => document.fonts?.ready)
       if (f.crop) {
@@ -120,7 +131,7 @@ async function measure(folder, frames, warnings) {
     } catch (err) {
       warnings.push(`${f.label} could not be measured (${err.message.split('\n')[0]}); drawn 1000 tall`)
       f.h = 1000
-      f.w = WIDTH
+      f.w ??= WIDTH
     }
     f.w ??= WIDTH
   }
@@ -236,7 +247,7 @@ export async function buildCanvas(options) {
   }
 
   if (!frames.length) {}
-  else if (options.measure === false) for (const f of frames) Object.assign(f, { w: f.w ?? WIDTH, h: f.h ?? 1000 })
+  else if (options.measure === false) for (const f of frames) Object.assign(f, { w: (f.crop ? null : ownWidth(folder, f.file)) ?? f.w ?? WIDTH, h: f.h ?? 1000 })
   else await measure(folder, frames, warnings)
 
   const assets = {}
@@ -475,7 +486,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         if (fs.existsSync(path.join(folder, file)) || mem.has(file)) return json(res, 409, { error: `${file} is already in the folder` })
         const w = Math.max(240, Math.min(3840, Math.round(Number(body.w) || WIDTH)))
         const title = String(body.name).trim().slice(0, 120)
-        const html = `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>${esc(title)}</title>\n<style>\n  body { margin: 0; font-family: system-ui, sans-serif; }\n</style>\n</head>\n<body>\n<main style="min-height: ${Math.max(240, Math.round(Number(body.h) || 900))}px; max-width: ${w}px">\n</main>\n</body>\n</html>\n`
+        const html = `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>${esc(title)}</title>\n${w === WIDTH ? '' : `<meta name="canvas-width" content="${w}">\n`}<style>\n  body { margin: 0; font-family: system-ui, sans-serif; }\n</style>\n</head>\n<body>\n<main style="min-height: ${Math.max(240, Math.round(Number(body.h) || 900))}px">\n</main>\n</body>\n</html>\n`
         if (memory) return json(res, 409, { error: 'a canvas held in memory makes no files' })
         writeFileAtomic(path.join(folder, file), html)
         const event = makeBoardEvent({ op: 'move', key: file, x: Number(body.x) || 0, y: Number(body.y) || 0, page: body.page, name: body.by })

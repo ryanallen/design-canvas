@@ -241,6 +241,19 @@ a.tool { text-decoration: none; font-size: 13px; }
 .tool[aria-pressed='true'] .count { background: rgb(0 0 0 / 0.12); color: inherit; }
 
 /* The toolbar: one floating plane, every tool a circle on it. */
+#artboard-sizes {
+  position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 10;
+  display: flex; align-items: center; gap: 2px; padding: 4px 6px; border-radius: 999px;
+  background: var(--panel); box-shadow: var(--chrome-shadow), var(--edge); white-space: nowrap; font-size: 13px;
+}
+#artboard-sizes .note { color: var(--ink-2); padding: 0 8px; font-size: 12px; }
+#artboard-sizes .tool { width: auto; padding: 0 12px; border-radius: 999px; }
+#artboard-sizes .tool small { color: var(--ink-2); font-size: 11px; }
+#artboard-sizes .tool[aria-pressed='true'] small { color: inherit; opacity: 0.7; }
+@media (max-width: 640px) {
+  #artboard-sizes { max-width: calc(100vw - 16px); overflow-x: auto; scrollbar-width: none; }
+  #artboard-sizes .note { display: none; }
+}
 #toolbar {
   position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 10;
   display: flex; align-items: center; gap: 2px; padding: 6px;

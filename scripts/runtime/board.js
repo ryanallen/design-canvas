@@ -552,8 +552,21 @@
     }
     if (t !== 'comment' && draft) closeThread()
     if (t !== 'select') pickItem(null)
+    sizesBar.hidden = t !== 'artboard'
     call('onTool', t)
   }
+  // The artboard tool's sizes, as Figma's frame presets: a click on the board makes the one chosen; a drag, any size.
+  const ARTBOARD_SIZES = [['Desktop', 1440, 900], ['Laptop', 1280, 800], ['Tablet', 834, 1194], ['Phone', 390, 844]]
+  const artboardSize = () => ARTBOARD_SIZES.find(([n]) => n === store.get('artboardSize')) ?? ARTBOARD_SIZES[0]
+  const sizesBar = h('div', { id: 'artboard-sizes', hidden: true, role: 'toolbar', 'aria-label': 'Artboard size' })
+  function renderSizes() {
+    sizesBar.replaceChildren(h('span', { class: 'note' }, 'Click for'), ...ARTBOARD_SIZES.map(([n, w, hh]) => h('button', {
+      type: 'button', class: 'tool', 'aria-pressed': String(artboardSize()[0] === n), title: `${w} × ${hh}`,
+      onclick: () => { store.set('artboardSize', n); renderSizes() },
+    }, n, h('small', {}, ` ${w}`))), h('span', { class: 'note' }, 'or drag any size'))
+  }
+  renderSizes()
+  document.body.append(sizesBar)
   const SHAPE_NAMES = { rect: 'Rectangle (R)', ellipse: 'Ellipse', section: 'Section (S)', line: 'Line', arrow: 'Arrow', guide: 'Layout guide' }
   function setShape(kind) {
     shapeKind = kind
@@ -1495,8 +1508,7 @@
         let hgt = Math.abs(last.y - p.y)
         if (kind === 'artboard') {
           if (!moved || w < 40) {
-            w = 1440
-            hgt = 900
+            ;[, w, hgt] = artboardSize()
           }
           setTool('select')
           return newArtboard(x, y, w, hgt)

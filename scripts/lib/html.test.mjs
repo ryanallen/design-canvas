@@ -218,3 +218,18 @@ test('replaceText changes words in the text only: not tags, attributes, scripts,
   assert.ok(amp.src.includes('>a &lt; b</h1>'))
   assert.throws(() => applyEdit(src, { op: 'replaceText', find: '' }), /nothing to find/)
 })
+
+test('a duplicate gets ids of its own', () => {
+  const src = '<body>\n<section id="hero"><h1 id="title">Hi</h1></section>\n<p id="hero-2">x</p>\n</body>'
+  const el = find(src, (e) => e.tag === 'section')
+  const r = applyEdit(src, { op: 'duplicate', cv: el.start })
+  assert.ok(r.src.includes('<section id="hero-3"><h1 id="title-2">Hi</h1></section>'), r.src)
+  assert.equal((r.src.match(/id="hero"/g) ?? []).length, 1)
+})
+
+test('pasted markup keeps its ids unless the page has them', () => {
+  const src = '<body>\n<main id="m"><p id="a">x</p></main>\n</body>'
+  const el = find(src, (e) => e.tag === 'main')
+  const r = applyEdit(src, { op: 'insert', cv: el.start, where: 'inside', html: '<p id="a">y</p><p id="b">z</p>' })
+  assert.ok(r.src.includes('<p id="a-2">y</p><p id="b">z</p>'), r.src)
+})

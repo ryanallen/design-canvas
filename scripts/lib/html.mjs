@@ -189,6 +189,21 @@ export function styleMap(text) {
 }
 export const styleText = (map) => [...map].map(([k, v]) => `${k}: ${v}`).join('; ')
 
+/** Markup going into a page, with every id the page already has made new (`hero` becomes `hero-2`), so no two elements share one. */
+function uniqueIds(src, html) {
+  const taken = new Set([...src.matchAll(/\sid="([^"]*)"/g)].map((m) => m[1]))
+  return html.replace(/(\sid=")([^"]*)(")/g, (_, open, id, close) => {
+    if (!taken.has(id)) {
+      taken.add(id)
+      return open + id + close
+    }
+    const base = id.replace(/-\d+$/, '')
+    let n = 2
+    while (taken.has(`${base}-${n}`)) n++
+    taken.add(`${base}-${n}`)
+    return `${open}${base}-${n}${close}`
+  })
+}
 /** One replacement: the text from `start` to `end` becomes `text`. */
 const splice = (src, start, end, text) => ({ src: src.slice(0, start) + text + src.slice(end), start, end, text, removed: src.slice(start, end) })
 
@@ -351,7 +366,7 @@ function applyOne(src, edit) {
     }
     case 'duplicate': {
       const el = get(edit.cv)
-      const html = src.slice(el.start, el.end)
+      const html = uniqueIds(src, src.slice(el.start, el.end))
       // On a line of its own, the copy gets a line of its own, with the file's own line ending.
       const lineStart = src.lastIndexOf('\n', el.start - 1) + 1
       const own = /^[ \t]*$/.test(src.slice(lineStart, el.start)) && /^[ \t]*\r?\n/.test(src.slice(el.end))
@@ -401,7 +416,7 @@ function applyOne(src, edit) {
       // New markup, last inside an element, or before or after it.
       const el = get(edit.cv)
       const at = edit.where === 'before' ? el.start : edit.where === 'after' ? el.end : el.closeStart
-      const r = splice(src, at, at, untag(edit.html))
+      const r = splice(src, at, at, uniqueIds(src, untag(edit.html)))
       return { src: r.src, select: at }
     }
     case 'replaceText': {

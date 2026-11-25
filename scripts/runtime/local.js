@@ -206,7 +206,7 @@
   }
   const props = (p) => Object.entries(p).map(([k, v]) => `${k}: ${v === '' || v == null ? '(removed)' : v}`).join('; ')
   const summarize = (src, edit) => {
-    const what = describe(src, [edit.cv].flat()[0])
+    const what = edit.cv == null ? '' : describe(src, [edit.cv].flat()[0])
     switch (edit.op) {
       case 'style': return `${what} ${props(edit.props)}`
       case 'rule': return `${edit.selector} ${props(edit.props)}`
@@ -214,6 +214,7 @@
       case 'attr': return `${what} ${edit.name}=${JSON.stringify(edit.value ?? null)}`
       case 'move': return `${what} moved ${edit.where} ${describe(src, edit.target)}`
       case 'insert': return `new ${edit.html.slice(0, 80)} ${edit.where ?? 'inside'} ${what}`
+      case 'replaceText': return `replaced ${JSON.stringify(String(edit.find).slice(0, 80))} with ${JSON.stringify(String(edit.with ?? '').slice(0, 80))} in the text`
       default: return `${edit.op} ${what}`
     }
   }
@@ -280,7 +281,7 @@
         redo.length = 0
         lines.push(lineOf({ op: edit.op, id: randomId('e'), at: new Date().toISOString(), name: nameOf(name), file, summary: summarize(before, edit).slice(0, 600), sha: await sha(result.src) }, 'edit'))
         await writeCanvas([file])
-        return answer(200, { select: result.select, linked: result.linked ?? 0, html: await served(file) })
+        return answer(200, { select: result.select, linked: result.linked ?? 0, count: result.count, html: await served(file) })
       }
       case '/api/undo':
       case '/api/redo': {

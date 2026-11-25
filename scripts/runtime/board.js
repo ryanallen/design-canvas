@@ -1629,6 +1629,120 @@
     }
   }
 
+  // ── find and replace: the page's artboards' text and its board objects' text ──
+  const findBar = h('div', { id: 'findbar', role: 'search', 'aria-label': 'Find and replace' })
+  document.body.append(findBar)
+  let found = []
+  let foundAt = -1
+  const findIn = h('input', { type: 'search', placeholder: 'Find', 'aria-label': 'Find', spellcheck: 'false' })
+  const replaceIn = h('input', { type: 'text', placeholder: 'Replace with', 'aria-label': 'Replace with', spellcheck: 'false' })
+  const findCount = h('span', { class: 'find-n', 'aria-live': 'polite' })
+  findBar.append(
+    findIn, findCount,
+    h('button', { type: 'button', class: 'tool', title: 'Previous (Shift+Enter)', 'aria-label': 'Previous', onclick: () => stepFound(-1) }, '↑'),
+    h('button', { type: 'button', class: 'tool', title: 'Next (Enter)', 'aria-label': 'Next', onclick: () => stepFound(1) }, '↓'),
+    h('span', { class: 'sep' }),
+    replaceIn,
+    h('button', { type: 'button', class: 'tool', title: 'Replace every match on this page', onclick: () => replaceAll() }, 'Replace all'),
+    h('button', { type: 'button', class: 'tool', title: 'Close (Escape)', 'aria-label': 'Close', onclick: () => closeFind() }, '✕'),
+  )
+  /** Every artboard on the page is loaded, so all of its text can be searched. */
+  async function loadPage() {
+    for (const f of frames()) if (!f.loaded && f.el) { f.loaded = true; loadFrame(f) }
+    for (let i = 0; i < 50 && frames().some((f) => f.el && !f.doc); i++) await new Promise((r) => setTimeout(r, 100))
+  }
+  async function runFind() {
+    const q = findIn.value.trim().toLowerCase()
+    found = []
+    foundAt = -1
+    if (q) {
+      await loadPage()
+      for (const f of frames()) {
+        if (!f.doc?.body) continue
+        const walk = f.doc.createTreeWalker(f.doc.body, NodeFilter.SHOW_TEXT, { acceptNode: (t) => (t.parentElement?.closest('script, style, template, noscript') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) })
+        for (let t = walk.nextNode(); t; t = walk.nextNode()) {
+          const n = t.data.toLowerCase().split(q).length - 1
+          const el = call('climb', t.parentElement) ?? t.parentElement
+          for (let i = 0; i < n; i++) found.push({ frame: f, el })
+        }
+      }
+      for (const it of items()) {
+        const n = String(it.text ?? '').toLowerCase().split(q).length - 1
+        for (let i = 0; i < n; i++) found.push({ item: it.id })
+      }
+    }
+    findCount.textContent = q ? (found.length ? `${found.length} found` : 'None') : ''
+  }
+  function stepFound(d) {
+    if (!found.length) return
+    foundAt = (foundAt + d + found.length) % found.length
+    const m = found[foundAt]
+    findCount.textContent = `${foundAt + 1} of ${found.length}`
+    if (m.item) {
+      pickItem(m.item)
+      zoomToSelection()
+    } else if (m.el?.isConnected) {
+      pickItem(null)
+      window.designCanvas.editor?.select(m.frame, [m.el])
+      zoomToSelection()
+    }
+  }
+  async function replaceAll() {
+    const find = findIn.value.trim()
+    if (!find || !serve) return
+    const put = replaceIn.value
+    const files = [...new Set(found.filter((m) => m.frame).map((m) => m.frame.file))]
+    let n = 0
+    try {
+      for (const file of files) {
+        const res = await fetch('/api/edit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ file, edit: { op: 'replaceText', find, with: put }, name: me || 'someone' }) })
+        const body = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(body.error || `Replacing failed (${res.status})`)
+        if (body.same) continue
+        n += body.count ?? 0
+        noteFileEdit()
+        reloadFile(file, body.html)
+      }
+      const re = new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
+      for (const id of [...new Set(found.filter((m) => m.item).map((m) => m.item))]) {
+        const it = board.items.find((i) => i.id === id)
+        if (!it || isLocked(id)) continue
+        const text = String(it.text ?? '').replace(re, () => (n++, put))
+        it.text = text
+        await sendBoard({ op: 'item', id, text })
+      }
+      renderItems()
+      hint(n ? `Replaced ${n}` : 'Nothing replaced', 1600)
+    } catch (err) {
+      hint(err.message, 3000)
+    }
+    setTimeout(runFind, 400)
+  }
+  let findTimer = 0
+  findIn.addEventListener('input', () => {
+    clearTimeout(findTimer)
+    findTimer = setTimeout(runFind, 150)
+  })
+  for (const input of [findIn, replaceIn]) {
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation()
+      if (e.key === 'Escape') closeFind()
+      else if (e.key === 'Enter' && input === findIn) stepFound(e.shiftKey ? -1 : 1)
+      else if (e.key === 'Enter') replaceAll()
+    })
+  }
+  function openFind() {
+    findBar.classList.add('open')
+    replaceIn.parentElement && (replaceIn.disabled = !serve)
+    findIn.focus()
+    findIn.select()
+    if (findIn.value) runFind()
+  }
+  function closeFind() {
+    findBar.classList.remove('open')
+    found = []
+  }
+
   // ── undo and redo for the board ──
   // One history with the prototypes' edits, as in Figma: Ctrl+Z undoes whatever was done last.
   // A step is everything one action sent (a group dragged, an align, a paste): each board object
@@ -2392,6 +2506,10 @@
       return
     }
     // An open menu takes Escape first, opened by mouse or keyboard: it closes, and nothing under it moves.
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'f') {
+      e.preventDefault()
+      return openFind()
+    }
     if (e.key === 'Escape' && menu.classList.contains('open')) {
       e.preventDefault()
       return closeMenu(true)

@@ -357,7 +357,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
     return name ? `"${name}"` : `<${el.tag}${cls ? `.${cls}` : ''}>`
   }
   const summarize = (src, edit) => {
-    const what = describe(src, [edit.cv].flat()[0])
+    const what = edit.cv == null ? '' : describe(src, [edit.cv].flat()[0])
     switch (edit.op) {
       case 'style':
         return `${what} ${Object.entries(edit.props).map(([k, v]) => `${k}: ${v === '' || v == null ? '(removed)' : v}`).join('; ')}`
@@ -371,6 +371,8 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         return `${what} moved ${edit.where} ${describe(src, edit.target)}`
       case 'insert':
         return `new ${edit.html.slice(0, 80)} ${edit.where ?? 'inside'} ${what}`
+      case 'replaceText':
+        return `replaced ${JSON.stringify(String(edit.find).slice(0, 80))} with ${JSON.stringify(String(edit.with ?? '').slice(0, 80))} in the text`
       default:
         return `${edit.op} ${what}`
     }
@@ -509,7 +511,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         record({ op: edit.op, id: randomId('e'), at: new Date().toISOString(), name: String(name || 'someone').slice(0, 80), file, summary: summarize(before, edit).slice(0, 600), sha: sha(result.src) })
         refresh(file)
         writeOut()
-        return json(res, 200, { select: result.select, linked: result.linked ?? 0, html: servedFile(file) })
+        return json(res, 200, { select: result.select, linked: result.linked ?? 0, count: result.count, html: servedFile(file) })
       }
       if ((url.pathname === '/api/undo' || url.pathname === '/api/redo') && req.method === 'POST') {
         const { name } = await readBody(req)

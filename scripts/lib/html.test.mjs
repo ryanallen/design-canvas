@@ -207,3 +207,14 @@ test('duplicating a whole copy makes one more copy, linked to the rest', () => {
   assert.equal(applyEdit(r.src, { op: 'style', cv: p.start, props: { opacity: '0.5' } }).linked, 2)
 })
 
+
+test('replaceText changes words in the text only: not tags, attributes, scripts, styles, comments or locked parts', () => {
+  const src = '<html><head><title>Tides</title><style>.tides { color: red }</style></head><body>\n<h1 class="tides" title="Tides">Tides &amp; swell</h1>\n<!-- Tides -->\n<p>Check the TIDES daily.</p>\n<p data-locked>Tides locked</p>\n<script>const tides = "Tides"</script>\n</body></html>'
+  const r = applyEdit(src, { op: 'replaceText', find: 'tides', with: 'Waves' })
+  assert.equal(r.count, 2)
+  assert.equal(r.src, src.replace('>Tides &amp; swell', '>Waves &amp; swell').replace('the TIDES daily', 'the Waves daily'))
+  const amp = applyEdit(src, { op: 'replaceText', find: 'Tides & swell', with: 'a < b' })
+  assert.equal(amp.count, 1)
+  assert.ok(amp.src.includes('>a &lt; b</h1>'))
+  assert.throws(() => applyEdit(src, { op: 'replaceText', find: '' }), /nothing to find/)
+})

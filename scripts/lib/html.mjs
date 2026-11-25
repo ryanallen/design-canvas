@@ -14,6 +14,8 @@ const SELF = { li: ['li'], dt: ['dt', 'dd'], dd: ['dt', 'dd'], option: ['option'
 
 const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
 export const escAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
+/** Words as they are written into text between tags. */
+const escText = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 
 /** Every element, keyed by the offset of its `<`. */
 export function parse(src) {
@@ -401,6 +403,32 @@ function applyOne(src, edit) {
       const at = edit.where === 'before' ? el.start : edit.where === 'after' ? el.end : el.closeStart
       const r = splice(src, at, at, untag(edit.html))
       return { src: r.src, select: at }
+    }
+    case 'replaceText': {
+      // Every place the words appear in the page's text, any case, become the new words. Only text
+      // between tags changes: never a tag, an attribute, a comment, a script or style, or a locked part.
+      const find = escText(String(edit.find ?? ''))
+      if (!find) throw new Error('nothing to find')
+      const put = escText(String(edit.with ?? ''))
+      const { byStart } = parse(src)
+      const skip = [...byStart.values()].filter((e) => RAW.has(e.tag) || e.attrs.some((a) => a.name === 'data-locked')).map((e) => [e.start, e.end])
+      const body = [...byStart.values()].find((e) => e.tag === 'body')
+      const from = body ? body.openEnd : 0
+      const to = body ? body.closeStart : src.length
+      const re = new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
+      let out = ''
+      let at = 0
+      let count = 0
+      for (const m of src.matchAll(/<!--[\s\S]*?-->|<[^>]*>/g)) {
+        out += swap(src.slice(at, m.index), at) + m[0]
+        at = m.index + m[0].length
+      }
+      out += swap(src.slice(at), at)
+      function swap(text, start) {
+        if (start + text.length <= from || start >= to || skip.some(([s, e]) => start >= s && start < e)) return text
+        return text.replace(re, () => (count++, put))
+      }
+      return { src: out, select: edit.cv ?? null, count }
     }
     case 'rule': {
       // A rule in the canvas's own stylesheet: every element the selector matches changes at once.

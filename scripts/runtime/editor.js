@@ -300,6 +300,7 @@
       api.onHover(hover)
     }
   }
+  hooks.climb = (el) => climb(el)
   hooks.onDblClick = (e, { frame, point }) => {
     if (!frame?.doc) return
     const el = elementAt(frame, point)

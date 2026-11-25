@@ -2333,6 +2333,27 @@
     if (!e.target.closest('#menu, [aria-haspopup]')) closeMenu()
   }, true)
 
+  // ── keyboard shortcuts (Shift+?): every key the canvas answers, in one sheet ──
+  const SHORTCUTS = [
+    ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['R', 'Rectangle'], ['S', 'Section'], ['A', 'Artboard'], ['C', 'Comment']]],
+    ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['+ and −', 'Zoom in and out'], ['0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+\\', 'Panel']]],
+    ['Board objects', [['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+V', 'Copy, paste'], ['Ctrl+], Ctrl+[', 'Front, back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Ctrl+drag', 'Move without snapping'], ['Delete', 'Delete']]],
+    ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or go in, go out'], ['Esc', 'Select the parent'], ['Tab', 'Next sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
+    ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+?', 'This sheet']]],
+  ]
+  const keysSheet = h('dialog', { id: 'keys-sheet', 'aria-label': 'Keyboard shortcuts' })
+  document.body.append(keysSheet)
+  keysSheet.addEventListener('keydown', (e) => e.stopPropagation())
+  keysSheet.addEventListener('click', (e) => e.target === keysSheet && keysSheet.close())
+  function openKeys() {
+    const mac = /Mac|iPhone|iPad/.test(navigator.platform)
+    const say = (k) => (mac ? k.replace(/Ctrl\+/g, '⌘').replace(/Alt\+/g, '⌥').replace(/\bAlt\b/g, '⌥') : k)
+    keysSheet.replaceChildren(
+      h('header', {}, h('b', {}, 'Keyboard shortcuts'), h('button', { type: 'button', class: 'tool', 'aria-label': 'Close', onclick: () => keysSheet.close() }, '✕')),
+      h('div', { class: 'keys-cols' }, ...SHORTCUTS.map(([group, rows]) => h('section', {}, h('h3', {}, group), ...rows.map(([k, what]) => h('div', { class: 'key-row' }, h('span', {}, what), h('kbd', {}, say(k))))))),
+    )
+    keysSheet.showModal()
+  }
   // The canvas's own menu, on its title.
   $('#title-btn').addEventListener('click', (e) => {
     // Only what works where the canvas is open: renaming needs editing on, rebuilding needs node serving it.
@@ -2343,6 +2364,7 @@
       { label: 'Download the canvas', icon: 'download', run: downloadCanvas },
       sel ? { label: `Download ${sel}`, icon: 'download', run: () => downloadFile(sel) } : null,
       serve ? { label: 'Rename', run: rename } : null,
+      { label: 'Keyboard shortcuts', key: 'Shift+?', run: openKeys },
       window.designCanvas?.startOver ? { label: 'Start over', run: () => window.designCanvas.startOver() } : null,
       serve && !data.memory && !local ? { label: 'Refresh from the prototypes', run: rebuild } : null,
       // Under 900 px the top bar has no room for the layout's links, so they are here.
@@ -2583,6 +2605,10 @@
       }
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return
+    if (e.key === '?') {
+      e.preventDefault()
+      return openKeys()
+    }
     const k = e.key.toLowerCase()
     if (e.key === 'Escape') {
       if (menu.classList.contains('open')) closeMenu(true)

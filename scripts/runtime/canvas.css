@@ -508,3 +508,13 @@ body.has-banner #panel { top: 88px; }
 #findbar .sep { width: 1px; height: 18px; background: var(--line, rgb(255 255 255 / 0.1)); margin: 0 4px; }
 @media (pointer: coarse) { #findbar input { font-size: 16px; } }
 @media (max-width: 640px) { #findbar input { width: 110px; } }
+/* Keyboard shortcuts sheet. */
+#keys-sheet { width: min(920px, calc(100vw - 32px)); max-height: calc(100vh - 64px); padding: 0; border: 0; border-radius: var(--r-lg, 18px); background: var(--panel); color: var(--ink); box-shadow: var(--chrome-shadow), var(--edge); }
+#keys-sheet::backdrop { background: rgb(0 0 0 / 0.45); }
+#keys-sheet header { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px 20px; background: var(--panel); }
+#keys-sheet header b { font-size: 15px; }
+#keys-sheet .keys-cols { columns: 3 260px; column-gap: 28px; padding: 0 20px 20px; }
+#keys-sheet section { break-inside: avoid; margin-bottom: 18px; }
+#keys-sheet h3 { margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
+#keys-sheet .key-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-size: 13px; color: var(--ink-2); }
+#keys-sheet kbd { font: 12px ui-monospace, Consolas, monospace; color: var(--ink); white-space: nowrap; }

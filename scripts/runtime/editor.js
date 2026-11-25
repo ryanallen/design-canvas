@@ -868,12 +868,53 @@
     placeFloat()
   }
   const alignGlyph = (a) => h('span', { class: 'align-glyph', 'data-a': a }, h('i'), h('i'), h('i'))
+  /** A number on the toolbar, shown beside its glyph; a click opens a field under it, as Figma's
+      fields: typing or ↑ ↓ (Shift for 10) shows the change at once, Enter or leaving it writes it,
+      Escape puts it back. Any CSS value may be typed; a bare number is pixels. */
   function numberButton(title, glyph, prop, value) {
-    return h('button', { type: 'button', class: 'fbtn', title: `${title}: ${value}`, onclick: async () => {
-      const v = await dc.question(`${title} (px, or any CSS value):`, value === 'Mixed' ? '' : value)
-      if (v == null) return
-      setStyle({ [prop]: /^\d+(\.\d+)?$/.test(v.trim()) ? `${v.trim()}px` : v.trim() })
-    } }, glyph)
+    const shown = value === 'Mixed' ? 'Mixed' : String(Math.round(parseFloat(value) || 0))
+    const btn = h('button', { type: 'button', class: 'fbtn num', title: `${title}: ${value}`, 'aria-label': `${title}: ${value}`, onclick: () => openField() }, h('span', { 'aria-hidden': 'true' }, glyph), h('span', { class: 'num-v' }, shown))
+    function openField() {
+      document.getElementById('num-field')?.remove()
+      const els = sel?.els.filter(live) ?? []
+      if (!els.length) return
+      const before = els.map((el) => el.style.getPropertyValue(prop))
+      const css = (v) => (/^-?\d+(\.\d+)?$/.test(String(v).trim()) ? `${String(v).trim()}px` : String(v).trim())
+      const input = h('input', { type: 'text', inputmode: 'decimal', value: value === 'Mixed' ? '' : shown, 'aria-label': title, spellcheck: 'false' })
+      const box = h('div', { id: 'num-field', role: 'dialog', 'aria-label': title }, h('label', {}, title), input)
+      const preview = () => { for (const el of els) el.style.setProperty(prop, css(input.value)) }
+      const putBack = () => els.forEach((el, i) => (before[i] ? el.style.setProperty(prop, before[i]) : el.style.removeProperty(prop)))
+      let done = false
+      const finish = (keep) => {
+        if (done) return
+        done = true
+        box.remove()
+        putBack()
+        if (keep && input.value.trim() && input.value.trim() !== shown) setStyle({ [prop]: css(input.value) })
+      }
+      input.addEventListener('input', preview)
+      input.addEventListener('keydown', (e) => {
+        e.stopPropagation()
+        if (e.key === 'Enter') finish(true)
+        else if (e.key === 'Escape') finish(false)
+        else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          e.preventDefault()
+          const n = parseFloat(input.value) || 0
+          input.value = String(Math.max(0, n + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 10 : 1)))
+          preview()
+        }
+      })
+      input.addEventListener('blur', () => finish(true))
+      document.body.append(box)
+      const r = btn.getBoundingClientRect()
+      box.style.left = `${Math.max(8, Math.min(innerWidth - box.offsetWidth - 8, r.left))}px`
+      // On the far side of the toolbar from the selection, so the change it previews stays in sight.
+      const selTop = rectOn(sel.frame, els[0]).y
+      box.style.top = `${r.bottom <= selTop + 2 ? Math.max(8, r.top - box.offsetHeight - 6) : r.bottom + 6}px`
+      input.focus()
+      input.select()
+    }
+    return btn
   }
   function placeFloat() {
     if (!floatBar.classList.contains('open') || !sel?.frame.doc || !primary()?.isConnected) return

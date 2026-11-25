@@ -265,6 +265,44 @@
   // Sections sit under the frames, so a prototype inside one is still clicked as a prototype.
   const sectionLayer = h('div', { class: 'items sections' })
   const pinLayer = h('div', { class: 'pins' })
+  // Flows, as Figma's prototype connections: an arrow from each link in a screen to the screen it opens.
+  const flowLayer = s('svg', { class: 'flows', overflow: 'visible' },
+    s('defs', {}, s('marker', { id: 'flow-head', viewBox: '0 0 10 10', refX: '8', refY: '5', markerWidth: '6', markerHeight: '6', orient: 'auto-start-reverse' }, s('path', { d: 'M0 0L10 5L0 10z' }))))
+  let flowsOn = store.get('flows') === true
+  function drawFlows() {
+    flowLayer.querySelectorAll('g').forEach((g) => g.remove())
+    if (!flowsOn) return
+    const here = frames()
+    for (const f of here) {
+      if (!f.doc?.body) continue
+      for (const a of f.doc.querySelectorAll('a[href]')) {
+        const href = a.getAttribute('href')
+        if (!/^[^:?#]+\.html(#.*)?$/i.test(href)) continue
+        const [file, hash = ''] = href.replace(/^\.\//, '').split('#')
+        const to = here.find((x) => x.file === file && (x.hash || '') === hash) ?? here.find((x) => x.file === file)
+        if (!to || to === f) continue
+        const r = a.getBoundingClientRect()
+        if (!r.width && !r.height) continue
+        // Up from the link, over the tops of the screens, and down onto the top edge of the one it opens, each
+        // arrow a little higher than the last, so none crosses a screen's content or lies on another arrow.
+        const n = flowLayer.querySelectorAll('g').length
+        const x1 = f.x + (r.left + r.width / 2) * f.s
+        const y1 = f.y + r.top * f.s
+        const x2 = to.x + Math.min(160, to.W / 4) + (n % 4) * 24
+        const y2 = to.y - 6
+        const over = Math.min(f.y, to.y) - 420 - n * 160
+        flowLayer.append(s('g', {},
+          s('circle', { cx: x1, cy: f.y + (r.top + r.height / 2) * f.s, r: 7 }),
+          s('path', { d: `M${x1} ${y1}C${x1} ${over} ${x2} ${over} ${x2} ${y2}`, 'marker-end': 'url(#flow-head)' })))
+      }
+    }
+  }
+  function toggleFlows() {
+    flowsOn = !flowsOn
+    store.set('flows', flowsOn)
+    drawFlows()
+    hint(flowsOn ? 'Flows shown: each link to the screen it opens' : 'Flows hidden', 1600)
+  }
 
   function renderPage() {
     for (const f of allFrames.values()) {
@@ -278,7 +316,7 @@
     drawGroups()
     world.append(sectionLayer)
     for (const f of frames()) drawFrame(f)
-    world.append(itemLayer, pinLayer)
+    world.append(itemLayer, flowLayer, pinLayer)
     renderItems()
     renderPins()
     $('#page-name').textContent = pages().find((p) => p.id === pageId)?.title ?? ''
@@ -1992,6 +2030,7 @@
   }
 
   function renderPins() {
+    drawFlows()
     pinLayer.replaceChildren()
     for (const t of threads) {
       const p = anchorOf(t)
@@ -2386,6 +2425,8 @@
     const live = fs.filter((f) => f.meta.play)
     const still = fs.filter((f) => !f.meta.play)
     openMenu(e.currentTarget, [
+      { label: flowsOn ? 'Hide flows' : 'Show flows on the board', run: toggleFlows },
+      '-',
       live.length ? { note: 'Interactive' } : null,
       ...live.map((f) => ({ label: f.label, run: () => openPlay(f) })),
       still.length ? { note: 'Static artboards' } : null,

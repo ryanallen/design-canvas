@@ -57,6 +57,10 @@ Everything people do is a line before `</body>`, one JSON event each, never rewr
 
 Enter (or double-click) on a selected text element types in it. Enter while typing goes on in a new element after it, as a text editor does: the same tag and attributes but the id (a paragraph after a heading), never a `<div>` inside the paragraph. Shift+Enter is a line break inside it; Escape, or Enter in a one-line element, ends typing. Everything typed, however many elements Enter made, is one edit for Ctrl+Z.
 
+## Flows
+
+**Show flows on the board**, at the top of the Play menu, draws an arrow from each link in a screen to the screen on the page it opens (a link to `other.html` or `other.html#screen`), as Figma draws prototype connections: up from the link, over the tops of the screens, onto the top edge of the one it opens. Kept in that browser until **Hide flows**.
+
 ## Layers
 
 The panel's Layers list the page's board objects and frames, and an open frame's elements, each named by its `data-name` or `aria-label`, else what it is and what it says. Served, a layer dragged onto another goes before it or after it (by the half it is dropped on), or inside it on the middle of one that holds others: one move in the file. Double-click names a layer, written as `data-name` (empty takes it off). The eye on a layer hides it, as `display: none` on the element so Play hides it too, and shows it again; a hidden layer's row is dimmed.

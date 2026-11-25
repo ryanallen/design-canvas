@@ -60,6 +60,11 @@ body.tool-line #viewport, body.tool-arrow #viewport, body.tool-pencil #viewport,
 body.tool-guide #viewport { cursor: crosshair; }
 body.tool-text #viewport { cursor: text; }
 #world { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+/* Flows: never thinner on screen than 2px, drawn over the frames, never in the way of a click. */
+#world svg.flows { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; z-index: 3; }
+#world svg.flows path { fill: none; stroke: var(--accent); stroke-width: max(4px, calc(2px * var(--iz, 1))); opacity: 0.9; }
+#world svg.flows circle { fill: var(--accent); r: max(7px, calc(4px * var(--iz, 1))); }
+#world svg.flows marker path { fill: var(--accent); stroke: none; }
 #overlay { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 
 .frame {

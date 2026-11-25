@@ -1776,6 +1776,15 @@
       const m = b.moved[ev.key] ?? f?.home
       return { key: ev.key, state: m ? { x: m.x, y: m.y, page: m.page ?? f?.page ?? null } : null }
     }
+    // A page: its name and whether it is removed; a new page's id is known from its line.
+    if (ev.op === 'page') {
+      // A page the layout made has no line until it is first changed: its name is the layout's.
+      const own = ev.id ? b.pages.find((x) => x.id === ev.id) : null
+      const laid = ev.id ? data.pages.find((x) => x.id === ev.id) : null
+      const p = own || laid ? { title: own?.title || laid?.title, removed: !!own?.removed } : null
+      return { kind: 'page', id: ev.id ?? null, state: p }
+    }
+    if (ev.op === 'lock') return { kind: 'lock', key: ev.key, state: b.locked.includes(ev.key) }
     return null
   }
   function remember(before, after) {
@@ -1791,10 +1800,10 @@
       const close = () => (pending ? setTimeout(close, 0) : openStep === step && (openStep = null))
       setTimeout(close, 0)
     }
-    const k = before.id ?? `frame:${before.key}`
+    const k = before.kind ? `${before.kind}:${before.id ?? before.key}` : before.id ?? `frame:${before.key}`
     const c = openStep.changes.get(k)
     if (c) c.after = after.state
-    else openStep.changes.set(k, { id: before.id, key: before.key, before: before.state, after: after.state })
+    else openStep.changes.set(k, { kind: before.kind, id: before.id, key: before.key, before: before.state, after: after.state })
   }
   let pending = 0
   /** Put every object and frame of a step back as it was (or forward as it became). */
@@ -1804,6 +1813,14 @@
       for (const c of [...step.changes.values()].reverse()) {
         const want = back ? c.before : c.after
         const other = back ? c.after : c.before
+        if (c.kind === 'page') {
+          await sendBoard(want ? { op: 'page', id: c.id, title: want.title, removed: want.removed } : { op: 'page', id: c.id, removed: true })
+          continue
+        }
+        if (c.kind === 'lock') {
+          await sendBoard({ op: 'lock', key: c.key, locked: want })
+          continue
+        }
         if (c.key) {
           if (want) await sendBoard({ op: 'move', key: c.key, x: want.x, y: want.y, ...(want.page ? { page: want.page } : {}) })
           continue
@@ -1819,6 +1836,9 @@
     } finally {
       replaying = false
       relayout()
+      // A page put back or taken away: the switcher and, if it was this page, the page shown.
+      if (!pages().some((p) => p.id === pageId)) goPage(firstPage())
+      else renderPage()
       pickItem(null)
       renderItems()
     }

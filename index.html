@@ -186,6 +186,13 @@ body.tiny .item.locked::after { display: none; }
 .item.editing { outline: calc(2px / var(--z, 1)) solid var(--accent); cursor: text; }
 .item.on { outline: calc(2px / var(--z, 1)) solid var(--accent); outline-offset: calc(2px / var(--z, 1)); }
 .draft-shape { position: absolute; border: calc(2px / var(--z, 1)) dashed var(--accent); pointer-events: none; }
+/* The box round a selection of several, so it reads as one thing; solid for a group. */
+.chosen-box { position: absolute; pointer-events: none; outline: calc(1.5px / var(--z, 1)) dashed var(--accent); outline-offset: calc(8px / var(--z, 1)); }
+.chosen-box.grouped { outline-style: solid; }
+/* The line a dragged object has caught on. */
+.snap-line { position: absolute; pointer-events: none; z-index: 50; background: rgb(255 64 129); }
+.snap-line.v { width: calc(1.5px / var(--z, 1)); margin-left: calc(-0.75px / var(--z, 1)); }
+.snap-line.h { height: calc(1.5px / var(--z, 1)); margin-top: calc(-0.75px / var(--z, 1)); }
 
 /* ── pins ──────────────────────────────────────────────────── */
 .pin {
@@ -497,6 +504,9 @@ body.has-banner #panel { top: 88px; }
   #panel { left: 0; width: auto; top: auto; height: 62vh; box-shadow: 0 -1px 0 rgb(255 255 255 / 0.06), 0 -12px 32px rgb(0 0 0 / 0.5); border-radius: var(--r-lg) var(--r-lg) 0 0; }
   #play .head { overflow-x: auto; }
 }
+#itembar.dragging { visibility: hidden; }
+/* Where a picked note, shape or section resizes from. */
+.item .grip { position: absolute; right: calc(3px / var(--z, 1)); bottom: calc(3px / var(--z, 1)); width: calc(10px / var(--z, 1)); height: calc(10px / var(--z, 1)); background: #fff; border: calc(1.5px / var(--z, 1)) solid var(--accent); border-radius: calc(2px / var(--z, 1)); cursor: nwse-resize; box-sizing: border-box; }
 
 /* The editor's look: the selection box and handles, the floating toolbar, layers, Properties, Code, Tweaks. */
 .ov { position: absolute; pointer-events: none; }
@@ -643,6 +653,21 @@ body.has-banner #panel { top: 88px; }
 #panel .font-box .caret { color: var(--ink-3); font-family: system-ui; }
 #panel pre.source { margin: 0 12px; padding: 8px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.45 ui-monospace, Consolas, monospace; max-height: 260px; overflow: auto; }
 body.over-action #viewport { cursor: pointer; }
+#float .comp-mark { margin-right: 5px; }
+/* Measure: Alt held over another element. */
+.ov.measure { background: rgb(255 64 129); }
+.ov.measure.h { height: 1px; }
+.ov.measure.v { width: 1px; }
+.ov.measure-to { outline: 1px dashed rgb(255 64 129); }
+.measure-n { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 1px 5px; border-radius: 4px; background: rgb(255 64 129); color: #fff; font: 600 11px/16px system-ui, sans-serif; white-space: nowrap; font-variant-numeric: tabular-nums; }
+body.measuring .ov-tag, body.measuring #float { visibility: hidden; }
+/* A number on the toolbar and the field it opens. */
+#float .fbtn.num { gap: 4px; padding: 0 8px; width: auto; font-variant-numeric: tabular-nums; }
+#float .fbtn.num .num-v { font-size: 12px; color: var(--ink-2); }
+#num-field { position: fixed; z-index: 16; display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; background: var(--panel); border-radius: 12px; box-shadow: var(--chrome-shadow), var(--edge); }
+#num-field label { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+#num-field input { width: 72px; height: 28px; padding: 0 8px; border: 0; border-radius: 8px; background: var(--panel-2); color: var(--ink); font: 13px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; outline: none; box-shadow: inset 0 0 0 1px var(--accent); }
+@media (pointer: coarse) { #num-field input { font-size: 16px; } }
 
 </style>
 </head>
@@ -738,7 +763,7 @@ body.over-action #viewport { cursor: pointer; }
 </dialog>
 <div id="empty" hidden></div>
 
-<script type="application/json" id="rc-data">{"key":"index:site","title":"Design canvas","builtAt":"2026-11-17T18:06:44.046Z","pages":[{"id":"p1","title":"Design canvas","sections":[{"title":"Design canvas","sub":"what it is, how to get it, what to try","groups":[{"kind":"flat","frames":[{"file":"start-here.html","hash":"","label":"start-here","h":1746,"w":1440}]}]},{"title":"Prototypes to play with","sub":"levers, script and links, fluid","groups":[{"kind":"flat","frames":[{"file":"home.html","hash":"","label":"home","h":1000,"w":1440},{"file":"detail.html","hash":"","label":"detail","h":1000,"w":1440},{"file":"pricing.html","hash":"","label":"pricing","h":1000,"w":1440}]}]}]}],"loose":[],"files":{"start-here.html":"\u003c!doctype html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n\u003cmeta charset=\"utf-8\"\u003e\n\u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1\"\u003e\n\u003ctitle\u003eDesign canvas\u003c/title\u003e\n\u003cstyle\u003e\n  body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: #1c1d24; background: #fbfaf7; }\n  main { max-width: 1240px; padding: 48px 56px 64px; }\n  h1 { font-size: 72px; line-height: 1.05; margin: 0 0 16px; letter-spacing: -0.02em; }\n  .lead { color: #4a4c59; font-size: 22px; margin: 0 0 32px; max-width: 900px; }\n  .get { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin: 0 0 20px; }\n  .btn { display: inline-flex; align-items: center; gap: 12px; height: 84px; padding: 0 40px; border-radius: 20px; background: #1c1d24; color: #fff; font-size: 28px; font-weight: 700; text-decoration: none; }\n  .btn.star { background: #f5b14c; color: #1c1d24; }\n  .btn.quiet { background: #ecebe6; color: #1c1d24; }\n  pre { margin: 0 0 12px; padding: 18px 22px; border-radius: 14px; background: #1c1d24; color: #e9e8e3; font: 17px/1.6 ui-monospace, Consolas, monospace; overflow-x: auto; max-width: 820px; }\n  .small { color: #5b5d6b; font-size: 14px; margin: 0 0 40px; max-width: 820px; }\n  hr { border: 0; border-top: 1px solid #e3e1da; margin: 0 0 32px; }\n  h2.try { font-size: 28px; margin: 0 0 6px; }\n  .cols { columns: 2; column-gap: 48px; }\n  section { break-inside: avoid; margin: 0 0 28px; }\n  h3 { font-size: 18px; margin: 0 0 8px; }\n  label { display: flex; gap: 10px; align-items: flex-start; padding: 4px 0; cursor: pointer; }\n  input { margin-top: 5px; flex: none; }\n  label:has(input:checked) span { color: #8a8c99; text-decoration: line-through; }\n  kbd { font: 13px ui-monospace, Consolas, monospace; background: #ecebe6; border-radius: 4px; padding: 0 5px; }\n  code { font: 14px ui-monospace, Consolas, monospace; }\n  .count { color: #5b5d6b; font-size: 14px; }\n\u003c/style\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003cmain\u003e\n  \u003ch1\u003eDesign canvas\u003c/h1\u003e\n  \u003cp class=\"lead\"\u003eEvery HTML prototype in a folder, on one board. View them, play them, edit their text, styles and structure by pointing at them, comment on them, and draw around them. Every edit is written back into the prototype's own \u003ccode\u003e.html\u003c/code\u003e. Node only, nothing to install.\u003c/p\u003e\n  \u003cdiv class=\"get\"\u003e\n    \u003ca class=\"btn\" href=\"https://github.com/ryanallen/design-canvas/archive/refs/heads/main.zip\" target=\"_blank\" rel=\"noopener\"\u003e⬇ Download it\u003c/a\u003e\n    \u003ca class=\"btn star\" href=\"https://github.com/ryanallen/design-canvas\" target=\"_blank\" rel=\"noopener\"\u003e★ Star on GitHub\u003c/a\u003e\n    \u003ca class=\"btn quiet\" href=\"https://github.com/ryanallen/design-canvas\" target=\"_blank\" rel=\"noopener\"\u003eView the code\u003c/a\u003e\n  \u003c/div\u003e\n  \u003cpre\u003egit clone https://github.com/ryanallen/design-canvas .agents/skills/design-canvas\nnode .agents/skills/design-canvas/scripts/canvas.mjs build &lt;folder of prototypes&gt;\u003c/pre\u003e\n  \u003cp class=\"small\"\u003eAs a skill, it goes in a project's \u003ccode\u003e.agents/skills/design-canvas/\u003c/code\u003e (or \u003ccode\u003e.claude/skills/design-canvas/\u003c/code\u003e), and an agent reads \u003ccode\u003eSKILL.md\u003c/code\u003e. Without a terminal, double-click \u003cb\u003eDesign Canvas.cmd\u003c/b\u003e (Windows) or \u003cb\u003eDesign Canvas.command\u003c/b\u003e (Mac) and pick a folder.\u003c/p\u003e\n  \u003chr\u003e\n  \u003ch2 class=\"try\"\u003eTry it on this board\u003c/h2\u003e\n  \u003cp class=\"lead\"\u003eEverything you do here is kept in your browser, for you alone. Anything with an orange dot or padlock is locked; the rest is yours to change. Click a box to tick each thing as it works. \u003cspan class=\"count\" id=\"count\"\u003e\u003c/span\u003e\u003c/p\u003e\n  \u003cdiv class=\"cols\"\u003e\n    \u003csection\u003e\n      \u003ch3\u003e1. The board\u003c/h3\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eScroll to pan, \u003ckbd\u003eCtrl\u003c/kbd\u003e+wheel to zoom, \u003ckbd\u003eF\u003c/kbd\u003e to fit, hold \u003ckbd\u003eSpace\u003c/kbd\u003e to drag.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eZoom menu at the top right: 50%, 100%, 200%.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eDrag an artboard by its name to move it (not this one: it is locked); reload and it stays.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003ePages, top left: New page, rename it, delete it.\u003c/span\u003e\u003c/label\u003e\n    \u003c/section\u003e\n    \u003csection\u003e\n      \u003ch3\u003e2. Select\u003c/h3\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eLinks, buttons and boxes work when clicked; \u003ckbd\u003eCtrl\u003c/kbd\u003e/\u003ckbd\u003e⌘\u003c/kbd\u003e+click one to select it and edit it instead.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eHover shows an outline; click selects, with a name tag and handles.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eClick one card on \u003cb\u003ehome\u003c/b\u003e: all three are selected. \u003ckbd\u003eAlt\u003c/kbd\u003e+click selects one.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e\u003ckbd\u003eEsc\u003c/kbd\u003e goes to the parent, \u003ckbd\u003eEnter\u003c/kbd\u003e to the first child, \u003ckbd\u003eTab\u003c/kbd\u003e to the next sibling.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e\u003ckbd\u003eCtrl\u003c/kbd\u003e+\u003ckbd\u003e\\\u003c/kbd\u003e opens the panel; layers follow the selection both ways.\u003c/span\u003e\u003c/label\u003e\n    \u003c/section\u003e\n    \u003csection\u003e\n      \u003ch3\u003e3. Text\u003c/h3\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eDouble-click the headline on \u003cb\u003ehome\u003c/b\u003e, retype it, \u003ckbd\u003eEnter\u003c/kbd\u003e.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eWhile typing, select a word and press \u003ckbd\u003eCtrl\u003c/kbd\u003e+\u003ckbd\u003eB\u003c/kbd\u003e; colour a word from the toolbar.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003ePress \u003ckbd\u003eT\u003c/kbd\u003e and click inside a frame: a new paragraph opens for typing.\u003c/span\u003e\u003c/label\u003e\n    \u003c/section\u003e\n    \u003csection\u003e\n      \u003ch3\u003e4. Style\u003c/h3\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eThe floating toolbar: colour, bold, align, fill, layout, radius, padding.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eProperties: width Hug, Fixed, Fill; padding; font size; colour shows a contrast reading.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eWith all three cards selected, change the radius: one rule changes them all.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eCode tab: edit a declaration, an \u003ccode\u003e@attribute\u003c/code\u003e, and the source HTML, then Apply.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eTweaks on \u003cb\u003ehome\u003c/b\u003e: drag \u003ccode\u003e--gap\u003c/code\u003e, pick a new \u003ccode\u003e--accent\u003c/code\u003e.\u003c/span\u003e\u003c/label\u003e\n    \u003c/section\u003e\n    \u003csection\u003e\n      \u003ch3\u003e5. Structure\u003c/h3\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eDrag a card before another one: a blue line shows where it lands.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eDrag a selection's right handle to resize it.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e\u003ckbd\u003eCtrl\u003c/kbd\u003e+\u003ckbd\u003eD\u003c/kbd\u003e, \u003ckbd\u003eDelete\u003c/kbd\u003e, \u003ckbd\u003eCtrl\u003c/kbd\u003e+\u003ckbd\u003eG\u003c/kbd\u003e, \u003ckbd\u003eCtrl\u003c/kbd\u003e+\u003ckbd\u003eShift\u003c/kbd\u003e+\u003ckbd\u003eG\u003c/kbd\u003e, \u003ckbd\u003eCtrl\u003c/kbd\u003e+\u003ckbd\u003eC\u003c/kbd\u003e then \u003ckbd\u003eCtrl\u003c/kbd\u003e+\u003ckbd\u003eV\u003c/kbd\u003e.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e\u003ckbd\u003eAlt\u003c/kbd\u003e+\u003ckbd\u003e↓\u003c/kbd\u003e moves it one place; \"…\" offers Wrap in flex row, column, grid.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e\u003ckbd\u003eCtrl\u003c/kbd\u003e+\u003ckbd\u003eZ\u003c/kbd\u003e undoes each one, \u003ckbd\u003eCtrl\u003c/kbd\u003e+\u003ckbd\u003eShift\u003c/kbd\u003e+\u003ckbd\u003eZ\u003c/kbd\u003e redoes.\u003c/span\u003e\u003c/label\u003e\n    \u003c/section\u003e\n    \u003csection\u003e\n      \u003ch3\u003e6. Comments\u003c/h3\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e\u003ckbd\u003eC\u003c/kbd\u003e then click an element: comment, reply, resolve, delete.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eMove that element: the pin follows it.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eSelect something, \u003cb\u003e✦ Ask agent\u003c/b\u003e at the bottom, type, \u003ckbd\u003eEnter\u003c/kbd\u003e: an orange pin. In your own copy, your agent reads it as work to do.\u003c/span\u003e\u003c/label\u003e\n    \u003c/section\u003e\n    \u003csection\u003e\n      \u003ch3\u003e7. On the board\u003c/h3\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e\u003ckbd\u003eN\u003c/kbd\u003e sticky note, typed, recoloured; \u003ckbd\u003eR\u003c/kbd\u003e rectangle; the ▴ beside it for ellipse, section, line, arrow, layout guide.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eDraw an arrow from a note to a frame, then move the frame: the arrow follows.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e\u003ckbd\u003eP\u003c/kbd\u003e pencil; \u003ckbd\u003eT\u003c/kbd\u003e on empty board for a title.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eDrag a selection box around notes and frames, then move them together.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e\u003ckbd\u003eA\u003c/kbd\u003e and drag out an artboard: a new prototype appears, ready to edit.\u003c/span\u003e\u003c/label\u003e\n    \u003c/section\u003e\n    \u003csection\u003e\n      \u003ch3\u003e8. Play\u003c/h3\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e▷ PLAY on \u003cb\u003ehome\u003c/b\u003e, click \u003cb\u003eDownload free\u003c/b\u003e: it moves on to \u003cb\u003edetail\u003c/b\u003e.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e390, 1024, 1440, Fill, Fit; \u003ckbd\u003eEsc\u003c/kbd\u003e back.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eFull screen on \u003cb\u003epricing\u003c/b\u003e reflows to the window (it is fluid).\u003c/span\u003e\u003c/label\u003e\n    \u003c/section\u003e\n    \u003csection\u003e\n      \u003ch3\u003e9. It all stays\u003c/h3\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eReload the page: every edit, comment, note and page is still there.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eTitle menu → Download the canvas, and download one prototype.\u003c/span\u003e\u003c/label\u003e\n    \u003c/section\u003e\n  \u003c/div\u003e\n\u003c/main\u003e\n\u003cscript\u003e\n  const boxes = [...document.querySelectorAll('input[type=checkbox]')]\n  const key = 'design-canvas-site'\n  let saved = []\n  try { saved = JSON.parse(localStorage.getItem(key)) || [] } catch {}\n  boxes.forEach((b, i) =\u003e { b.checked = !!saved[i] })\n  const count = () =\u003e { document.getElementById('count').textContent = `${boxes.filter((b) =\u003e b.checked).length} of ${boxes.length} done.` }\n  for (const b of boxes) b.addEventListener('change', () =\u003e {\n    try { localStorage.setItem(key, JSON.stringify(boxes.map((x) =\u003e x.checked))) } catch {}\n    count()\n  })\n  count()\n\u003c/script\u003e\n\u003c/body\u003e\n\u003c/html\u003e\n","home.html":"\u003c!doctype html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n\u003cmeta charset=\"utf-8\"\u003e\n\u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1\"\u003e\n\u003cmeta name=\"canvas-levers\" content=\"--accent, --gap\"\u003e\n\u003ctitle\u003eTidewater: home\u003c/title\u003e\n\u003cstyle\u003e\n  :root { --accent: #0e6e6e; --gap: 24px; --ink: #14202b; }\n  body { margin: 0; font-family: system-ui, sans-serif; color: var(--ink); background: #f7f5f0; }\n  .top { display: flex; align-items: center; justify-content: space-between; padding: 20px 48px; }\n  .brand { font-weight: 700; font-size: 20px; }\n  .nav { display: flex; gap: 24px; }\n  .nav a { color: inherit; text-decoration: none; }\n  .hero { padding: 96px 48px 64px; max-width: 760px; }\n  .hero h1 { font-size: 56px; line-height: 1.05; margin: 0 0 16px; }\n  .hero p { font-size: 19px; line-height: 1.5; color: #4a5560; margin: 0 0 28px; }\n  .btn { display: inline-flex; align-items: center; height: 52px; padding: 0 26px; border-radius: 14px; background: var(--accent); color: #fff; font-weight: 600; text-decoration: none; }\n  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap); padding: 0 48px 96px; }\n  .card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px rgb(0 0 0 / 0.08); }\n  .card h3 { margin: 0 0 8px; font-size: 18px; }\n  .card p { margin: 0; color: #4a5560; line-height: 1.5; }\n\u003c/style\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003cheader data-locked=\"true\" class=\"top\"\u003e\n  \u003cdiv class=\"brand\"\u003eTidewater\u003c/div\u003e\n  \u003cnav class=\"nav\"\u003e\u003ca href=\"#tides\"\u003eTides\u003c/a\u003e\u003ca href=\"detail.html\"\u003eSpots\u003c/a\u003e\u003ca href=\"#about\"\u003eAbout\u003c/a\u003e\u003c/nav\u003e\n\u003c/header\u003e\n\u003csection class=\"hero\" id=\"hero\"\u003e\n  \u003ch1\u003eKnow when to paddle out.\u003c/h1\u003e\n  \u003cp\u003eTides, swell and wind for every break near you, in one glance.\u003c/p\u003e\n  \u003ca class=\"btn\" href=\"detail.html\"\u003eDownload free\u003c/a\u003e\n\u003c/section\u003e\n\u003csection class=\"cards\" id=\"tides\"\u003e\n  \u003cdiv class=\"card\"\u003e\u003ch3\u003eTides\u003c/h3\u003e\u003cp\u003eHigh and low for the week, to the minute.\u003c/p\u003e\u003c/div\u003e\n  \u003cdiv class=\"card\"\u003e\u003ch3\u003eSwell\u003c/h3\u003e\u003cp\u003eHeight, period and direction from three models.\u003c/p\u003e\u003c/div\u003e\n  \u003cdiv class=\"card\"\u003e\u003ch3\u003eWind\u003c/h3\u003e\u003cp\u003eOffshore or onshore, hour by hour.\u003c/p\u003e\u003c/div\u003e\n\u003c/section\u003e\n\u003c/body\u003e\n\u003c/html\u003e\n","detail.html":"\u003c!doctype html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n\u003cmeta charset=\"utf-8\"\u003e\n\u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1\"\u003e\n\u003ctitle\u003eTidewater: a spot\u003c/title\u003e\n\u003cstyle\u003e\n  body { margin: 0; font-family: system-ui, sans-serif; color: #14202b; background: #fff; }\n  .bar { display: flex; align-items: center; gap: 12px; padding: 16px 24px; border-bottom: 1px solid #e5e7eb; }\n  .bar a { color: #0e6e6e; text-decoration: none; font-weight: 600; }\n  main { padding: 32px 24px; max-width: 720px; }\n  h1 { margin: 0 0 8px; font-size: 36px; }\n  .tabs { display: flex; gap: 8px; margin: 24px 0; }\n  .tab { border: 1px solid #d1d5db; background: #fff; border-radius: 999px; padding: 8px 16px; font: inherit; cursor: pointer; }\n  .tab.on { background: #14202b; color: #fff; border-color: #14202b; }\n  .panel { display: none; line-height: 1.6; }\n  .panel.on { display: block; }\n  table { border-collapse: collapse; width: 100%; }\n  td { border-bottom: 1px solid #eee; padding: 8px 0; }\n\u003c/style\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003cdiv class=\"bar\"\u003e\u003ca href=\"home.html\"\u003e‹ Home\u003c/a\u003e\u003cspan\u003eMalibu, First Point\u003c/span\u003e\u003c/div\u003e\n\u003cmain\u003e\n  \u003ch1\u003eFirst Point\u003c/h1\u003e\n  \u003cp\u003eA long right-hand point break that likes a south swell.\u003c/p\u003e\n  \u003cdiv class=\"tabs\"\u003e\u003cbutton class=\"tab on\" data-for=\"today\"\u003eToday\u003c/button\u003e\u003cbutton class=\"tab\" data-for=\"week\"\u003eThis week\u003c/button\u003e\u003c/div\u003e\n  \u003cdiv class=\"panel on\" id=\"today\"\u003e\n    \u003ctable\u003e\n      \u003ctr\u003e\u003ctd\u003eHigh tide\u003c/td\u003e\u003ctd\u003e6:42 am\u003c/td\u003e\u003c/tr\u003e\n      \u003ctr\u003e\u003ctd\u003eLow tide\u003c/td\u003e\u003ctd\u003e12:58 pm\u003c/td\u003e\u003c/tr\u003e\n      \u003ctr\u003e\u003ctd\u003eSwell\u003c/td\u003e\u003ctd\u003e3–4 ft at 14 s\u003c/td\u003e\u003c/tr\u003e\n    \u003c/table\u003e\n  \u003c/div\u003e\n  \u003cdiv class=\"panel\" id=\"week\"\u003e\u003cp\u003eThe swell builds through Thursday, then fades.\u003c/p\u003e\u003c/div\u003e\n\u003c/main\u003e\n\u003cscript\u003e\n  for (const b of document.querySelectorAll('.tab')) b.addEventListener('click', () =\u003e {\n    for (const x of document.querySelectorAll('.tab, .panel')) x.classList.remove('on')\n    b.classList.add('on')\n    document.getElementById(b.dataset.for).classList.add('on')\n  })\n\u003c/script\u003e\n\u003c/body\u003e\n\u003c/html\u003e\n","pricing.html":"\u003c!doctype html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n\u003cmeta charset=\"utf-8\"\u003e\n\u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1\"\u003e\n\u003cmeta name=\"canvas-fluid\"\u003e\n\u003ctitle\u003eTidewater: pricing\u003c/title\u003e\n\u003cstyle\u003e\n  body { margin: 0; font-family: system-ui, sans-serif; color: #14202b; background: #0f1b24; }\n  .wrap { padding: 72px 6vw; }\n  h2 { color: #fff; font-size: 40px; margin: 0 0 32px; }\n  .plans { display: flex; flex-wrap: wrap; gap: 20px; }\n  .plan { flex: 1 1 260px; background: #fff; border-radius: 18px; padding: 28px; }\n  .plan b { display: block; font-size: 32px; margin: 8px 0 16px; }\n  .plan ul { margin: 0; padding-left: 18px; line-height: 1.8; }\n\u003c/style\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003cdiv class=\"wrap\"\u003e\n  \u003ch2\u003ePick a plan\u003c/h2\u003e\n  \u003cdiv class=\"plans\"\u003e\n    \u003cdiv class=\"plan\"\u003e\u003cspan\u003eFree\u003c/span\u003e\u003cb\u003e$0\u003c/b\u003e\u003cul\u003e\u003cli\u003eOne spot\u003c/li\u003e\u003cli\u003eToday only\u003c/li\u003e\u003c/ul\u003e\u003c/div\u003e\n    \u003cdiv class=\"plan\"\u003e\u003cspan\u003eLocal\u003c/span\u003e\u003cb\u003e$4\u003c/b\u003e\u003cul\u003e\u003cli\u003eFive spots\u003c/li\u003e\u003cli\u003eThe week ahead\u003c/li\u003e\u003c/ul\u003e\u003c/div\u003e\n    \u003cdiv class=\"plan\"\u003e\u003cspan\u003eTravel\u003c/span\u003e\u003cb\u003e$9\u003c/b\u003e\u003cul\u003e\u003cli\u003eEvery spot\u003c/li\u003e\u003cli\u003eAlerts\u003c/li\u003e\u003c/ul\u003e\u003c/div\u003e\n  \u003c/div\u003e\n\u003c/div\u003e\n\u003c/body\u003e\n\u003c/html\u003e\n"},"meta":{"start-here.html":{"levers":[],"fluid":false,"play":true},"home.html":{"levers":["--accent","--gap"],"fluid":false,"play":true},"detail.html":{"levers":[],"fluid":false,"play":true},"pricing.html":{"levers":[],"fluid":true,"play":false}},"assets":{},"crop":"function cropToOption(letter) {\n  const marks = []\n  for (const el of document.querySelectorAll('[data-option]')) marks.push([el, el.getAttribute('data-option')])\n  if (!marks.length) for (const el of document.querySelectorAll('span.n')) if (/^[A-Z]$/.test(el.textContent.trim())) marks.push([el, el.textContent.trim()])\n  if (!marks.length) {\n    const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)\n    while (walk.nextNode()) {\n      const m = /^\\s*Option ([A-Z])\\s*[—–:-]/.exec(walk.currentNode.data)\n      if (m) marks.push([walk.currentNode.parentElement, m[1]])\n    }\n  }\n  // A column is the biggest box round a mark that holds no other option's mark.\n  const cols = new Map()\n  for (const [el, l] of marks) {\n    let e = el\n    while (e.parentElement && e.parentElement !== document.body && !marks.some(([m, ml]) =\u003e ml !== l && e.parentElement.contains(m))) e = e.parentElement\n    if (!cols.has(e)) cols.set(e, l)\n  }\n  // An option's part runs from its mark's box to the next marked box beside it, so a board that\n  // stacks its options under headings cuts the same way as one that sets them in columns.\n  const skip = /^(svg|style|script|template|link|meta)$/i\n  const hide = (el) =\u003e el.style.setProperty('display', 'none', 'important')\n  const parents = new Set([...cols.keys()].map((e) =\u003e e.parentElement))\n  const kept = []\n  for (const parent of parents) {\n    let cur = null\n    for (const child of parent.children) {\n      if (cols.has(child)) cur = cols.get(child)\n      if (skip.test(child.tagName)) continue\n      if (cur === letter) kept.push(child)\n      else hide(child)\n    }\n  }\n  if (!kept.length) return null\n  for (const parent of parents) {\n    for (let up = parent; up && up !== document.body; up = up.parentElement) {\n      for (const sib of up.parentElement.children) {\n        if (sib !== up && !skip.test(sib.tagName) && !kept.some((k) =\u003e sib.contains(k))) hide(sib)\n      }\n    }\n  }\n  const boxes = kept.map((k) =\u003e k.getBoundingClientRect()).filter((r) =\u003e r.width)\n  const left = Math.min(...boxes.map((r) =\u003e r.left))\n  const right = Math.max(...boxes.map((r) =\u003e r.right))\n  return { w: Math.ceil(right + Math.max(24, left)) }\n}","comments":null,"play":true,"links":[{"text":"⬇ Download","href":"https://github.com/ryanallen/design-canvas/archive/refs/heads/main.zip"},{"text":"★ Star","href":"https://github.com/ryanallen/design-canvas"},{"text":"How to install","href":"https://github.com/ryanallen/design-canvas#install"}],"serve":false}</script>
+<script type="application/json" id="rc-data">{"key":"index:site","title":"Design canvas","builtAt":"2026-11-25T17:07:53.064Z","pages":[{"id":"p1","title":"Design canvas","sections":[{"title":"Design canvas","sub":"what it is, how to get it, what to try","groups":[{"kind":"flat","frames":[{"file":"start-here.html","hash":"","label":"start-here","h":1746,"w":1440}]}]},{"title":"Prototypes to play with","sub":"levers, script and links, fluid","groups":[{"kind":"flat","frames":[{"file":"home.html","hash":"","label":"home","h":1000,"w":1440},{"file":"detail.html","hash":"","label":"detail","h":1000,"w":1440},{"file":"pricing.html","hash":"","label":"pricing","h":1000,"w":1440}]}]}]}],"loose":[],"files":{"start-here.html":"\u003c!doctype html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n\u003cmeta charset=\"utf-8\"\u003e\n\u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1\"\u003e\n\u003ctitle\u003eDesign canvas\u003c/title\u003e\n\u003cstyle\u003e\n  body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: #1c1d24; background: #fbfaf7; }\n  main { max-width: 1240px; padding: 48px 56px 64px; }\n  h1 { font-size: 72px; line-height: 1.05; margin: 0 0 16px; letter-spacing: -0.02em; }\n  .lead { color: #4a4c59; font-size: 22px; margin: 0 0 32px; max-width: 900px; }\n  .get { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin: 0 0 20px; }\n  .btn { display: inline-flex; align-items: center; gap: 12px; height: 84px; padding: 0 40px; border-radius: 20px; background: #1c1d24; color: #fff; font-size: 28px; font-weight: 700; text-decoration: none; }\n  .btn.star { background: #f5b14c; color: #1c1d24; }\n  .btn.quiet { background: #ecebe6; color: #1c1d24; }\n  pre { margin: 0 0 12px; padding: 18px 22px; border-radius: 14px; background: #1c1d24; color: #e9e8e3; font: 17px/1.6 ui-monospace, Consolas, monospace; overflow-x: auto; max-width: 820px; }\n  .small { color: #5b5d6b; font-size: 14px; margin: 0 0 40px; max-width: 820px; }\n  hr { border: 0; border-top: 1px solid #e3e1da; margin: 0 0 32px; }\n  h2.try { font-size: 28px; margin: 0 0 6px; }\n  .cols { columns: 2; column-gap: 48px; }\n  section { break-inside: avoid; margin: 0 0 28px; }\n  h3 { font-size: 18px; margin: 0 0 8px; }\n  label { display: flex; gap: 10px; align-items: flex-start; padding: 4px 0; cursor: pointer; }\n  input { margin-top: 5px; flex: none; }\n  label:has(input:checked) span { color: #8a8c99; text-decoration: line-through; }\n  kbd { font: 13px ui-monospace, Consolas, monospace; background: #ecebe6; border-radius: 4px; padding: 0 5px; }\n  code { font: 14px ui-monospace, Consolas, monospace; }\n  .count { color: #5b5d6b; font-size: 14px; }\n\u003c/style\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003cmain\u003e\n  \u003ch1\u003eDesign canvas\u003c/h1\u003e\n  \u003cp class=\"lead\"\u003eEvery HTML prototype in a folder, on one board. View them, play them, edit their text, styles and structure by pointing at them, comment on them, and draw around them. Every edit is written back into the prototype's own \u003ccode\u003e.html\u003c/code\u003e. Node only, nothing to install.\u003c/p\u003e\n  \u003cdiv class=\"get\"\u003e\n    \u003ca class=\"btn\" href=\"https://github.com/ryanallen/design-canvas/archive/refs/heads/main.zip\" target=\"_blank\" rel=\"noopener\"\u003e⬇ Download it\u003c/a\u003e\n    \u003ca class=\"btn star\" href=\"https://github.com/ryanallen/design-canvas\" target=\"_blank\" rel=\"noopener\"\u003e★ Star on GitHub\u003c/a\u003e\n    \u003ca class=\"btn quiet\" href=\"https://github.com/ryanallen/design-canvas\" target=\"_blank\" rel=\"noopener\"\u003eView the code\u003c/a\u003e\n  \u003c/div\u003e\n  \u003cpre\u003egit clone https://github.com/ryanallen/design-canvas .agents/skills/design-canvas\nnode .agents/skills/design-canvas/scripts/canvas.mjs build &lt;folder of prototypes&gt;\u003c/pre\u003e\n  \u003cp class=\"small\"\u003eAs a skill, it goes in a project's \u003ccode\u003e.agents/skills/design-canvas/\u003c/code\u003e (or \u003ccode\u003e.claude/skills/design-canvas/\u003c/code\u003e), and an agent reads \u003ccode\u003eSKILL.md\u003c/code\u003e. Without a terminal, double-click \u003cb\u003eDesign Canvas.cmd\u003c/b\u003e (Windows) or \u003cb\u003eDesign Canvas.command\u003c/b\u003e (Mac) and pick a folder.\u003c/p\u003e\n  \u003chr\u003e\n  \u003ch2 class=\"try\"\u003eTry it on this board\u003c/h2\u003e\n  \u003cp class=\"lead\"\u003eEverything you do here is kept in your browser, for you alone. Anything with an orange dot or padlock is locked; the rest is yours to change. Click a box to tick each thing as it works. \u003cspan class=\"count\" id=\"count\"\u003e\u003c/span\u003e\u003c/p\u003e\n  \u003cdiv class=\"cols\"\u003e\n    \u003csection\u003e\n      \u003ch3\u003e1. The board\u003c/h3\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eScroll to pan, \u003ckbd\u003eCtrl\u003c/kbd\u003e+wheel to zoom, \u003ckbd\u003eF\u003c/kbd\u003e to fit, hold \u003ckbd\u003eSpace\u003c/kbd\u003e to drag.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eZoom menu at the top right: 50%, 100%, 200%.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eDrag an artboard by its name to move it (not this one: it is locked); reload and it stays.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003ePages, top left: New page, rename it, delete it.\u003c/span\u003e\u003c/label\u003e\n    \u003c/section\u003e\n    \u003csection\u003e\n      \u003ch3\u003e2. Select\u003c/h3\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eLinks, buttons and boxes work when clicked; \u003ckbd\u003eCtrl\u003c/kbd\u003e/\u003ckbd\u003e⌘\u003c/kbd\u003e+click one to select it and edit it instead.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eHover shows an outline; click selects, with a name tag and handles.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eClick one card on \u003cb\u003ehome\u003c/b\u003e: all three are selected. \u003ckbd\u003eAlt\u003c/kbd\u003e+click selects one.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e\u003ckbd\u003eEsc\u003c/kbd\u003e goes to the parent, \u003ckbd\u003eEnter\u003c/kbd\u003e to the first child, \u003ckbd\u003eTab\u003c/kbd\u003e to the next sibling.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e\u003ckbd\u003eCtrl\u003c/kbd\u003e+\u003ckbd\u003e\\\u003c/kbd\u003e opens the panel; layers follow the selection both ways.\u003c/span\u003e\u003c/label\u003e\n    \u003c/section\u003e\n    \u003csection\u003e\n      \u003ch3\u003e3. Text\u003c/h3\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eDouble-click the headline on \u003cb\u003ehome\u003c/b\u003e, retype it, \u003ckbd\u003eEnter\u003c/kbd\u003e.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eWhile typing, select a word and press \u003ckbd\u003eCtrl\u003c/kbd\u003e+\u003ckbd\u003eB\u003c/kbd\u003e; colour a word from the toolbar.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003ePress \u003ckbd\u003eT\u003c/kbd\u003e and click inside a frame: a new paragraph opens for typing.\u003c/span\u003e\u003c/label\u003e\n    \u003c/section\u003e\n    \u003csection\u003e\n      \u003ch3\u003e4. Style\u003c/h3\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eThe floating toolbar: colour, bold, align, fill, layout, radius, padding.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eProperties: width Hug, Fixed, Fill; padding; font size; colour shows a contrast reading.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eWith all three cards selected, change the radius: one rule changes them all.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eCode tab: edit a declaration, an \u003ccode\u003e@attribute\u003c/code\u003e, and the source HTML, then Apply.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eTweaks on \u003cb\u003ehome\u003c/b\u003e: drag \u003ccode\u003e--gap\u003c/code\u003e, pick a new \u003ccode\u003e--accent\u003c/code\u003e.\u003c/span\u003e\u003c/label\u003e\n    \u003c/section\u003e\n    \u003csection\u003e\n      \u003ch3\u003e5. Structure\u003c/h3\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eDrag a card before another one: a blue line shows where it lands.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eDrag a selection's right handle to resize it.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e\u003ckbd\u003eCtrl\u003c/kbd\u003e+\u003ckbd\u003eD\u003c/kbd\u003e, \u003ckbd\u003eDelete\u003c/kbd\u003e, \u003ckbd\u003eCtrl\u003c/kbd\u003e+\u003ckbd\u003eG\u003c/kbd\u003e, \u003ckbd\u003eCtrl\u003c/kbd\u003e+\u003ckbd\u003eShift\u003c/kbd\u003e+\u003ckbd\u003eG\u003c/kbd\u003e, \u003ckbd\u003eCtrl\u003c/kbd\u003e+\u003ckbd\u003eC\u003c/kbd\u003e then \u003ckbd\u003eCtrl\u003c/kbd\u003e+\u003ckbd\u003eV\u003c/kbd\u003e.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e\u003ckbd\u003eAlt\u003c/kbd\u003e+\u003ckbd\u003e↓\u003c/kbd\u003e moves it one place; \"…\" offers Wrap in flex row, column, grid.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e\u003ckbd\u003eCtrl\u003c/kbd\u003e+\u003ckbd\u003eZ\u003c/kbd\u003e undoes each one, \u003ckbd\u003eCtrl\u003c/kbd\u003e+\u003ckbd\u003eShift\u003c/kbd\u003e+\u003ckbd\u003eZ\u003c/kbd\u003e redoes.\u003c/span\u003e\u003c/label\u003e\n    \u003c/section\u003e\n    \u003csection\u003e\n      \u003ch3\u003e6. Comments\u003c/h3\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e\u003ckbd\u003eC\u003c/kbd\u003e then click an element: comment, reply, resolve, delete.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eMove that element: the pin follows it.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eSelect something, \u003cb\u003e✦ Ask agent\u003c/b\u003e at the bottom, type, \u003ckbd\u003eEnter\u003c/kbd\u003e: an orange pin. In your own copy, your agent reads it as work to do.\u003c/span\u003e\u003c/label\u003e\n    \u003c/section\u003e\n    \u003csection\u003e\n      \u003ch3\u003e7. On the board\u003c/h3\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e\u003ckbd\u003eN\u003c/kbd\u003e sticky note, typed, recoloured; \u003ckbd\u003eR\u003c/kbd\u003e rectangle; the ▴ beside it for ellipse, section, line, arrow, layout guide.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eDraw an arrow from a note to a frame, then move the frame: the arrow follows.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e\u003ckbd\u003eP\u003c/kbd\u003e pencil; \u003ckbd\u003eT\u003c/kbd\u003e on empty board for a title.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eDrag a selection box around notes and frames, then move them together.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e\u003ckbd\u003eA\u003c/kbd\u003e and drag out an artboard: a new prototype appears, ready to edit.\u003c/span\u003e\u003c/label\u003e\n    \u003c/section\u003e\n    \u003csection\u003e\n      \u003ch3\u003e8. Play\u003c/h3\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e▷ PLAY on \u003cb\u003ehome\u003c/b\u003e, click \u003cb\u003eDownload free\u003c/b\u003e: it moves on to \u003cb\u003edetail\u003c/b\u003e.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003e390, 1024, 1440, Fill, Fit; \u003ckbd\u003eEsc\u003c/kbd\u003e back.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eFull screen on \u003cb\u003epricing\u003c/b\u003e reflows to the window (it is fluid).\u003c/span\u003e\u003c/label\u003e\n    \u003c/section\u003e\n    \u003csection\u003e\n      \u003ch3\u003e9. It all stays\u003c/h3\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eReload the page: every edit, comment, note and page is still there.\u003c/span\u003e\u003c/label\u003e\n      \u003clabel\u003e\u003cinput type=\"checkbox\"\u003e\u003cspan\u003eTitle menu → Download the canvas, and download one prototype.\u003c/span\u003e\u003c/label\u003e\n    \u003c/section\u003e\n  \u003c/div\u003e\n\u003c/main\u003e\n\u003cscript\u003e\n  const boxes = [...document.querySelectorAll('input[type=checkbox]')]\n  const key = 'design-canvas-site'\n  let saved = []\n  try { saved = JSON.parse(localStorage.getItem(key)) || [] } catch {}\n  boxes.forEach((b, i) =\u003e { b.checked = !!saved[i] })\n  const count = () =\u003e { document.getElementById('count').textContent = `${boxes.filter((b) =\u003e b.checked).length} of ${boxes.length} done.` }\n  for (const b of boxes) b.addEventListener('change', () =\u003e {\n    try { localStorage.setItem(key, JSON.stringify(boxes.map((x) =\u003e x.checked))) } catch {}\n    count()\n  })\n  count()\n\u003c/script\u003e\n\u003c/body\u003e\n\u003c/html\u003e\n","home.html":"\u003c!doctype html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n\u003cmeta charset=\"utf-8\"\u003e\n\u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1\"\u003e\n\u003cmeta name=\"canvas-levers\" content=\"--accent, --gap\"\u003e\n\u003ctitle\u003eTidewater: home\u003c/title\u003e\n\u003cstyle\u003e\n  :root { --accent: #0e6e6e; --gap: 24px; --ink: #14202b; }\n  body { margin: 0; font-family: system-ui, sans-serif; color: var(--ink); background: #f7f5f0; }\n  .top { display: flex; align-items: center; justify-content: space-between; padding: 20px 48px; }\n  .brand { font-weight: 700; font-size: 20px; }\n  .nav { display: flex; gap: 24px; }\n  .nav a { color: inherit; text-decoration: none; }\n  .hero { padding: 96px 48px 64px; max-width: 760px; }\n  .hero h1 { font-size: 56px; line-height: 1.05; margin: 0 0 16px; }\n  .hero p { font-size: 19px; line-height: 1.5; color: #4a5560; margin: 0 0 28px; }\n  .btn { display: inline-flex; align-items: center; height: 52px; padding: 0 26px; border-radius: 14px; background: var(--accent); color: #fff; font-weight: 600; text-decoration: none; }\n  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap); padding: 0 48px 96px; }\n  .card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px rgb(0 0 0 / 0.08); }\n  .card h3 { margin: 0 0 8px; font-size: 18px; }\n  .card p { margin: 0; color: #4a5560; line-height: 1.5; }\n\u003c/style\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003cheader data-locked=\"true\" class=\"top\"\u003e\n  \u003cdiv class=\"brand\"\u003eTidewater\u003c/div\u003e\n  \u003cnav class=\"nav\"\u003e\u003ca href=\"#tides\"\u003eTides\u003c/a\u003e\u003ca href=\"detail.html\"\u003eSpots\u003c/a\u003e\u003ca href=\"#about\"\u003eAbout\u003c/a\u003e\u003c/nav\u003e\n\u003c/header\u003e\n\u003csection class=\"hero\" id=\"hero\"\u003e\n  \u003ch1\u003eKnow when to paddle out.\u003c/h1\u003e\n  \u003cp\u003eTides, swell and wind for every break near you, in one glance.\u003c/p\u003e\n  \u003ca class=\"btn\" href=\"detail.html\"\u003eDownload free\u003c/a\u003e\n\u003c/section\u003e\n\u003csection class=\"cards\" id=\"tides\"\u003e\n  \u003cdiv class=\"card\"\u003e\u003ch3\u003eTides\u003c/h3\u003e\u003cp\u003eHigh and low for the week, to the minute.\u003c/p\u003e\u003c/div\u003e\n  \u003cdiv class=\"card\"\u003e\u003ch3\u003eSwell\u003c/h3\u003e\u003cp\u003eHeight, period and direction from three models.\u003c/p\u003e\u003c/div\u003e\n  \u003cdiv class=\"card\"\u003e\u003ch3\u003eWind\u003c/h3\u003e\u003cp\u003eOffshore or onshore, hour by hour.\u003c/p\u003e\u003c/div\u003e\n\u003c/section\u003e\n\u003c/body\u003e\n\u003c/html\u003e\n","detail.html":"\u003c!doctype html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n\u003cmeta charset=\"utf-8\"\u003e\n\u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1\"\u003e\n\u003ctitle\u003eTidewater: a spot\u003c/title\u003e\n\u003cstyle\u003e\n  body { margin: 0; font-family: system-ui, sans-serif; color: #14202b; background: #fff; }\n  .bar { display: flex; align-items: center; gap: 12px; padding: 16px 24px; border-bottom: 1px solid #e5e7eb; }\n  .bar a { color: #0e6e6e; text-decoration: none; font-weight: 600; }\n  main { padding: 32px 24px; max-width: 720px; }\n  h1 { margin: 0 0 8px; font-size: 36px; }\n  .tabs { display: flex; gap: 8px; margin: 24px 0; }\n  .tab { border: 1px solid #d1d5db; background: #fff; border-radius: 999px; padding: 8px 16px; font: inherit; cursor: pointer; }\n  .tab.on { background: #14202b; color: #fff; border-color: #14202b; }\n  .panel { display: none; line-height: 1.6; }\n  .panel.on { display: block; }\n  table { border-collapse: collapse; width: 100%; }\n  td { border-bottom: 1px solid #eee; padding: 8px 0; }\n\u003c/style\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003cdiv class=\"bar\"\u003e\u003ca href=\"home.html\"\u003e‹ Home\u003c/a\u003e\u003cspan\u003eMalibu, First Point\u003c/span\u003e\u003c/div\u003e\n\u003cmain\u003e\n  \u003ch1\u003eFirst Point\u003c/h1\u003e\n  \u003cp\u003eA long right-hand point break that likes a south swell.\u003c/p\u003e\n  \u003cdiv class=\"tabs\"\u003e\u003cbutton class=\"tab on\" data-for=\"today\"\u003eToday\u003c/button\u003e\u003cbutton class=\"tab\" data-for=\"week\"\u003eThis week\u003c/button\u003e\u003c/div\u003e\n  \u003cdiv class=\"panel on\" id=\"today\"\u003e\n    \u003ctable\u003e\n      \u003ctr\u003e\u003ctd\u003eHigh tide\u003c/td\u003e\u003ctd\u003e6:42 am\u003c/td\u003e\u003c/tr\u003e\n      \u003ctr\u003e\u003ctd\u003eLow tide\u003c/td\u003e\u003ctd\u003e12:58 pm\u003c/td\u003e\u003c/tr\u003e\n      \u003ctr\u003e\u003ctd\u003eSwell\u003c/td\u003e\u003ctd\u003e3–4 ft at 14 s\u003c/td\u003e\u003c/tr\u003e\n    \u003c/table\u003e\n  \u003c/div\u003e\n  \u003cdiv class=\"panel\" id=\"week\"\u003e\u003cp\u003eThe swell builds through Thursday, then fades.\u003c/p\u003e\u003c/div\u003e\n\u003c/main\u003e\n\u003cscript\u003e\n  for (const b of document.querySelectorAll('.tab')) b.addEventListener('click', () =\u003e {\n    for (const x of document.querySelectorAll('.tab, .panel')) x.classList.remove('on')\n    b.classList.add('on')\n    document.getElementById(b.dataset.for).classList.add('on')\n  })\n\u003c/script\u003e\n\u003c/body\u003e\n\u003c/html\u003e\n","pricing.html":"\u003c!doctype html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n\u003cmeta charset=\"utf-8\"\u003e\n\u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1\"\u003e\n\u003cmeta name=\"canvas-fluid\"\u003e\n\u003ctitle\u003eTidewater: pricing\u003c/title\u003e\n\u003cstyle\u003e\n  body { margin: 0; font-family: system-ui, sans-serif; color: #14202b; background: #0f1b24; }\n  .wrap { padding: 72px 6vw; }\n  h2 { color: #fff; font-size: 40px; margin: 0 0 32px; }\n  .plans { display: flex; flex-wrap: wrap; gap: 20px; }\n  .plan { flex: 1 1 260px; background: #fff; border-radius: 18px; padding: 28px; }\n  .plan b { display: block; font-size: 32px; margin: 8px 0 16px; }\n  .plan ul { margin: 0; padding-left: 18px; line-height: 1.8; }\n\u003c/style\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n\u003cdiv class=\"wrap\"\u003e\n  \u003ch2\u003ePick a plan\u003c/h2\u003e\n  \u003cdiv class=\"plans\"\u003e\n    \u003cdiv class=\"plan\"\u003e\u003cspan\u003eFree\u003c/span\u003e\u003cb\u003e$0\u003c/b\u003e\u003cul\u003e\u003cli\u003eOne spot\u003c/li\u003e\u003cli\u003eToday only\u003c/li\u003e\u003c/ul\u003e\u003c/div\u003e\n    \u003cdiv class=\"plan\"\u003e\u003cspan\u003eLocal\u003c/span\u003e\u003cb\u003e$4\u003c/b\u003e\u003cul\u003e\u003cli\u003eFive spots\u003c/li\u003e\u003cli\u003eThe week ahead\u003c/li\u003e\u003c/ul\u003e\u003c/div\u003e\n    \u003cdiv class=\"plan\"\u003e\u003cspan\u003eTravel\u003c/span\u003e\u003cb\u003e$9\u003c/b\u003e\u003cul\u003e\u003cli\u003eEvery spot\u003c/li\u003e\u003cli\u003eAlerts\u003c/li\u003e\u003c/ul\u003e\u003c/div\u003e\n  \u003c/div\u003e\n\u003c/div\u003e\n\u003c/body\u003e\n\u003c/html\u003e\n"},"meta":{"start-here.html":{"levers":[],"fluid":false,"play":true},"home.html":{"levers":["--accent","--gap"],"fluid":false,"play":true},"detail.html":{"levers":[],"fluid":false,"play":true},"pricing.html":{"levers":[],"fluid":true,"play":false}},"assets":{},"crop":"function cropToOption(letter) {\n  const marks = []\n  for (const el of document.querySelectorAll('[data-option]')) marks.push([el, el.getAttribute('data-option')])\n  if (!marks.length) for (const el of document.querySelectorAll('span.n')) if (/^[A-Z]$/.test(el.textContent.trim())) marks.push([el, el.textContent.trim()])\n  if (!marks.length) {\n    const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)\n    while (walk.nextNode()) {\n      const m = /^\\s*Option ([A-Z])\\s*[—–:-]/.exec(walk.currentNode.data)\n      if (m) marks.push([walk.currentNode.parentElement, m[1]])\n    }\n  }\n  // A column is the biggest box round a mark that holds no other option's mark.\n  const cols = new Map()\n  for (const [el, l] of marks) {\n    let e = el\n    while (e.parentElement && e.parentElement !== document.body && !marks.some(([m, ml]) =\u003e ml !== l && e.parentElement.contains(m))) e = e.parentElement\n    if (!cols.has(e)) cols.set(e, l)\n  }\n  // An option's part runs from its mark's box to the next marked box beside it, so a board that\n  // stacks its options under headings cuts the same way as one that sets them in columns.\n  const skip = /^(svg|style|script|template|link|meta)$/i\n  const hide = (el) =\u003e el.style.setProperty('display', 'none', 'important')\n  const parents = new Set([...cols.keys()].map((e) =\u003e e.parentElement))\n  const kept = []\n  for (const parent of parents) {\n    let cur = null\n    for (const child of parent.children) {\n      if (cols.has(child)) cur = cols.get(child)\n      if (skip.test(child.tagName)) continue\n      if (cur === letter) kept.push(child)\n      else hide(child)\n    }\n  }\n  if (!kept.length) return null\n  for (const parent of parents) {\n    for (let up = parent; up && up !== document.body; up = up.parentElement) {\n      for (const sib of up.parentElement.children) {\n        if (sib !== up && !skip.test(sib.tagName) && !kept.some((k) =\u003e sib.contains(k))) hide(sib)\n      }\n    }\n  }\n  const boxes = kept.map((k) =\u003e k.getBoundingClientRect()).filter((r) =\u003e r.width)\n  const left = Math.min(...boxes.map((r) =\u003e r.left))\n  const right = Math.max(...boxes.map((r) =\u003e r.right))\n  return { w: Math.ceil(right + Math.max(24, left)) }\n}","comments":null,"play":true,"links":[{"text":"⬇ Download","href":"https://github.com/ryanallen/design-canvas/archive/refs/heads/main.zip"},{"text":"★ Star","href":"https://github.com/ryanallen/design-canvas"},{"text":"How to install","href":"https://github.com/ryanallen/design-canvas#install"}],"serve":false}</script>
 <script>
 
 const CANVAS_MARK = 'review-canvas'
@@ -931,11 +956,12 @@ function makeBoardEvent(input, { now = new Date(), newId = randomId } = {}) {
         event.kind = input.kind
       }
       if (input.page != null) event.page = pageId(input.page)
-      for (const k of ['x', 'y', 'w', 'h']) if (input[k] != null) event[k] = coord(input[k], k)
+      for (const k of ['x', 'y', 'w', 'h', 'z']) if (input[k] != null) event[k] = coord(input[k], k)
       if (input.text != null) event.text = String(input.text).slice(0, LIMITS.text)
       if (input.color != null) event.color = colorOf(input.color)
       if (input.frame != null) event.frame = text(input.frame, LIMITS.frame, 'frame')
       for (const k of ['from', 'to']) if (input[k] != null) event[k] = input[k] === '' ? '' : text(input[k], LIMITS.frame, k)
+      if (input.group != null) event.group = input.group === '' ? '' : id(input.group, 'group')
       for (const k of ['cols', 'gutter', 'margin']) if (input[k] != null) event[k] = coord(input[k], k)
       if (input.points != null) {
         if (!Array.isArray(input.points) || input.points.length > 4000) throw new Error('points is not a list of numbers')
@@ -1170,11 +1196,74 @@ function parseRules(css) {
 }
 const rulesText = (rules) => `\n${rules.map((r) => `${r.sel} { ${styleText(r.props)} }`).join('\n')}\n`
 
+const LINKED = new Set(['style', 'attr', 'insert', 'delete', 'duplicate'])
+const OWN_ATTRS = new Set(['id', 'data-component', 'data-locked', 'data-name'])
+const componentName = (el) => (el?.attrs ? attr(el, 'data-component')?.value?.trim() || null : null)
+/** The copy an element is in, nearest first: its root and the component's name. */
+function componentOf(el) {
+  for (let p = el; p && p.tag !== '#root'; p = p.parent) {
+    const name = componentName(p)
+    if (name) return { root: p, name }
+  }
+  return null
+}
+/** Where an element is inside a copy: the index among its parent's elements at each step down, with the tag expected there. */
+const pathIn = (root, el) => {
+  const path = []
+  for (let p = el; p !== root; p = p.parent) path.unshift([p.parent.children.indexOf(p), p.tag])
+  return path
+}
+const atPath = (root, path) => {
+  let el = root
+  for (const [i, t] of path) {
+    el = el.children[i]
+    if (!el || el.tag !== t) return null
+  }
+  return el
+}
+/** Every copy of a component in the file. */
+function copiesOfComponent(src, name) {
+  return [...parse(src).byStart.values()].filter((el) => componentName(el) === name)
+}
+
+/**
+ * Apply one edit, and when it is made inside a component's copy, the same edit at the same place in
+ * every other copy (see above). Returns the new source, the offset of the element to select
+ * afterwards, and `linked`, how many other copies took it.
+ */
+function applyEdit(src, edit) {
+  const cvs = [edit.cv].flat()
+  const skip = !LINKED.has(edit.op) || edit.only || cvs.length !== 1 || (edit.op === 'attr' && OWN_ATTRS.has(String(edit.name).toLowerCase()))
+  const el = skip ? null : parse(src).byStart.get(Number(cvs[0]))
+  const comp = el && componentOf(el)
+  if (!comp || (comp.root === el && ['delete', 'duplicate'].includes(edit.op))) return applyOne(src, edit)
+  const path = pathIn(comp.root, el)
+  const outside = (r) => r.end <= comp.root.start || r.start >= comp.root.end
+  const targets = [el, ...copiesOfComponent(src, comp.name).filter(outside).map((r) => atPath(r, path)).filter(Boolean)]
+  targets.sort((a, b) => b.start - a.start)
+  let out = src
+  let select = null
+  let linked = 0
+  for (const t of targets) {
+    const one = { ...edit, cv: t.start }
+    if (t !== el && lockedFor(out, one, { owner: true })) continue
+    const before = out.length
+    const r = applyOne(out, one)
+    out = r.src
+    if (t === el) select = r.select
+    else {
+      linked++
+      if (select != null && t.start < el.start) select += out.length - before
+    }
+  }
+  return { src: out, select, linked }
+}
+
 /**
  * Apply one edit. Returns the new source and the offset of the element to select afterwards.
  * Every op names elements by `data-cv` offsets taken from the source it is applied to.
  */
-function applyEdit(src, edit) {
+function applyOne(src, edit) {
   const { byStart } = parse(src)
   const get = (cv) => {
     const el = byStart.get(Number(cv))
@@ -1581,6 +1670,8 @@ return { parse, tag, untag, applyEdit, lockedFor }
     const first = data.pages[0]?.id ?? 'p1'
     for (const f of data.loose ?? []) place(f, first, null, 0, 0, 1)
     for (const key of [...allFrames.keys()]) if (!seen.has(key)) allFrames.delete(key)
+    // Where the layout put each frame, for undoing a frame's first move by hand.
+    for (const f of allFrames.values()) f.home = { x: f.x, y: f.y, page: f.page }
     // Frames moved by hand, onto another spot or another page.
     for (const [key, m] of Object.entries(board.moved)) {
       const f = allFrames.get(key)
@@ -1756,12 +1847,12 @@ return { parse, tag, untag, applyEdit, lockedFor }
     apply()
   }
   const panelWidth = () => (document.body.classList.contains('panel-open') && viewport.clientWidth > 640 ? 320 : 0)
-  function fitTo(box, pad = 60) {
+  function fitTo(box, pad = 60, most = 1) {
     const vw = viewport.clientWidth - panelWidth()
     pad = Math.min(pad, Math.round(vw / 24))
     const top = 48
     const vh = viewport.clientHeight - top - 64
-    const z = Math.min(1, MAX_Z, Math.max(MIN_Z, Math.min((vw - pad * 2) / box.w, (vh - pad * 2) / box.h)))
+    const z = Math.min(most, MAX_Z, Math.max(MIN_Z, Math.min((vw - pad * 2) / box.w, (vh - pad * 2) / box.h)))
     view.z = z
     view.x = (vw - box.w * z) / 2 - box.x * z
     view.y = top + (vh - box.h * z) / 2 - box.y * z
@@ -2109,9 +2200,17 @@ return { parse, tag, untag, applyEdit, lockedFor }
     }
     drawingItems = true
     try {
-      const all = items()
+      // Drawn in stack order: `z` first, then the order they were made.
+      const all = items().map((it, n) => [it, n]).sort((a, b) => (a[0].z ?? 0) - (b[0].z ?? 0) || a[1] - b[1]).map(([it]) => it)
       sectionLayer.replaceChildren(...all.filter((i) => i.kind === 'section').map(itemEl).filter(Boolean))
       itemLayer.replaceChildren(...all.filter((i) => i.kind !== 'section').map(itemEl).filter(Boolean))
+      if (chosen) {
+        // Drawn round what is chosen as it is now, so it follows a drag.
+        const b = boxAround([...chosen.items], [...chosen.frames])
+        const members = [...chosen.items].map((id) => board.items.find((i) => i.id === id))
+        const grouped = members.length > 1 && members.every((i) => i?.group && i.group === members[0].group)
+        itemLayer.append(h('div', { class: `chosen-box${grouped ? ' grouped' : ''}`, style: `left:${b.x}px;top:${b.y}px;width:${b.w}px;height:${b.h}px` }))
+      }
       for (const f of frames()) f.el?.classList.toggle('chosen', !!chosen?.frames.has(f.key))
     } finally {
       drawingItems = false
@@ -2197,10 +2296,12 @@ return { parse, tag, untag, applyEdit, lockedFor }
     it = { ...it, color: safeColor(it.color), x: num(it.x), y: num(it.y), w: num(it.w), h: num(it.h) }
     const cls = `item ${it.kind}${picked === it.id || chosen?.items.has(it.id) ? ' on' : ''}${isLocked(it.id) ? ' locked' : ''}`
     const box = `left:${it.x}px;top:${it.y}px;width:${it.w ?? 0}px;height:${it.h ?? 0}px`
-    if (it.kind === 'note') return h('div', { class: cls, 'data-id': it.id, style: `${box};background:${it.color || NOTE_COLORS[0]}` }, it.text ?? '')
+    // The one object picked shows where it resizes from: its bottom-right corner.
+    const grip = serve && picked === it.id && !chosen && !isLocked(it.id) && ['note', 'rect', 'ellipse', 'section'].includes(it.kind) ? h('span', { class: 'grip', 'aria-hidden': 'true' }) : null
+    if (it.kind === 'note') return h('div', { class: cls, 'data-id': it.id, style: `${box};background:${it.color || NOTE_COLORS[0]}` }, it.text ?? '', grip)
     if (it.kind === 'title') return h('div', { class: cls, 'data-id': it.id, style: `left:${it.x}px;top:${it.y}px;${it.color ? `color:${it.color}` : ''}` }, it.text || 'Title')
-    if (it.kind === 'rect' || it.kind === 'ellipse') return h('div', { class: cls, 'data-id': it.id, style: `${box};--c:${it.color || SHAPE_COLORS[0]}` }, h('span', { class: 'txt' }, it.text ?? ''))
-    if (it.kind === 'section') return h('div', { class: cls, 'data-id': it.id, style: `${box};--c:${it.color || SECTION_COLORS[0]}` }, h('span', { class: 'txt' }, it.text ?? ''))
+    if (it.kind === 'rect' || it.kind === 'ellipse') return h('div', { class: cls, 'data-id': it.id, style: `${box};--c:${it.color || SHAPE_COLORS[0]}` }, h('span', { class: 'txt' }, it.text ?? ''), grip)
+    if (it.kind === 'section') return h('div', { class: cls, 'data-id': it.id, style: `${box};--c:${it.color || SECTION_COLORS[0]}` }, h('span', { class: 'txt' }, it.text ?? ''), grip)
     if (it.kind === 'guide') {
       const f = findFrame(it.frame)
       if (!f || f.page !== pageId) return null
@@ -2251,14 +2352,229 @@ return { parse, tag, untag, applyEdit, lockedFor }
       frames: frames().filter((f) => within(f.x, f.y, f.W, f.H)).map((f) => f.key),
     }
   }
-  function choose(box) {
-    const got = inside(box)
+  function choose(box, got = inside(box)) {
     picked = null
     chosen = got.items.length || got.frames.length ? { box, items: new Set(got.items), frames: new Set(got.frames) } : null
     call('onMarquee')
     renderItems()
     // The agent reads it at GET /api/selection.
     if (serve) fetch('/api/selection', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selection: chosen ? { board: { page: pageId, box, items: [...chosen.items], frames: [...chosen.frames] } } : null }) }).catch(() => {})
+  }
+  // ── groups: board objects that share a group id are picked, moved, coloured and deleted as one ──
+  const groupMembers = (gid) => (gid ? items().filter((i) => i.group === gid).map((i) => i.id) : [])
+  /** An object and everything grouped with it. */
+  const withGroup = (id) => {
+    const g = groupMembers(board.items.find((i) => i.id === id)?.group)
+    return g.length > 1 ? g : [id]
+  }
+  /** The box round some board objects and frames. */
+  function boxAround(ids, keys = []) {
+    const rs = [
+      ...ids.map((id) => board.items.find((i) => i.id === id)).filter(Boolean).map(geometryOf).map((i) => ({ x: i.x, y: i.y, w: i.w ?? 0, h: i.h ?? 0 })),
+      ...keys.map((k) => allFrames.get(k)).filter(Boolean).map((f) => ({ x: f.x, y: f.y, w: f.W, h: f.H })),
+    ]
+    if (!rs.length) return { x: 0, y: 0, w: 0, h: 0 }
+    const x = Math.min(...rs.map((r) => r.x))
+    const y = Math.min(...rs.map((r) => r.y))
+    return { x, y, w: Math.max(...rs.map((r) => r.x + r.w)) - x, h: Math.max(...rs.map((r) => r.y + r.h)) - y }
+  }
+  /** Board objects and frames chosen as one selection, without a drag box. */
+  function chooseItems(ids, keys = []) {
+    if (!ids.length && !keys.length) return pickItem(null)
+    if (ids.length === 1 && !keys.length) return pickItem(ids[0])
+    choose(boxAround(ids, keys), { items: ids, frames: keys })
+  }
+  /** Shift-click: an object, with its group, joins the selection, or leaves it if it is already in. */
+  function toggleChosen(id) {
+    const have = new Set(chosen ? chosen.items : picked ? withGroup(picked) : [])
+    const keys = chosen ? [...chosen.frames] : []
+    const add = withGroup(id)
+    const all = add.every((x) => have.has(x))
+    for (const x of add) all ? have.delete(x) : have.add(x)
+    chooseItems([...have], keys)
+  }
+  const newGroupId = () => 'g-' + Math.random().toString(36).slice(2, 12).padEnd(10, '0')
+  /** Ctrl+G: every board object selected becomes one group; Ctrl+Shift+G breaks the groups up. */
+  async function groupChosen(on) {
+    const ids = [...(chosen?.items ?? [])].filter((id) => !isLocked(id))
+    if (on && ids.length < 2) return hint('Select two or more board objects to group them', 2000)
+    const gid = on ? newGroupId() : ''
+    const change = ids.filter((id) => on || board.items.find((i) => i.id === id)?.group)
+    if (!change.length) return hint('Nothing selected is in a group', 1600)
+    for (const id of change) Object.assign(board.items.find((i) => i.id === id), { group: gid })
+    renderItems()
+    try {
+      for (const id of change) await sendBoard({ op: 'item', id, group: gid })
+      hint(on ? `Grouped ${change.length}: they now move, colour and delete as one` : 'Ungrouped', 1600)
+    } catch (err) {
+      hint(err.message, 3000)
+      takeBoardAgain()
+    }
+  }
+  // ── duplicate, copy and paste ──
+  let boardClip = null // { items, times }
+  /** What is selected on the board: a drag box's or Shift's objects, or the one picked with its group. */
+  const selectedItems = () => (chosen ? [...chosen.items] : picked ? withGroup(picked) : []).map((id) => board.items.find((i) => i.id === id)).filter((i) => i && i.kind !== 'guide')
+  const COPIED = ['kind', 'x', 'y', 'w', 'h', 'text', 'color', 'points', 'from', 'to', 'group']
+  /** New objects like these, moved by dx, dy: a group copied is a new group, and a line holding an
+   * object copied with it holds the copy; one holding something left behind lets go where it is. */
+  async function placeCopies(list, dx, dy) {
+    if (!serve) return hint(readOnly, 2000)
+    const ids = new Map()
+    const groups = new Map()
+    const made = []
+    const lines = list.filter((i) => ['line', 'arrow'].includes(i.kind) && (i.from || i.to))
+    try {
+      for (const src of [...list.filter((i) => !lines.includes(i)), ...lines]) {
+        let it = Object.fromEntries(COPIED.filter((k) => src[k] != null).map((k) => [k, src[k]]))
+        if (lines.includes(src)) {
+          const keep = ['from', 'to'].every((k) => !it[k] || ids.has(it[k]))
+          if (keep) for (const k of ['from', 'to']) it[k] = it[k] ? ids.get(it[k]) : it[k]
+          else it = { ...it, ...Object.fromEntries(['x', 'y', 'w', 'h', 'points'].map((k) => [k, geometryOf(src)[k]])), from: '', to: '' }
+        }
+        if (it.group) {
+          if (!groups.has(it.group)) groups.set(it.group, newGroupId())
+          it.group = groups.get(it.group)
+        }
+        const id = await addItem({ ...it, x: Math.round(it.x + dx), y: Math.round(it.y + dy) })
+        if (!id) break
+        ids.set(src.id, id)
+        made.push(id)
+      }
+    } finally {
+      renderItems()
+    }
+    if (made.length) chooseItems(made)
+    return made
+  }
+  const duplicateItems = () => {
+    const list = selectedItems()
+    if (list.length) placeCopies(list, 24, 24)
+  }
+  function copyItems() {
+    const list = selectedItems()
+    if (!list.length) return false
+    boardClip = { items: list.map((i) => ({ ...i })), times: 0 }
+    hint(`Copied ${list.length === 1 ? 'it' : list.length}`, 900)
+    return true
+  }
+  function pasteItems() {
+    if (!boardClip) return false
+    boardClip.times++
+    placeCopies(boardClip.items, 24 * boardClip.times, 24 * boardClip.times)
+    return true
+  }
+  /** Shift+2: the board objects or the prototype elements selected fill the window, never past 400%. */
+  function zoomToSelection() {
+    const ids = chosen ? [...chosen.items] : picked ? withGroup(picked) : []
+    const b = ids.length || chosen?.frames.size ? boxAround(ids, chosen ? [...chosen.frames] : []) : call('selectionBox')
+    if (!b) return hint('Select something to zoom to it', 1400)
+    fitTo(b, 60, 4)
+  }
+  // ── front and back: a board object's place in the stack is its `z`, objects without one in the order drawn ──
+  async function restack(front) {
+    const ids = chosen ? [...chosen.items] : picked ? withGroup(picked) : []
+    const list = ids.map((id) => board.items.find((i) => i.id === id)).filter((i) => i && !isLocked(i.id) && i.kind !== 'section' && i.kind !== 'guide')
+    if (!list.length) return
+    const order = (i) => [i.z ?? 0, board.items.indexOf(i)]
+    list.sort((a, b) => order(a)[0] - order(b)[0] || order(a)[1] - order(b)[1])
+    const zs = items().map((i) => i.z ?? 0)
+    let at = front ? Math.max(0, ...zs) + 1 : Math.min(0, ...zs) - list.length
+    for (const it of list) it.z = at++
+    renderItems()
+    try {
+      for (const it of list) await sendBoard({ op: 'item', id: it.id, z: it.z })
+    } catch (err) {
+      hint(err.message, 3000)
+      takeBoardAgain()
+    }
+  }
+  // ── align and distribute: a group in the selection moves as one ──
+  function selectedUnits() {
+    const ids = [...(chosen?.items ?? [])].filter((id) => {
+      const it = board.items.find((i) => i.id === id)
+      // A line that holds on to something follows it, so it is not moved on its own.
+      return it && it.kind !== 'guide' && !(['line', 'arrow'].includes(it.kind) && (it.from || it.to))
+    })
+    const units = new Map()
+    for (const id of ids) {
+      const g = board.items.find((i) => i.id === id).group
+      const key = g && groupMembers(g).every((m) => chosen.items.has(m)) ? g : id
+      units.set(key, [...(units.get(key) ?? []), id])
+    }
+    return [...units.values()].map((members) => ({ members, box: boxAround(members) }))
+  }
+  async function moveUnits(moves) {
+    const sends = []
+    for (const { members, dx, dy } of moves) {
+      if (!dx && !dy) continue
+      for (const id of members) {
+        if (isLocked(id)) continue
+        const it = board.items.find((i) => i.id === id)
+        it.x = Math.round(it.x + dx)
+        it.y = Math.round(it.y + dy)
+        sends.push({ op: 'item', id, x: it.x, y: it.y })
+      }
+    }
+    if (chosen) chosen.box = boxAround([...chosen.items], [...chosen.frames])
+    renderItems()
+    try {
+      for (const s of sends) await sendBoard(s)
+    } catch (err) {
+      hint(err.message, 3000)
+      takeBoardAgain()
+    }
+  }
+  function alignChosen(how) {
+    const units = selectedUnits()
+    if (units.length < 2) return hint('Select two or more to align them', 1600)
+    const all = boxAround(units.flatMap((u) => u.members))
+    moveUnits(units.map(({ members, box: b }) => ({
+      members,
+      dx: how === 'left' ? all.x - b.x : how === 'centre' ? all.x + all.w / 2 - (b.x + b.w / 2) : how === 'right' ? all.x + all.w - (b.x + b.w) : 0,
+      dy: how === 'top' ? all.y - b.y : how === 'middle' ? all.y + all.h / 2 - (b.y + b.h / 2) : how === 'bottom' ? all.y + all.h - (b.y + b.h) : 0,
+    })))
+  }
+  /** Equal gaps between neighbours across (x) or down (y), the first and last staying where they are. */
+  function distributeChosen(axis) {
+    const units = selectedUnits()
+    if (units.length < 3) return hint('Select three or more to space them evenly', 1600)
+    const [p, s] = axis === 'x' ? ['x', 'w'] : ['y', 'h']
+    units.sort((a, b) => a.box[p] - b.box[p])
+    const first = units[0].box
+    const last = units[units.length - 1].box
+    const gap = (last[p] + last[s] - first[p] - units.reduce((t, u) => t + u.box[s], 0)) / (units.length - 1)
+    let at = first[p]
+    moveUnits(units.map((u) => {
+      const d = Math.round(at - u.box[p])
+      at += u.box[s] + gap
+      return { members: u.members, dx: axis === 'x' ? d : 0, dy: axis === 'y' ? d : 0 }
+    }))
+  }
+  function alignMenu(anchor) {
+    const n = selectedUnits().length
+    openMenu(anchor, [
+      { label: 'Align left', key: 'Alt+A', run: () => alignChosen('left') },
+      { label: 'Align centres', key: 'Alt+H', run: () => alignChosen('centre') },
+      { label: 'Align right', key: 'Alt+D', run: () => alignChosen('right') },
+      '-',
+      { label: 'Align top', key: 'Alt+W', run: () => alignChosen('top') },
+      { label: 'Align middles', key: 'Alt+V', run: () => alignChosen('middle') },
+      { label: 'Align bottom', key: 'Alt+S', run: () => alignChosen('bottom') },
+      ...(n >= 3 ? ['-', { label: 'Space evenly across', key: 'Alt+Shift+H', run: () => distributeChosen('x') }, { label: 'Space evenly down', key: 'Alt+Shift+V', run: () => distributeChosen('y') }] : []),
+    ])
+  }
+  /** One colour for every selected object that takes one. */
+  async function colorChosen(color) {
+    const ids = [...(chosen?.items ?? [])].filter((id) => !isLocked(id) && board.items.find((i) => i.id === id)?.kind !== 'guide')
+    for (const id of ids) Object.assign(board.items.find((i) => i.id === id), { color })
+    renderItems()
+    try {
+      for (const id of ids) await sendBoard({ op: 'item', id, color })
+    } catch (err) {
+      hint(err.message, 3000)
+      takeBoardAgain()
+    }
   }
   async function removeChosen() {
     const all = [...(chosen?.items ?? [])]
@@ -2296,15 +2612,27 @@ return { parse, tag, untag, applyEdit, lockedFor }
   function placeItemBar() {
     if (chosen) {
       const n = chosen.items.size + chosen.frames.size
-      itemBar.replaceChildren(
-        h('span', { class: 'count-note' }, `${n} selected`),
+      const its = [...chosen.items].map((id) => board.items.find((i) => i.id === id)).filter((i) => i && i.kind !== 'guide')
+      // Every selected object takes the colour clicked; the swatches are those of the kind most of them are.
+      const paletteOf = (k) => (k === 'note' ? NOTE_COLORS : k === 'section' ? SECTION_COLORS : SHAPE_COLORS)
+      const colors = its.length ? paletteOf(its.filter((i) => i.kind === 'note').length * 2 > its.length ? 'note' : its.every((i) => i.kind === 'section') ? 'section' : 'shape') : []
+      const same = its.length && its.every((i) => (i.color || paletteOf(i.kind)[0]) === (its[0].color || paletteOf(its[0].kind)[0])) ? its[0].color || paletteOf(its[0].kind)[0] : null
+      const grouped = its.length > 1 && its.every((i) => i.group && i.group === its[0].group)
+      const anyGroup = its.some((i) => i.group)
+      itemBar.replaceChildren(...[
+        h('span', { class: 'count-note' }, grouped ? `Group of ${its.length}` : `${n} selected`),
+        ...colors.map((c) => h('button', { type: 'button', class: `swatch${same === c ? ' on' : ''}`, style: `background:${c}`, title: COLOR_NAMES[c] ?? c, 'aria-label': COLOR_NAMES[c] ?? c, 'aria-pressed': String(same === c), onclick: () => colorChosen(c) })),
+        colors.length ? h('span', { class: 'sep' }) : null,
+        selectedUnits().length > 1 ? h('button', { type: 'button', class: 'tool', title: 'Align and space evenly', 'aria-haspopup': 'menu', onclick: (e) => alignMenu(e.currentTarget) }, 'Align', h('span', { class: 'caret' }, '▾')) : null,
+        its.length > 1 && !grouped ? h('button', { type: 'button', class: 'tool', title: 'Group them: they move, colour and delete as one (Ctrl+G)', onclick: () => groupChosen(true) }, 'Group') : null,
+        anyGroup ? h('button', { type: 'button', class: 'tool', title: 'Ungroup (Ctrl+Shift+G)', onclick: () => groupChosen(false) }, 'Ungroup') : null,
         api ? h('button', { type: 'button', class: 'tool', title: 'Ask the agent about what is in the box', onclick: () => openAsk() }, '✦ Ask agent') : null,
         chosen.items.size ? h('button', { type: 'button', class: 'tool', title: 'Delete (Delete)', onclick: () => removeChosen() }, 'Delete') : null,
         ...(owner() ? [
-          h('button', { type: 'button', class: 'tool', title: 'Lock everything in the box', onclick: () => setLock([...chosen.items, ...chosen.frames], true) }, icon('lock'), 'Lock'),
-          h('button', { type: 'button', class: 'tool', title: 'Unlock everything in the box', onclick: () => setLock([...chosen.items, ...chosen.frames].filter(isLocked), false) }, icon('unlock'), 'Unlock'),
+          [...chosen.items, ...chosen.frames].some((k) => !isLocked(k)) ? h('button', { type: 'button', class: 'tool', title: 'Lock everything selected', onclick: () => setLock([...chosen.items, ...chosen.frames], true) }, icon('lock'), 'Lock') : null,
+          [...chosen.items, ...chosen.frames].some(isLocked) ? h('button', { type: 'button', class: 'tool', title: 'Unlock everything selected', onclick: () => setLock([...chosen.items, ...chosen.frames].filter(isLocked), false) }, icon('unlock'), 'Unlock') : null,
         ] : []),
-      )
+      ].filter(Boolean))
       const top = toScreen(chosen.box.x, chosen.box.y)
       itemBar.style.left = `${Math.max(8, Math.min(innerWidth - 300, top.x))}px`
       itemBar.style.top = `${Math.max(56, top.y - 46)}px`
@@ -2376,9 +2704,59 @@ return { parse, tag, untag, applyEdit, lockedFor }
       return null
     }
   }
+  // ── snapping: what is dragged lines up with what it passes, and the line it lines up on is drawn ──
+  const SNAP_PX = 6
+  let snapEls = []
+  const clearSnap = () => {
+    for (const el of snapEls) el.remove()
+    snapEls = []
+  }
+  /** For a drag of these objects and frames: a function from the drag's offset to the offset caught on the nearest edge or centre. */
+  function snapper(ids, keys) {
+    const start = boxAround(ids, keys)
+    if (!start.w && !start.h) return null
+    const skip = new Set(ids)
+    const others = [
+      ...items().filter((i) => !skip.has(i.id) && i.kind !== 'guide' && !['line', 'arrow', 'pencil'].includes(i.kind)).map(geometryOf).filter((i) => i.w && i.h).map((i) => ({ x: i.x, y: i.y, w: i.w, h: i.h })),
+      ...frames().filter((f) => !keys.includes(f.key)).map((f) => ({ x: f.x, y: f.y, w: f.W, h: f.H })),
+    ]
+    const marks = (b, p, s) => [b[p], b[p] + b[s] / 2, b[p] + b[s]]
+    const along = (p, s) => others.flatMap((o) => marks(o, p, s).map((v) => ({ v, o })))
+    const xs = along('x', 'w')
+    const ys = along('y', 'h')
+    const nearest = (mine, list) => {
+      let best = null
+      for (const m of mine) for (const t of list) {
+        const d = t.v - m
+        if (Math.abs(d) <= SNAP_PX / view.z && (!best || Math.abs(d) < Math.abs(best.d))) best = { d, at: t.v, o: t.o }
+      }
+      return best
+    }
+    return (dx, dy) => {
+      const b = { x: start.x + dx, y: start.y + dy, w: start.w, h: start.h }
+      const sx = nearest(marks(b, 'x', 'w'), xs)
+      const sy = nearest(marks(b, 'y', 'h'), ys)
+      if (sx) b.x += sx.d
+      if (sy) b.y += sy.d
+      clearSnap()
+      if (sx) {
+        const top = Math.min(b.y, sx.o.y) - 12 / view.z
+        snapEls.push(h('div', { class: 'snap-line v', style: `left:${sx.at}px;top:${top}px;height:${Math.max(b.y + b.h, sx.o.y + sx.o.h) + 12 / view.z - top}px` }))
+      }
+      if (sy) {
+        const left = Math.min(b.x, sy.o.x) - 12 / view.z
+        snapEls.push(h('div', { class: 'snap-line h', style: `top:${sy.at}px;left:${left}px;width:${Math.max(b.x + b.w, sy.o.x + sy.o.w) + 12 / view.z - left}px` }))
+      }
+      world.append(...snapEls)
+      return { dx: dx + (sx?.d ?? 0), dy: dy + (sy?.d ?? 0) }
+    }
+  }
   function startItemDrag(e, id) {
     const it = board.items.find((i) => i.id === id)
     if (!it) return
+    if (e.shiftKey) return toggleChosen(id)
+    // A press on one object of a group takes the whole group.
+    if (!chosen?.items.has(id) && withGroup(id).length > 1) chooseItems(withGroup(id))
     const group = chosen?.items.has(id) ? chosen : null
     if (!group) pickItem(id)
     if (it.kind === 'guide') return
@@ -2401,11 +2779,14 @@ return { parse, tag, untag, applyEdit, lockedFor }
     const frameList = along.frames.map((k) => allFrames.get(k)).filter((f) => f && !isLocked(f.key))
     const frameStarts = new Map(frameList.map((f) => [f.key, { x: f.x, y: f.y }]))
     const boxStart = group ? { ...group.box } : null
+    const snap = resize ? null : snapper(moving.map((m) => m.id), frameList.map((f) => f.key))
     drag = {
       kind: 'item', id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false,
-      move: (_, dx, dy) => {
+      move: (ev, dx, dy) => {
         if (resize) Object.assign(it, { w: Math.max(40, Math.round(w0 + dx)), h: Math.max(30, Math.round(h0 + dy)) })
         else {
+          // Edges and centres catch on other objects' and frames' edges and centres; Ctrl or ⌘ held lets go.
+          ;({ dx, dy } = snap && !(ev.ctrlKey || ev.metaKey) ? snap(dx, dy) : (clearSnap(), { dx, dy }))
           for (const m of moving) Object.assign(m, { x: Math.round(starts.get(m.id).x + dx), y: Math.round(starts.get(m.id).y + dy) })
           for (const f of frameList) {
             Object.assign(f, { x: Math.round(frameStarts.get(f.key).x + dx), y: Math.round(frameStarts.get(f.key).y + dy) })
@@ -2413,13 +2794,18 @@ return { parse, tag, untag, applyEdit, lockedFor }
           }
           if (group) Object.assign(group.box, { x: Math.round(boxStart.x + dx), y: Math.round(boxStart.y + dy) })
         }
+        // The bar would sit over what is being moved; it comes back where the drag ends.
+        itemBar.classList.add('dragging')
         renderItems()
+        if (snapEls.length) world.append(...snapEls)
         if (frameList.length) {
           renderPins()
           call('onView')
         }
       },
       end: async (_, moved) => {
+        clearSnap()
+        itemBar.classList.remove('dragging')
         if (!moved) return
         if (resize) return updateItem(id, { w: it.w, h: it.h })
         try {
@@ -2446,6 +2832,7 @@ return { parse, tag, untag, applyEdit, lockedFor }
     const box = (it.kind === 'section' ? sectionLayer : itemLayer).querySelector(`[data-id="${id}"]`)
     const el = box?.querySelector('.txt') ?? box
     if (!el) return
+    box.querySelector('.grip')?.remove()
     box.classList.add('editing')
     el.contentEditable = 'plaintext-only'
     el.focus()
@@ -2656,12 +3043,114 @@ return { parse, tag, untag, applyEdit, lockedFor }
     if (!serve) throw new Error(readOnly)
     const refused = lockedReason(input)
     if (refused) throw new Error(refused)
-    const res = await fetch('/api/board', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ event: { name: me || 'someone', ...input } }) })
-    const body = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(body.error || `Saving failed (${res.status})`)
-    boardEvents.push(body.event)
-    board = foldBoard(boardEvents)
-    return body.event
+    // What the line changes, as the lines said before it: the board as drawn may already show the change.
+    const was = replaying ? null : stateOf(foldBoard(boardEvents), input)
+    pending++
+    try {
+      const res = await fetch('/api/board', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ event: { name: me || 'someone', ...input } }) })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.error || `Saving failed (${res.status})`)
+      boardEvents.push(body.event)
+      board = foldBoard(boardEvents)
+      if (was) remember(was, stateOf(board, body.event))
+      return body.event
+    } finally {
+      pending--
+    }
+  }
+
+  // ── undo and redo for the board ──
+  // One history with the prototypes' edits, as in Figma: Ctrl+Z undoes whatever was done last.
+  // A step is everything one action sent (a group dragged, an align, a paste): each board object
+  // and frame it touched, as it was before and after. A file edit is a 'file' entry, undone by the server.
+  const history = []
+  const future = []
+  let openStep = null
+  let replaying = false
+  const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points']
+  /** The one thing a line touches, as a board says it is: an object's fields, a frame's place, or null for nothing there. */
+  function stateOf(b, ev) {
+    if (ev.op === 'item' || ev.op === 'remove') {
+      if (!ev.id) return { id: null, state: null }
+      const it = b.items.find((i) => i.id === ev.id)
+      return { id: ev.id, state: it ? Object.fromEntries(ITEM_KEYS.filter((k) => it[k] != null).map((k) => [k, it[k]])) : null }
+    }
+    if (ev.op === 'move') {
+      const f = allFrames.get(ev.key)
+      const m = b.moved[ev.key] ?? f?.home
+      return { key: ev.key, state: m ? { x: m.x, y: m.y, page: m.page ?? f?.page ?? null } : null }
+    }
+    return null
+  }
+  function remember(before, after) {
+    // A new object's id is only known from its line.
+    if (before.id === null) before.id = after.id
+    if (!openStep) {
+      openStep = { kind: 'board', changes: new Map() }
+      history.push(openStep)
+      future.length = 0
+      if (history.length > 200) history.shift()
+      const step = openStep
+      // The step closes once its action has sent everything: each send starts as the last one ends, before any timer.
+      const close = () => (pending ? setTimeout(close, 0) : openStep === step && (openStep = null))
+      setTimeout(close, 0)
+    }
+    const k = before.id ?? `frame:${before.key}`
+    const c = openStep.changes.get(k)
+    if (c) c.after = after.state
+    else openStep.changes.set(k, { id: before.id, key: before.key, before: before.state, after: after.state })
+  }
+  let pending = 0
+  /** Put every object and frame of a step back as it was (or forward as it became). */
+  async function replay(step, back) {
+    replaying = true
+    try {
+      for (const c of [...step.changes.values()].reverse()) {
+        const want = back ? c.before : c.after
+        const other = back ? c.after : c.before
+        if (c.key) {
+          if (want) await sendBoard({ op: 'move', key: c.key, x: want.x, y: want.y, ...(want.page ? { page: want.page } : {}) })
+          continue
+        }
+        if (!want) {
+          if (board.items.some((i) => i.id === c.id)) await sendBoard({ op: 'remove', id: c.id })
+          continue
+        }
+        // A field the other side had and this one lacks is cleared.
+        const clear = Object.fromEntries(Object.keys(other ?? {}).filter((k) => want[k] == null).map((k) => [k, ['x', 'y', 'w', 'h', 'z', 'cols', 'gutter', 'margin'].includes(k) ? 0 : k === 'points' ? [] : '']))
+        await sendBoard({ op: 'item', id: c.id, ...clear, ...want })
+      }
+    } finally {
+      replaying = false
+      relayout()
+      pickItem(null)
+      renderItems()
+    }
+  }
+  /** Ctrl+Z or Ctrl+Shift+Z: true when the last thing done was on the board and it was undone here. */
+  async function boardUndo(redo) {
+    const from = redo ? future : history
+    const to = redo ? history : future
+    const top = from[from.length - 1]
+    if (!top) return false
+    from.pop()
+    to.push(top)
+    if (top === openStep) openStep = null
+    if (top.kind === 'file') return false
+    try {
+      await replay(top, !redo)
+      hint(redo ? 'Redone' : 'Undone', 900)
+    } catch (err) {
+      hint(err.message, 3000)
+      takeBoardAgain()
+    }
+    return true
+  }
+  /** A prototype edit was made: it takes its place in the one history. */
+  const noteFileEdit = () => {
+    openStep = null
+    history.push({ kind: 'file' })
+    future.length = 0
   }
 
   // ── comments ──
@@ -3332,6 +3821,11 @@ return { parse, tag, untag, applyEdit, lockedFor }
       if (e.key === 'Escape') closePlay()
       return
     }
+    // An open menu takes Escape first, opened by mouse or keyboard: it closes, and nothing under it moves.
+    if (e.key === 'Escape' && menu.classList.contains('open')) {
+      e.preventDefault()
+      return closeMenu(true)
+    }
     if (call('onKey', e)) return
     if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
       e.preventDefault()
@@ -3342,6 +3836,27 @@ return { parse, tag, untag, applyEdit, lockedFor }
       document.body.classList.add('space')
       e.preventDefault()
       return
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'g' && chosen?.items.size && serve) {
+      e.preventDefault()
+      return groupChosen(!e.shiftKey)
+    }
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && serve) {
+      const k = e.key.toLowerCase()
+      if ((k === ']' || k === '[') && selectedItems().length) {
+        e.preventDefault()
+        return restack(k === ']')
+      }
+      const done = k === 'd' ? (selectedItems().length ? (duplicateItems(), true) : false) : k === 'c' ? copyItems() : k === 'v' ? pasteItems() : false
+      if (done) return e.preventDefault()
+    }
+    // Figma's align keys, by the key's place so a Mac's Option characters do not matter.
+    if (e.altKey && !e.ctrlKey && !e.metaKey && serve && chosen?.items.size > 1) {
+      const how = e.shiftKey ? { KeyH: 'x', KeyV: 'y' }[e.code] : { KeyA: 'left', KeyH: 'centre', KeyD: 'right', KeyW: 'top', KeyV: 'middle', KeyS: 'bottom' }[e.code]
+      if (how) {
+        e.preventDefault()
+        return e.shiftKey ? distributeChosen(how) : alignChosen(how)
+      }
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return
     const k = e.key.toLowerCase()
@@ -3360,6 +3875,7 @@ return { parse, tag, untag, applyEdit, lockedFor }
     } else if (k === 'r' && serve) setShape(SHAPES.includes(tool) && tool !== 'section' ? tool : shapeKind === 'section' ? 'rect' : shapeKind)
     else if (k === 's' && serve) setShape('section')
     else if (k === 'f' || (e.key === '!' && e.shiftKey)) fitAll()
+    else if (e.shiftKey && e.code === 'Digit2') zoomToSelection()
     else if (e.key === '=' || e.key === '+') zoomAt(view.z * 1.25, centre().x, centre().y)
     else if (e.key === '-') zoomAt(view.z / 1.25, centre().x, centre().y)
     else if (e.key === '0') zoomAt(1, centre().x, centre().y)
@@ -3432,6 +3948,7 @@ return { parse, tag, untag, applyEdit, lockedFor }
 
   // ── what the editor works through ──
   window.designCanvas = {
+    boardUndo, noteFileEdit,
     get serve() { return serve },
     get local() { return local },
     get owner() { return owner() },
@@ -3551,7 +4068,16 @@ return { parse, tag, untag, applyEdit, lockedFor }
   const sameKind = (a, b) => a.localName === b.localName && a.className === b.className && a.parentElement?.localName === b.parentElement?.localName && (a.parentElement?.className ?? '') === (b.parentElement?.className ?? '')
   const copiesOf = (el) => {
     if (['body', 'html'].includes(el.localName) || !el.className || typeof el.className !== 'string') return [el]
-    return [...el.ownerDocument.querySelectorAll(el.localName)].filter((x) => sameKind(x, el))
+    // The one asked about first, so it stays the one the toolbar and panel speak of.
+    return [el, ...[...el.ownerDocument.querySelectorAll(el.localName)].filter((x) => x !== el && sameKind(x, el))]
+  }
+  /** The component copy an element is in, nearest first (`data-component`), and every copy of it in its file. */
+  const componentOf = (el) => {
+    for (let p = el; p && p.localName !== 'html'; p = p.parentElement) {
+      const name = p.getAttribute('data-component')?.trim()
+      if (name) return { root: p, name, copies: [...el.ownerDocument.querySelectorAll('[data-component]')].filter((x) => x.getAttribute('data-component').trim() === name) }
+    }
+    return null
   }
   const esc = (s) => String(s).replace(/[^\w-]/g, (c) => `\\${c}`)
   /** The selector a change to several copies is written to: their tag and classes, under their parent's class. */
@@ -3560,12 +4086,18 @@ return { parse, tag, untag, applyEdit, lockedFor }
     const pc = (el.parentElement?.getAttribute('class') || '').trim().split(/\s+/).filter(Boolean)[0]
     return `${pc ? `.${esc(pc)} > ` : ''}${el.localName}${classes}`
   }
+  /** The start of what an element says: its text nodes joined with spaces, so two blocks never run together. */
   const excerpt = (el, n = 18) => {
-    const t = (el.textContent || '').replace(/\s+/g, ' ').trim()
-    return t.length > n ? `${t.slice(0, n)}…` : t
+    const walk = el.ownerDocument.createTreeWalker(el, NodeFilter.SHOW_TEXT, { acceptNode: (t) => (t.parentElement?.closest('script, style, template') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) })
+    let t = ''
+    for (let node = walk.nextNode(); node && t.length <= n; node = walk.nextNode()) t += ` ${node.data}`
+    t = t.replace(/\s+/g, ' ').trim()
+    return t.length > n ? `${t.slice(0, n).trim()}…` : t
   }
   /** A layer's name: data-name, aria-label, then what it is and what it says. */
   function nameOf(el) {
+    const comp = el.getAttribute('data-component')?.trim()
+    if (comp) return { kind: 'component', text: `◇ ${comp}` }
     const own = el.getAttribute('data-name') || el.getAttribute('aria-label')
     if (own) return { kind: 'named', text: own }
     const t = el.localName
@@ -3586,7 +4118,9 @@ return { parse, tag, untag, applyEdit, lockedFor }
     if (d.includes('flex')) return say(cs(el).flexDirection.startsWith('column') ? 'Column' : 'Row')
     if (d.includes('grid')) return say('Grid')
     if (isText(el)) return say('Text')
-    return { kind: 'group', text: `${el.id ? `group #${el.id}` : el.classList[0] ? `group .${el.classList[0]}` : 'group'}` }
+    // A box is named by its id or class and what it says, so four cards read as four different cards.
+    const said = excerpt(el)
+    return { kind: 'group', text: `${el.id ? `Group #${el.id}` : el.classList[0] ? `.${el.classList[0]}` : 'Group'}${said ? ` "${said}"` : ''}` }
   }
 
   // ── selection ──
@@ -3611,13 +4145,14 @@ return { parse, tag, untag, applyEdit, lockedFor }
       fetch('/api/selection', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selection: body }) }).catch(() => {})
     }
   }
-  const pick = (frame, el, { add = false, alone = false } = {}) => {
+  // A click selects the one element clicked; its copies (same tag and classes under the same kind of parent) only when asked for.
+  const pick = (frame, el, { add = false, copies = false } = {}) => {
     if (!el) return select(null, [])
     if (add && sel && sel.frame === frame) {
       const has = sel.els.includes(el)
       return select(frame, has ? sel.els.filter((x) => x !== el) : [...sel.els, el])
     }
-    select(frame, alone ? [el] : copiesOf(el))
+    select(frame, copies ? copiesOf(el) : [el])
   }
   const local = (f, p) => ({ x: (p.x - f.x) / f.s, y: (p.y - f.y) / f.s })
   const elementAt = (f, p) => {
@@ -3682,7 +4217,57 @@ return { parse, tag, untag, applyEdit, lockedFor }
       })
     }
     if (dropLine) overlay.append(h('div', { class: 'ov drop', style: box(dropLine) }))
+    if (measuring && sel?.els.length === 1 && hover && hover.frame === sel.frame && hover.el !== primary() && live(hover.el)) measure(sel.frame, primary(), hover.el)
   }
+  // ── measure: Alt held over another element shows how far it is from the selection, in the prototype's own pixels ──
+  let measuring = false
+  function measure(f, a, b) {
+    const A = a.getBoundingClientRect()
+    const B = b.getBoundingClientRect()
+    const at = (x, y) => dc.toScreen(f.x + x * f.s, f.y + y * f.s)
+    const lines = []
+    /** A line across (y fixed) or down (x fixed) from p to q, labelled with its length. */
+    const line = (horiz, fixed, p, q) => {
+      if (Math.round(Math.abs(q - p)) < 1) return
+      const [s, e] = [Math.min(p, q), Math.max(p, q)]
+      const a1 = horiz ? at(s, fixed) : at(fixed, s)
+      const a2 = horiz ? at(e, fixed) : at(fixed, e)
+      lines.push(h('div', { class: `ov measure ${horiz ? 'h' : 'v'}`, style: horiz ? `left:${a1.x}px;top:${a1.y}px;width:${a2.x - a1.x}px` : `left:${a1.x}px;top:${a1.y}px;height:${a2.y - a1.y}px` },
+        h('span', { class: 'measure-n' }, String(Math.round(e - s)))))
+    }
+    const inside = (o, i) => i.left >= o.left && i.right <= o.right && i.top >= o.top && i.bottom <= o.bottom
+    if (inside(B, A) || inside(A, B)) {
+      // One holds the other: its distance to each of the outer one's sides.
+      const [i, o] = inside(B, A) ? [A, B] : [B, A]
+      const my = (i.top + i.bottom) / 2
+      const mx = (i.left + i.right) / 2
+      line(true, my, o.left, i.left)
+      line(true, my, i.right, o.right)
+      line(false, mx, o.top, i.top)
+      line(false, mx, i.bottom, o.bottom)
+    } else {
+      // Apart: the gap across and the gap down, drawn where they face each other.
+      const overlapY = [Math.max(A.top, B.top), Math.min(A.bottom, B.bottom)]
+      const overlapX = [Math.max(A.left, B.left), Math.min(A.right, B.right)]
+      const y = overlapY[0] < overlapY[1] ? (overlapY[0] + overlapY[1]) / 2 : (A.top + A.bottom) / 2
+      const x = overlapX[0] < overlapX[1] ? (overlapX[0] + overlapX[1]) / 2 : (A.left + A.right) / 2
+      if (B.left >= A.right) line(true, y, A.right, B.left)
+      else if (A.left >= B.right) line(true, y, B.right, A.left)
+      if (B.top >= A.bottom) line(false, x, A.bottom, B.top)
+      else if (A.top >= B.bottom) line(false, x, B.bottom, A.top)
+    }
+    const hb = rectOn(f, b)
+    overlay.append(h('div', { class: 'ov measure-to', style: box(hb) }), ...lines)
+  }
+  const setMeasuring = (on) => {
+    if (on === measuring) return
+    measuring = on
+    document.body.classList.toggle('measuring', on)
+    draw()
+  }
+  addEventListener('keydown', (e) => e.key === 'Alt' && sel && setMeasuring(true))
+  addEventListener('keyup', (e) => e.key === 'Alt' && setMeasuring(false))
+  addEventListener('blur', () => setMeasuring(false))
   const box = (b) => `left:${b.x}px;top:${b.y}px;width:${Math.max(1, b.w)}px;height:${Math.max(1, b.h)}px`
 
   // ── the board's pointer, seen first here ──
@@ -3714,7 +4299,7 @@ return { parse, tag, untag, applyEdit, lockedFor }
     if (!el) return true
     const already = sel && sel.frame === frame && sel.els.includes(el)
     if (e.shiftKey) pick(frame, el, { add: true })
-    else if (!already || e.altKey) pick(frame, el, { alone: e.altKey })
+    else if (!already || e.altKey) pick(frame, el, { copies: e.altKey })
     // A press that moves drags the selection: a reorder in flow, or left and top when positioned.
     if (!e.shiftKey && sel && editable(primary()) && sel.els.length === 1 && primary().localName !== 'body') startMove(e, frame, point)
     return true
@@ -3745,12 +4330,12 @@ return { parse, tag, untag, applyEdit, lockedFor }
       const deep = frame.doc.elementFromPoint(local(frame, point).x, local(frame, point).y)
       let k = deep
       while (k && k.parentElement !== el) k = k.parentElement
-      if (k) pick(frame, k, { alone: true })
+      if (k) pick(frame, k)
     }
   }
   hooks.onEmptyClick = () => select(null, [])
   hooks.onFramePick = (f) => {
-    if (f.doc) pick(f, f.doc.body, { alone: true })
+    if (f.doc) pick(f, f.doc.body)
   }
   hooks.onItemPick = () => select(null, [], { quiet: true })
   hooks.onMarquee = () => select(null, [], { quiet: true, keep: true })
@@ -3785,6 +4370,16 @@ return { parse, tag, untag, applyEdit, lockedFor }
     draw()
   }
   hooks.selectedFile = () => sel?.frame.file ?? null
+  /** The box round the selected elements on the board, for zoom to selection. */
+  hooks.selectionBox = () => {
+    const els = sel?.els.filter(live) ?? []
+    if (!els.length) return null
+    const f = sel.frame
+    const rs = els.map((el) => el.getBoundingClientRect())
+    const x = Math.min(...rs.map((r) => r.left))
+    const y = Math.min(...rs.map((r) => r.top))
+    return { x: f.x + x * f.s, y: f.y + y * f.s, w: (Math.max(...rs.map((r) => r.right)) - x) * f.s, h: (Math.max(...rs.map((r) => r.bottom)) - y) * f.s }
+  }
   hooks.selectionTarget = () => {
     const el = primary()
     if (!el) return null
@@ -3850,6 +4445,8 @@ return { parse, tag, untag, applyEdit, lockedFor }
       const body = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(body.error || `Saving failed (${res.status})`)
       if (body.same) return
+      dc.noteFileEdit?.()
+      if (body.linked) hint(`Made in all ${body.linked + 1} copies of the component`, 1600)
       pendingSelect = { file, key, cv: body.select, copies, then }
       dc.reloadFile(file, body.html)
     } catch (err) {
@@ -3878,6 +4475,10 @@ return { parse, tag, untag, applyEdit, lockedFor }
     return send({ op: 'style', cv: cvOf(el), props })
   }
   const notEditable = (el) => (!dc.serve ? dc.readOnly : el && fileLocked(fileOf(el)) ? 'This artboard is locked by its owner.' : el && lockedEl(el) ? 'This part is locked by its owner.' : el && cvOf(el) == null ? 'This element is made by the prototype\'s own script, so it can be inspected and not edited.' : 'Nothing editable is selected.')
+  /** Ctrl+Z: the board undoes its own last step; a prototype edit is undone by the server. */
+  async function undoLast(redo) {
+    if (!(await dc.boardUndo?.(redo))) undo(redo)
+  }
   async function undo(redo = false) {
     if (!dc.serve) return
     const res = await fetch(redo ? '/api/redo' : '/api/undo', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: dc.me || 'someone' }) })
@@ -3907,8 +4508,16 @@ return { parse, tag, untag, applyEdit, lockedFor }
     frame.doc.execCommand?.('styleWithCSS', false, false)
     el.addEventListener('keydown', editKeys)
     el.addEventListener('input', onEditInput)
+    el.addEventListener('paste', plainPaste)
     draw()
     renderFloat()
+  }
+  /** Text pasted while typing comes in as words, never as another page's markup and styles. */
+  function plainPaste(e) {
+    const text = e.clipboardData?.getData('text/plain')
+    if (text == null) return
+    e.preventDefault()
+    e.currentTarget.ownerDocument.execCommand('insertText', false, text)
   }
   const onEditInput = () => {
     draw()
@@ -3954,6 +4563,7 @@ return { parse, tag, untag, applyEdit, lockedFor }
     el.removeAttribute('spellcheck')
     el.removeEventListener('keydown', editKeys)
     el.removeEventListener('input', onEditInput)
+    el.removeEventListener('paste', plainPaste)
     frame.el?.classList.remove('editing')
     frame.doc.getSelection()?.removeAllRanges()
     const after = el.innerHTML
@@ -4044,14 +4654,21 @@ return { parse, tag, untag, applyEdit, lockedFor }
     const el = primary()
     const f = sel.frame
     const r = el.getBoundingClientRect()
+    // The handles drag the box as drawn; a content-box element's CSS size is that less its padding and border.
+    const c = cs(el)
+    const n = (v) => parseFloat(v) || 0
+    const inner = c.boxSizing === 'border-box' ? { w: 0, h: 0 } : {
+      w: n(c.paddingLeft) + n(c.paddingRight) + n(c.borderLeftWidth) + n(c.borderRightWidth),
+      h: n(c.paddingTop) + n(c.paddingBottom) + n(c.borderTopWidth) + n(c.borderBottomWidth),
+    }
     const start = { x: e.clientX, y: e.clientY }
     const move = (ev) => {
       const dx = (ev.clientX - start.x) / dc.view.z / f.s
       const dy = (ev.clientY - start.y) / dc.view.z / f.s
       const sx = hd.includes('w') ? -1 : hd.includes('e') ? 1 : 0
       const sy = hd.includes('n') ? -1 : hd.includes('s') ? 1 : 0
-      if (sx) el.style.width = `${Math.max(1, Math.round(r.width + sx * dx))}px`
-      if (sy) el.style.height = `${Math.max(1, Math.round(r.height + sy * dy))}px`
+      if (sx) el.style.width = `${Math.max(0, Math.round(r.width + sx * dx - inner.w))}px`
+      if (sy) el.style.height = `${Math.max(0, Math.round(r.height + sy * dy - inner.h))}px`
       draw()
     }
     const up = () => {
@@ -4090,6 +4707,19 @@ return { parse, tag, untag, applyEdit, lockedFor }
       if (!needEditable()) return
       if (sel.els.length !== 1 || !primary().children.length) return hint('Select one element that holds others to ungroup it', 2500)
       send({ op: 'unwrap', cv: cvOf(primary()) })
+    },
+    makeComponent: async () => {
+      if (!needEditable()) return
+      const el = primary()
+      const own = el.getAttribute('data-name') || el.classList[0] || nameOf(el).kind
+      const name = await dc.question('Name the component. Duplicate it to make copies: a style or a part added or removed in any copy is made in all of them; text typed stays each copy\'s own.', own.charAt(0).toUpperCase() + own.slice(1))
+      if (!name?.trim()) return
+      send({ op: 'attr', cv: cvOf(el), name: 'data-component', value: name.trim() })
+    },
+    detach: () => {
+      const c = componentOf(primary())
+      if (!c || !needEditable()) return
+      send({ op: 'attr', cv: cvOf(c.root), name: 'data-component', value: null })
     },
     wrapIn: (kind) => ops.group({ row: 'display: flex; flex-direction: row; gap: 8px', column: 'display: flex; flex-direction: column; gap: 8px', grid: 'display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px' }[kind], { row: 'Row', column: 'Column', grid: 'Grid' }[kind]),
     copy: async () => {
@@ -4136,17 +4766,18 @@ return { parse, tag, untag, applyEdit, lockedFor }
     const k = e.key.toLowerCase()
     if (mod && k === 'z') {
       e.preventDefault()
-      undo(e.shiftKey)
+      undoLast(e.shiftKey)
       return true
     }
     if (mod && k === 'y') {
       e.preventDefault()
-      undo(true)
+      undoLast(true)
       return true
     }
     const el = primary()
     if (!sel || !el) return false
-    if (mod && k === 'd') ops.duplicate()
+    if (mod && e.altKey && k === 'k') ops.makeComponent()
+    else if (mod && k === 'd') ops.duplicate()
     else if (mod && k === 'g') e.shiftKey ? ops.ungroup() : ops.group()
     else if (mod && k === 'c') ops.copy()
     else if (mod && k === 'v') ops.paste()
@@ -4188,8 +4819,23 @@ return { parse, tag, untag, applyEdit, lockedFor }
     const vals = [...new Set(sel.els.filter(live).map((el) => cs(el).getPropertyValue(prop)))]
     return vals.length === 1 ? vals[0] : 'Mixed'
   }
+  /** Bold, italic or underline on or off: when the element's CSS alone already gives what is wanted, its own value is removed; otherwise the value is written. */
+  function toggleStyle(prop, on, onValue, offValue, isOn, read = prop) {
+    const el = primary()
+    const own = el.style.getPropertyValue(prop)
+    el.style.removeProperty(prop)
+    const byCss = isOn(cs(el).getPropertyValue(read))
+    if (own) el.style.setProperty(prop, own)
+    setStyle({ [prop]: byCss === on ? '' : on ? onValue : offValue })
+  }
   function colorButton(title, prop, value, onPick) {
     const input = h('input', { type: 'color', value: rgbHex(value), 'aria-label': title })
+    // Seen at once while the picker is open; written once, when it closes.
+    input.addEventListener('input', () => {
+      if (editing) return
+      for (const el of sel?.els.filter(live) ?? []) el.style.setProperty(prop, input.value)
+      input.previousElementSibling.style.background = input.value
+    })
     input.addEventListener('change', () => onPick(input.value))
     return h('label', { class: 'fbtn swatch-btn', title }, h('span', { class: 'chip', style: `background:${value === 'Mixed' ? 'linear-gradient(135deg,#888 50%,#444 50%)' : value}` }), input)
   }
@@ -4204,22 +4850,27 @@ return { parse, tag, untag, applyEdit, lockedFor }
     const parts = []
     const text = isText(el)
     const boxy = !text || cs(el).backgroundColor !== 'rgba(0, 0, 0, 0)' || ['a', 'button'].includes(el.localName) && cs(el).display !== 'inline'
+    // Inside a component's copy: its name and how many copies a change here reaches; a click selects the copy whole.
+    const comp = sel.els.length === 1 ? componentOf(el) : null
+    if (comp) parts.push(h('button', { type: 'button', class: 'fbtn wide comp', title: `A copy of the component ${comp.name}: a style or a part added or removed here is made in all ${comp.copies.length} copies; text typed stays this copy's own. Click to select the copy whole.`, onclick: () => select(sel.frame, [comp.root]) }, h('span', { class: 'comp-mark', 'aria-hidden': 'true' }, '◇'), `${comp.name} · ${comp.copies.length}`))
     if (text && canEdit) {
       const cls = el.classList[0]
       const label = cls ? `.${cls}` : `${shared('font-family').split(',')[0].replace(/["']/g, '')} · ${shared('font-size')}`
       parts.push(h('button', { type: 'button', class: 'fbtn wide', title: 'Text style', onclick: (e) => textStyles(e.currentTarget) }, label, h('span', { class: 'caret' }, '▾')))
       parts.push(colorButton('Text colour', 'color', shared('color'), (v) => (styleRun('color', v) || setStyle({ color: v }))))
       const bold = Number(shared('font-weight')) >= 600
-      parts.push(h('button', { type: 'button', class: 'fbtn', title: 'Bold', 'aria-pressed': String(bold), onclick: () => (editing ? editing.frame.doc.execCommand('bold') : setStyle({ 'font-weight': bold ? '400' : '700' })) }, h('b', {}, 'B')))
+      parts.push(h('button', { type: 'button', class: 'fbtn', title: 'Bold', 'aria-pressed': String(bold), onclick: () => (editing ? editing.frame.doc.execCommand('bold') : toggleStyle('font-weight', !bold, '700', '400', (v) => Number(v) >= 600)) }, h('b', {}, 'B')))
       const italic = shared('font-style') === 'italic'
-      parts.push(h('button', { type: 'button', class: 'fbtn', title: 'Italic', 'aria-pressed': String(italic), onclick: () => (editing ? editing.frame.doc.execCommand('italic') : setStyle({ 'font-style': italic ? '' : 'italic' })) }, h('i', {}, 'I')))
+      parts.push(h('button', { type: 'button', class: 'fbtn', title: 'Italic', 'aria-pressed': String(italic), onclick: () => (editing ? editing.frame.doc.execCommand('italic') : toggleStyle('font-style', !italic, 'italic', 'normal', (v) => v === 'italic')) }, h('i', {}, 'I')))
       const under = shared('text-decoration-line').includes('underline')
-      parts.push(h('button', { type: 'button', class: 'fbtn', title: 'Underline', 'aria-pressed': String(under), onclick: () => (editing ? editing.frame.doc.execCommand('underline') : setStyle({ 'text-decoration': under ? 'none' : 'underline' })) }, h('u', {}, 'U')))
+      parts.push(h('button', { type: 'button', class: 'fbtn', title: 'Underline', 'aria-pressed': String(under), onclick: () => (editing ? editing.frame.doc.execCommand('underline') : toggleStyle('text-decoration', !under, 'underline', 'none', (v) => v.includes('underline'), 'text-decoration-line')) }, h('u', {}, 'U')))
       parts.push(h('button', { type: 'button', class: 'fbtn', title: 'Link', onclick: link }, dc.icon('link')))
       parts.push(h('button', { type: 'button', class: 'fbtn', title: 'List', onclick: list }, '☰'))
       const ta = shared('text-align')
       parts.push(h('button', { type: 'button', class: 'fbtn', title: `Align: ${ta}`, onclick: (e) => dc.openMenu(e.currentTarget, ['left', 'center', 'right', 'justify'].map((a) => ({ label: a[0].toUpperCase() + a.slice(1), tick: ta === a || (a === 'left' && ta === 'start'), run: () => setStyle({ 'text-align': a }) }))) }, alignGlyph(['center', 'right', 'justify'].includes(ta) ? ta : 'left')))
     }
+    // A list selected whole is not text, but the List button is how it becomes numbers or a paragraph again.
+    if (!text && canEdit && ['ul', 'ol'].includes(el.localName)) parts.push(h('button', { type: 'button', class: 'fbtn', title: 'List', 'aria-label': el.localName === 'ul' ? 'List: make it numbered' : 'List: make it a paragraph', onclick: list }, el.localName === 'ul' ? '1.' : '¶'))
     if (boxy && canEdit) {
       if (text) parts.push(h('span', { class: 'sep' }))
       parts.push(colorButton('Fill', 'background-color', shared('background-color'), (v) => setStyle({ 'background-color': v })))
@@ -4253,12 +4904,53 @@ return { parse, tag, untag, applyEdit, lockedFor }
     placeFloat()
   }
   const alignGlyph = (a) => h('span', { class: 'align-glyph', 'data-a': a }, h('i'), h('i'), h('i'))
+  /** A number on the toolbar, shown beside its glyph; a click opens a field under it, as Figma's
+      fields: typing or ↑ ↓ (Shift for 10) shows the change at once, Enter or leaving it writes it,
+      Escape puts it back. Any CSS value may be typed; a bare number is pixels. */
   function numberButton(title, glyph, prop, value) {
-    return h('button', { type: 'button', class: 'fbtn', title: `${title}: ${value}`, onclick: async () => {
-      const v = await dc.question(`${title} (px, or any CSS value):`, value === 'Mixed' ? '' : value)
-      if (v == null) return
-      setStyle({ [prop]: /^\d+(\.\d+)?$/.test(v.trim()) ? `${v.trim()}px` : v.trim() })
-    } }, glyph)
+    const shown = value === 'Mixed' ? 'Mixed' : String(Math.round(parseFloat(value) || 0))
+    const btn = h('button', { type: 'button', class: 'fbtn num', title: `${title}: ${value}`, 'aria-label': `${title}: ${value}`, onclick: () => openField() }, h('span', { 'aria-hidden': 'true' }, glyph), h('span', { class: 'num-v' }, shown))
+    function openField() {
+      document.getElementById('num-field')?.remove()
+      const els = sel?.els.filter(live) ?? []
+      if (!els.length) return
+      const before = els.map((el) => el.style.getPropertyValue(prop))
+      const css = (v) => (/^-?\d+(\.\d+)?$/.test(String(v).trim()) ? `${String(v).trim()}px` : String(v).trim())
+      const input = h('input', { type: 'text', inputmode: 'decimal', value: value === 'Mixed' ? '' : shown, 'aria-label': title, spellcheck: 'false' })
+      const box = h('div', { id: 'num-field', role: 'dialog', 'aria-label': title }, h('label', {}, title), input)
+      const preview = () => { for (const el of els) el.style.setProperty(prop, css(input.value)) }
+      const putBack = () => els.forEach((el, i) => (before[i] ? el.style.setProperty(prop, before[i]) : el.style.removeProperty(prop)))
+      let done = false
+      const finish = (keep) => {
+        if (done) return
+        done = true
+        box.remove()
+        putBack()
+        if (keep && input.value.trim() && input.value.trim() !== shown) setStyle({ [prop]: css(input.value) })
+      }
+      input.addEventListener('input', preview)
+      input.addEventListener('keydown', (e) => {
+        e.stopPropagation()
+        if (e.key === 'Enter') finish(true)
+        else if (e.key === 'Escape') finish(false)
+        else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          e.preventDefault()
+          const n = parseFloat(input.value) || 0
+          input.value = String(Math.max(0, n + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 10 : 1)))
+          preview()
+        }
+      })
+      input.addEventListener('blur', () => finish(true))
+      document.body.append(box)
+      const r = btn.getBoundingClientRect()
+      box.style.left = `${Math.max(8, Math.min(innerWidth - box.offsetWidth - 8, r.left))}px`
+      // On the far side of the toolbar from the selection, so the change it previews stays in sight.
+      const selTop = rectOn(sel.frame, els[0]).y
+      box.style.top = `${r.bottom <= selTop + 2 ? Math.max(8, r.top - box.offsetHeight - 6) : r.bottom + 6}px`
+      input.focus()
+      input.select()
+    }
+    return btn
   }
   function placeFloat() {
     if (!floatBar.classList.contains('open') || !sel?.frame.doc || !primary()?.isConnected) return
@@ -4321,15 +5013,21 @@ return { parse, tag, untag, applyEdit, lockedFor }
     at.el.focus()
     at.frame.doc.execCommand('createLink', false, href)
   }
+  /** List: a paragraph becomes bullets, one per line; bullets become numbers; numbers become a
+      paragraph again. The element keeps its own attributes (class, style, id) and its lines their markup. */
   function list() {
     const el = primary()
     if (!needEditable()) return
-    if (el.localName === 'ul' || el.localName === 'ol') {
-      const html = el.outerHTML.replace(/\s+data-cv="\d+"/g, '').replace(/^<(ul|ol)/, (_, t) => `<${t === 'ul' ? 'ol' : 'ul'}`).replace(/<\/(ul|ol)>$/, (_, t) => `</${t === 'ul' ? 'ol' : 'ul'}>`)
-      return send({ op: 'outer', cv: cvOf(el), html })
+    const attrs = [...el.attributes].filter((a) => !['data-cv', 'contenteditable', 'spellcheck'].includes(a.name)).map((a) => ` ${a.name}="${a.value.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`).join('')
+    const clean = (html) => html.replace(/\s+data-cv="\d+"/g, '').trim()
+    let html
+    if (el.localName === 'ul') html = `<ol${attrs}>${clean(el.innerHTML)}</ol>`
+    else if (el.localName === 'ol') html = `<p${attrs}>${[...el.children].map((li) => clean(li.innerHTML)).join('<br>')}</p>`
+    else {
+      const lines = clean(el.innerHTML).split(/<br\s*\/?>|\n/i).map((l) => l.trim()).filter(Boolean)
+      html = `<ul${attrs}>${lines.map((l) => `<li>${l}</li>`).join('')}</ul>`
     }
-    const lines = el.innerText.split('\n').map((s) => s.trim()).filter(Boolean)
-    send({ op: 'outer', cv: cvOf(el), html: `<ul>${lines.map((l) => `<li>${l.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</li>`).join('')}</ul>` })
+    send({ op: 'outer', cv: cvOf(el), html })
   }
   function more(anchor) {
     const can = sel.els.every(editable)
@@ -4346,12 +5044,15 @@ return { parse, tag, untag, applyEdit, lockedFor }
             { label: 'Wrap in flex row', run: () => ops.wrapIn('row') },
             { label: 'Wrap in flex column', run: () => ops.wrapIn('column') },
             { label: 'Wrap in grid', run: () => ops.wrapIn('grid') },
+            sel.els.length === 1 && !componentOf(primary()) && primary().localName !== 'body' ? { label: 'Make component…', key: 'Ctrl+Alt+K', run: ops.makeComponent } : null,
+            sel.els.length === 1 && componentOf(primary())?.root === primary() ? { label: 'Detach from component', run: ops.detach } : null,
             { label: 'Copy', key: 'Ctrl+C', run: ops.copy },
             clip ? { label: 'Paste after it', key: 'Ctrl+V', run: ops.paste } : null,
           ]
         : []),
       sel.els.length > 1 ? { label: 'Select this one alone', run: () => select(sel.frame, [primary()]) } : null,
       copiesOf(primary()).length > 1 && sel.els.length === 1 ? { label: 'Select every copy', run: () => select(sel.frame, copiesOf(primary())) } : null,
+      componentOf(primary())?.copies.length > 1 && sel.els.length === 1 ? { label: `Select all ${componentOf(primary()).copies.length} ${componentOf(primary()).name}`, run: () => { const c = componentOf(primary()); select(sel.frame, [c.root, ...c.copies.filter((x) => x !== c.root)]) } } : null,
       dc.commenting || can ? '-' : null,
       dc.commenting ? { label: 'Ask agent about it', run: () => dc.openAsk() } : null,
       can ? { label: 'Delete', key: 'Del', danger: true, run: ops.remove } : null,
@@ -4425,7 +5126,7 @@ return { parse, tag, untag, applyEdit, lockedFor }
           const on = sel?.frame === f && sel.els.includes(c)
           const n = ed.nameOf(c)
           const row = h('button', { type: 'button', class: `lrow${on ? ' on' : ''}${ed.cvOf(c) == null ? ' runtime' : ''}`, style: `--d:${d}`, title: ed.cvOf(c) == null ? 'Made by the prototype\'s own script: can be inspected, not edited' : '',
-            onclick: (e) => ed.pick(f, c, { add: e.shiftKey, alone: !e.altKey ? true : false }),
+            onclick: (e) => ed.pick(f, c, { add: e.shiftKey, copies: e.altKey }),
             onpointerenter: () => ed.hover(f, c), onpointerleave: () => ed.hover(null, null) },
             h('span', { class: 'tw', onclick: (e) => { e.stopPropagation(); open.has(c) ? open.delete(c) : open.add(c); renderLayers() } }, kids.length ? (open.has(c) ? '▾' : '▸') : ''),
             h('span', { class: 'lk' }, c.localName === 'a' ? dc.icon('link') : kindGlyph(n.kind)),
@@ -4587,22 +5288,32 @@ return { parse, tag, untag, applyEdit, lockedFor }
       ...['top', 'middle', 'bottom'].map((w) => h('button', { type: 'button', class: 'mini', title: `Align ${w}`, onclick: () => alignV(w) }, h('span', { class: 'ag', 'data-a': `v-${w}` })))))
 
     // Size
+    // Sizes are shown as the box is drawn, padding and border included, as the label on the board
+    // shows them; a content-box element's CSS width is that less its padding and border.
+    const n = (v) => parseFloat(v) || 0
+    const extra = (dim) => (c.boxSizing === 'border-box' ? 0 : dim === 'width'
+      ? n(c.paddingLeft) + n(c.paddingRight) + n(c.borderLeftWidth) + n(c.borderRightWidth)
+      : n(c.paddingTop) + n(c.paddingBottom) + n(c.borderTopWidth) + n(c.borderBottomWidth))
+    const drawn = (dim) => Math.round(el.getBoundingClientRect()[dim])
+    const cssSize = (dim, outer) => `${Math.max(0, Math.round(Number(outer) - extra(dim)))}px`
     const sizeMode = (dim) => {
       const own = el.style.getPropertyValue(dim)
-      if (/fit-content|max-content|auto/.test(own)) return 'hug'
-      if (own === '100%' || (dim === 'width' ? parentRow : parentFlex && !parentRow) && Number(c.flexGrow) > 0) return 'fill'
-      if (/px$/.test(own) || (dim === 'width' ? c.display === 'block' && false : false)) return 'fixed'
-      return /px$/.test(own) ? 'fixed' : 'hug'
+      const along = dim === 'width' ? parentRow : parentFlex && !parentRow
+      if (/fit-content|max-content|min-content/.test(own)) return 'hug'
+      if (own === '100%' || (along && Number(c.flexGrow) > 0)) return 'fill'
+      if (/px$/.test(own)) return 'fixed'
+      // No width of its own: a block outside a flex row stretches across its parent.
+      if (dim === 'width' && !own && !parentRow && !c.display.startsWith('inline') && !['absolute', 'fixed'].includes(c.position) && c.float === 'none') return 'fill'
+      return 'hug'
     }
     const setMode = (dim, mode) => {
-      const r = el.getBoundingClientRect()
       const along = dim === 'width' ? parentRow : parentFlex && !parentRow
       if (mode === 'hug') set({ [dim]: 'fit-content', ...(along ? { flex: '' } : {}) })
-      else if (mode === 'fixed') set({ [dim]: `${Math.round(dim === 'width' ? r.width : r.height)}px`, ...(along ? { flex: '' } : {}) })
+      else if (mode === 'fixed') set({ [dim]: cssSize(dim, drawn(dim)), ...(along ? { flex: '' } : {}) })
       else if (along) set({ flex: '1 1 0', [dim]: '' })
       else set({ [dim]: '100%' })
     }
-    const dimRow = (dim, label) => field(label, input(num(c.getPropertyValue(dim)), (v) => set({ [dim]: px(v) }), { class: 'n' }), seg([['hug', 'Hug'], ['fixed', 'Fixed'], ['fill', 'Fill']], sizeMode(dim), (m) => setMode(dim, m)))
+    const dimRow = (dim, label) => field(label, input(String(drawn(dim)), (v) => set({ [dim]: /^\d+(\.\d+)?$/.test(String(v).trim()) ? cssSize(dim, v) : px(v) }), { class: 'n' }), seg([['hug', 'Hug'], ['fixed', 'Fixed'], ['fill', 'Fill']], sizeMode(dim), (m) => setMode(dim, m)))
     host.append(section('Size', ['min-width', 'max-width', 'min-height', 'max-height', 'aspect-ratio', 'overflow', 'margin', 'z-index', 'inset'],
       dimRow('width', 'Width'),
       dimRow('height', 'Height'),
@@ -4672,6 +5383,31 @@ return { parse, tag, untag, applyEdit, lockedFor }
   }
 
   // ── code ──
+  /** A rule's declarations as the browser writes them back, shorthands kept (`margin: 0px`, not four
+      longhands; `background: …`, not a dozen of them set to `initial`). */
+  function declsOf(style) {
+    const out = []
+    let part = ''
+    let depth = 0
+    let quote = ''
+    for (const ch of style.cssText) {
+      if (quote) quote = ch === quote ? '' : quote
+      else if (ch === '"' || ch === "'") quote = ch
+      else if (ch === '(') depth++
+      else if (ch === ')') depth--
+      else if (ch === ';' && !depth) {
+        out.push(part)
+        part = ''
+        continue
+      }
+      part += ch
+    }
+    out.push(part)
+    return out.map((d) => d.trim()).filter(Boolean).map((d) => {
+      const c = d.indexOf(':')
+      return [d.slice(0, c).trim(), d.slice(c + 1).trim()]
+    }).filter(([p]) => p)
+  }
   function rulesFor(el) {
     const out = []
     for (const sheet of el.ownerDocument.styleSheets) {
@@ -4685,7 +5421,7 @@ return { parse, tag, untag, applyEdit, lockedFor }
           }
           if (!r.selectorText || !r.style) continue
           try { if (!el.matches(r.selectorText)) continue } catch { continue }
-          out.push({ selector: r.selectorText, decls: [...r.style].map((p) => [p, r.style.getPropertyValue(p) + (r.style.getPropertyPriority(p) ? ' !important' : '')]) })
+          out.push({ selector: r.selectorText, decls: declsOf(r.style) })
         }
       }
       walk(rules)
@@ -5139,7 +5875,7 @@ return { parse, tag, untag, applyEdit, lockedFor }
         redo.length = 0
         lines.push(lineOf({ op: edit.op, id: randomId('e'), at: new Date().toISOString(), name: nameOf(name), file, summary: summarize(before, edit).slice(0, 600), sha: await sha(result.src) }, 'edit'))
         await writeCanvas([file])
-        return answer(200, { select: result.select, html: await served(file) })
+        return answer(200, { select: result.select, linked: result.linked ?? 0, html: await served(file) })
       }
       case '/api/undo':
       case '/api/redo': {

@@ -519,6 +519,27 @@
     apply()
   }
   const fitAll = () => fitTo(extent())
+  /** A page seen for the first time: all of it, unless that is too small to read (under 20%) and it has more than
+      one section; then its first section with what sits beside it, readable. F or Shift+1 still shows everything. */
+  function firstView() {
+    const all = extent()
+    const fs = frames()
+    const first = fs[0]?.section
+    const z = Math.min((viewport.clientWidth - panelWidth() - 120) / all.w, (viewport.clientHeight - 232) / all.h)
+    const mine = fs.filter((f) => f.section === first)
+    if (z >= 0.2 || !first || mine.length === fs.length) return fitAll()
+    const x0 = Math.min(...mine.map((f) => f.x))
+    const y0 = Math.min(...mine.map((f) => f.y))
+    const y1 = Math.max(...mine.map((f) => f.y + f.H))
+    let x1 = Math.max(...mine.map((f) => f.x + f.W))
+    let left = x0
+    // Notes and shapes beside those frames come into view with them.
+    for (const i of board.items.filter((it) => (it.page ?? firstPage()) === pageId && it.kind !== 'guide' && it.y < y1 && it.y + (it.h ?? 0) > y0 - 300)) {
+      left = Math.min(left, i.x)
+      x1 = Math.max(x1, i.x + (i.w ?? 0))
+    }
+    fitTo({ x: left, y: y0 - 300, w: x1 - left, h: y1 - y0 + 300 })
+  }
   /** Go to a frame on the board: its page, then the frame filling the window. */
   function showFrame(f) {
     if (f.page !== pageId) goPage(f.page)
@@ -2652,7 +2673,7 @@
     if (saved && Number.isFinite(saved.z)) {
       Object.assign(view, saved)
       apply()
-    } else fitAll()
+    } else firstView()
   }
   $('#page-switch').addEventListener('click', (e) => {
     const anchor = e.currentTarget
@@ -2976,7 +2997,7 @@
     if (saved && Number.isFinite(saved.z)) {
       Object.assign(view, saved)
       apply()
-    } else fitAll()
+    } else firstView()
     const tab = store.get('tab')
     if (store.get('panel')) openPanel(tab || 'properties')
     refresh()

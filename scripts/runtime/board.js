@@ -326,6 +326,8 @@
     samePageName()
     stackLabels()
     updateSub()
+    // The frames were drawn empty: the ones in view load now, not at the next pan or zoom.
+    loadVisible()
     call('onPage', pageId)
   }
   function drawGroups() {

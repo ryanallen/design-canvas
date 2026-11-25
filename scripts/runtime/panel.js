@@ -451,10 +451,10 @@
         if (!first) continue
         const num = (t, re, d) => Number(re.exec(t)?.[1] ?? d)
         const t = first.style.transform
-        const mid = [...r.cssRules].find((k) => k.keyText === '60%')
+        const mid = [...r.cssRules].find((k) => !['0%', 'from', '100%', 'to'].includes(k.keyText))
         const m = mid?.style.transform ?? ''
         return [Math.round(Number(first.style.opacity || 1) * 100), num(t, /translate\((-?[\d.]+)px/, 0), num(t, /translate\([^,]+,\s*(-?[\d.]+)px/, 0), Math.round(num(t, /scale\((-?[\d.]+)\)/, 1) * 100), num(t, /rotate\((-?[\d.]+)deg/, 0),
-          mid ? 1 : 0, num(m, /translate\((-?[\d.]+)px/, 0), num(m, /translate\([^,]+,\s*(-?[\d.]+)px/, 0), Math.round(num(m, /scale\((-?[\d.]+)\)/, 1) * 100)]
+          mid ? 1 : 0, num(m, /translate\((-?[\d.]+)px/, 0), num(m, /translate\([^,]+,\s*(-?[\d.]+)px/, 0), Math.round(num(m, /scale\((-?[\d.]+)\)/, 1) * 100), mid ? parseFloat(mid.keyText) : 60]
       }
     }
     return null
@@ -466,9 +466,9 @@
     s.addEventListener('change', () => onPick(s.value))
     return s
   }
-  // The first keyframe, a middle one at 60% when it is on (past its place, or short of it), and the resting look.
-  const ownCss = ([o, x, y, s, r, mOn = 0, mx = 0, my = -6, ms = 100]) => `from { opacity: ${o / 100}; transform: translate(${x}px, ${y}px) scale(${s / 100}) rotate(${r}deg) }` +
-    (mOn ? ` 60% { opacity: 1; transform: translate(${mx}px, ${my}px) scale(${ms / 100}) }` : '') + ' to { opacity: 1; transform: none }'
+  // The first keyframe, a middle one (at 60% of the way unless moved) when it is on, and the resting look.
+  const ownCss = ([o, x, y, s, r, mOn = 0, mx = 0, my = -6, ms = 100, mAt = 60]) => `from { opacity: ${o / 100}; transform: translate(${x}px, ${y}px) scale(${s / 100}) rotate(${r}deg) }` +
+    (mOn ? ` ${Math.min(95, Math.max(5, mAt))}% { opacity: 1; transform: translate(${mx}px, ${my}px) scale(${ms / 100}) }` : '') + ' to { opacity: 1; transform: none }'
   function entranceFields(el, c) {
     const name = c.animationName.split(',')[0].trim()
     const now = ENTRANCES.some(([k]) => k === name) ? name : OWN_ENTRANCE.test(name) ? 'custom' : 'none'
@@ -478,7 +478,7 @@
     const speed = now === 'none' ? '450' : ENTRANCE_SPEEDS.reduce((a, b) => (Math.abs(b[0] - dur) < Math.abs(a[0] - dur) ? b : a))[0]
     const from = [...(now === 'custom' ? ownFrom(el.ownerDocument, name) ?? [0, 0, 16, 100, 0] : ENTRANCE_FROM[now] ?? [0, 0, 16, 100, 0])]
     // The middle keyframe: off, then x, y and scale for when it is on.
-    for (const [i, d] of [[5, 0], [6, 0], [7, -6], [8, 100]]) from[i] ??= d
+    for (const [i, d] of [[5, 0], [6, 0], [7, -6], [8, 100], [9, 60]]) from[i] ??= d
     const write =(k, t = speed, d = delay, f = from) => {
       if (k === 'custom') {
         const own = now === 'custom' ? name : `dc-in-${Math.random().toString(36).slice(2, 8)}`
@@ -523,12 +523,13 @@
         field('Start scale', fromField(3, 'Scale', '%'), h('span', { class: 'val' }, '%')),
         field('Start turn', fromField(4, 'Rotate', 'deg'), h('span', { class: 'val' }, '°')),
         field('Start X · Y', fromField(1, 'X', 'px'), fromField(2, 'Y', 'px'), h('span', { class: 'val' }, 'px')),
-        field('Middle at 60%', seg([['0', 'Off', 'Straight from the start to its place'], ['1', 'On', 'A keyframe on the way: past its place, or short of it']], String(from[5]), (v) => {
+        field('Middle keyframe', seg([['0', 'Off', 'Straight from the start to its place'], ['1', 'On', 'A keyframe on the way: past its place, or short of it']], String(from[5]), (v) => {
           const f = [...from]
           f[5] = Number(v)
           write('custom', speed, delay, f)
         })),
         ...(from[5] ? [
+          field('Middle at', fromField(9, 'Middle at', '% of the way'), h('span', { class: 'val' }, '% of the way')),
           field('Middle X · Y', fromField(6, 'Middle X', 'px'), fromField(7, 'Middle Y', 'px'), h('span', { class: 'val' }, 'px')),
           field('Middle scale', fromField(8, 'Middle scale', '%'), h('span', { class: 'val' }, '%')),
         ] : []),

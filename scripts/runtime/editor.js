@@ -550,8 +550,20 @@
     el.addEventListener('keydown', editKeys)
     el.addEventListener('input', onEditInput)
     el.addEventListener('paste', plainPaste)
+    el.addEventListener('dblclick', wordOnly)
     draw()
     renderFloat()
+  }
+  /** A word double-clicked while typing is the word alone: Windows takes the space after it too, so bold or a link
+   *  would run on past it. */
+  function wordOnly(e) {
+    const s = e.currentTarget.ownerDocument.getSelection()
+    if (!s.rangeCount) return
+    const r = s.getRangeAt(0)
+    if (r.endContainer.nodeType !== 3) return
+    let end = r.endOffset
+    while (end > 0 && (r.endContainer !== r.startContainer || end > r.startOffset + 1) && /\s/.test(r.endContainer.data[end - 1])) end--
+    if (end !== r.endOffset) r.setEnd(r.endContainer, end)
   }
   /** Text pasted while typing comes in as words, never as another page's markup and styles. */
   function plainPaste(e) {
@@ -669,6 +681,7 @@
     el.removeEventListener('keydown', editKeys)
     el.removeEventListener('input', onEditInput)
     el.removeEventListener('paste', plainPaste)
+    el.removeEventListener('dblclick', wordOnly)
     frame.el?.classList.remove('editing')
     frame.doc.getSelection()?.removeAllRanges()
     const after = el.innerHTML

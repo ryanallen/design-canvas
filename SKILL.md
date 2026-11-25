@@ -55,7 +55,7 @@ Everything people do is a line before `</body>`, one JSON event each, never rewr
 
 ## What a click picks
 
-In a prototype a click picks the element under the pointer (the line), Esc climbs to what holds it and Enter goes in. The canvas menu on the title has **Clicks pick the card** instead, as Figma: a click picks the outermost block holding what is under the pointer, passing over wrappers nearly as big as the page, and each click inside the selection goes one level in (the grid, then the card, then the line). Hover outlines what a click would pick. The choice is kept in that browser; **Clicks pick the line** goes back.
+In a prototype a click picks the element under the pointer (the line), Esc climbs to what holds it and Enter goes in. The canvas menu on the title has **Clicks pick the card** instead, as Figma: a click picks the outermost block holding what is under the pointer, passing over wrappers nearly as big as the page, and each click inside the selection goes one level in (the grid, then the card, then the line), while a drag that starts anywhere inside it moves the selection itself. Hover outlines what a click would pick. The choice is kept in that browser; **Clicks pick the line** goes back.
 
 ## Typing in place
 

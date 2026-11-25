@@ -295,7 +295,16 @@
         return true
       }
     }
-    const el = byDepth(frame, elementAt(frame, point))
+    const deep = elementAt(frame, point)
+    // Clicks pick the card: a press inside the block selected drags that block, as Figma drags a selected group from
+    // any of its layers; only a click that does not move goes one level in.
+    const cur = sel?.frame === frame && sel.els.length === 1 ? primary() : null
+    if (dc.store?.get('clickDepth') === 'outer' && cur && deep && cur !== deep && cur.contains(deep) && !e.shiftKey && !e.altKey && editable(cur) && cur.localName !== 'body') {
+      const next = byDepth(frame, deep)
+      startMove(e, frame, point, () => pick(frame, next))
+      return true
+    }
+    const el = byDepth(frame, deep)
     if (!el) return true
     const already = sel && sel.frame === frame && sel.els.includes(el)
     if (e.shiftKey) pick(frame, el, { add: true })
@@ -705,7 +714,7 @@
   }
 
   // ── structure ──
-  function startMove(e, frame, point) {
+  function startMove(e, frame, point, still) {
     const el = primary()
     const positioned = ['absolute', 'fixed'].includes(cs(el).position)
     const start = { x: e.clientX, y: e.clientY }
@@ -740,7 +749,7 @@
       dropLine = null
       if (dragGhost) { el.style.opacity = opacity0; if (!el.getAttribute('style')) el.removeAttribute('style') }
       dragGhost = null
-      if (!moving) return draw()
+      if (!moving) return still ? still() : draw()
       if (positioned) return send({ op: 'style', cv: cvOf(el), props: { left: el.style.left, top: el.style.top } })
       draw()
       if (target) send({ op: 'move', cv: cvOf(el), target: cvOf(target.el), where: target.where })

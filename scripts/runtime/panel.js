@@ -53,6 +53,7 @@
             h('span', { class: 'tw', onclick: (e) => { e.stopPropagation(); open.has(c) ? open.delete(c) : open.add(c); renderLayers() } }, kids.length ? (open.has(c) ? '▾' : '▸') : ''),
             h('span', { class: 'lk' }, c.localName === 'a' ? dc.icon('link') : kindGlyph(n.kind)),
             h('span', { class: 'ln' }, n.text))
+          if (dc.serve && ed.cvOf(c) != null) layerDrag(row, f, c, kids.length > 0 || CONTAINS.test(c.localName))
           rows.push(row)
           if (kids.length && open.has(c)) walk(c, d + 1)
         }
@@ -61,6 +62,49 @@
     }
     host.append(h('div', { class: 'lhead' }, 'Layers'), h('div', { class: 'lbody' }, rows.length ? rows : h('div', { class: 'empty' }, 'Nothing on this page.')))
     host.querySelector('.lrow.on:not(.lframe)')?.scrollIntoView({ block: 'nearest' })
+  }
+  // A layer dragged onto another goes before it, after it, or (on the middle of one that holds others) inside it,
+  // as one move in the file; double-click names it (data-name), as Figma renames a layer.
+  const CONTAINS = /^(div|section|main|header|footer|nav|aside|article|ul|ol|form|figure|details|fieldset|body)$/
+  let dragging = null
+  function layerDrag(row, f, el, holds) {
+    row.draggable = true
+    const zone = (e) => {
+      const r = row.getBoundingClientRect()
+      const y = (e.clientY - r.top) / r.height
+      return holds && y > 0.3 && y < 0.7 ? 'inside' : y < 0.5 ? 'before' : 'after'
+    }
+    const clear = () => row.classList.remove('drop-before', 'drop-after', 'drop-inside')
+    row.addEventListener('dragstart', (e) => {
+      dragging = { f, el }
+      e.dataTransfer.effectAllowed = 'move'
+      e.dataTransfer.setData('text/plain', ed.nameOf(el).text)
+      row.classList.add('dragging')
+    })
+    row.addEventListener('dragend', () => { dragging = null; row.classList.remove('dragging') })
+    row.addEventListener('dragover', (e) => {
+      if (!dragging || dragging.f !== f || dragging.el === el || dragging.el.contains(el)) return
+      e.preventDefault()
+      clear()
+      row.classList.add(`drop-${zone(e)}`)
+    })
+    row.addEventListener('dragleave', clear)
+    row.addEventListener('drop', (e) => {
+      clear()
+      if (!dragging || dragging.f !== f || dragging.el === el || dragging.el.contains(el)) return
+      e.preventDefault()
+      const where = zone(e)
+      const moved = dragging.el
+      dragging = null
+      ed.send({ op: 'move', cv: ed.cvOf(moved), target: ed.cvOf(el), where }, { file: f.file, key: f.key })
+    })
+    row.addEventListener('dblclick', async (e) => {
+      e.preventDefault()
+      const now = el.getAttribute('data-name') ?? ''
+      const name = await dc.question('Layer name (empty for none):', now || ed.nameOf(el).text.replace(/^[.#◇]\s*|"[^"]*"/g, '').trim())
+      if (name == null || name.trim() === now) return
+      ed.send({ op: 'attr', cv: ed.cvOf(el), name: 'data-name', value: name.trim() || null }, { file: f.file, key: f.key })
+    })
   }
   const kindGlyph = (k) => ({ Heading: 'H', Paragraph: '¶', Text: 'T', Button: '▭', Image: '▨', Vector: '✎', List: '☰', Item: '•', Row: '⇥', Column: '⇩', Grid: '▦', Field: '⎀', body: '#', named: '◆' }[k] ?? (k === 'group' ? '▢' : '§'))
 

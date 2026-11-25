@@ -57,6 +57,10 @@ Everything people do is a line before `</body>`, one JSON event each, never rewr
 
 Enter (or double-click) on a selected text element types in it. Enter while typing goes on in a new element after it, as a text editor does: the same tag and attributes but the id (a paragraph after a heading), never a `<div>` inside the paragraph. Shift+Enter is a line break inside it; Escape, or Enter in a one-line element, ends typing. Everything typed, however many elements Enter made, is one edit for Ctrl+Z.
 
+## Layers
+
+The panel's Layers list the page's board objects and frames, and an open frame's elements, each named by its `data-name` or `aria-label`, else what it is and what it says. Served, a layer dragged onto another goes before it or after it (by the half it is dropped on), or inside it on the middle of one that holds others: one move in the file. Double-click names a layer, written as `data-name` (empty takes it off).
+
 ## Copy and paste
 
 Ctrl+C in a prototype copies every element selected, in page order, as its file has it; Ctrl+V puts them after the element selected (inside it for the page's body). Pasted into the same prototype they stay plain markup, styled by its classes. Pasted into another prototype, whose stylesheet has none of those rules, each part carries its look on itself (colours, type, spacing, corners, shadows, layout; never its width or height, so it fits where it lands). An `id` already on the page gets a new one.

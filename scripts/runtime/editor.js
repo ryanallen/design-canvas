@@ -193,6 +193,7 @@
     return { x: a.x, y: a.y, w: r.width * k, h: r.height * k, r }
   }
   let dropLine = null
+  let dragGhost = null
   function draw() {
     overlay.replaceChildren()
     if (hover && (!sel || !sel.els.includes(hover.el)) && live(hover.el)) {
@@ -214,6 +215,7 @@
         overlay.append(one)
       })
     }
+    if (dragGhost) overlay.append(h('div', { class: 'ov ghost', style: box(dragGhost) }, h('span', {}, dragGhost.name)))
     if (dropLine) overlay.append(h('div', { class: 'ov drop', style: box(dropLine) }))
     if (measuring && sel?.els.length === 1 && hover && hover.frame === sel.frame && hover.el !== primary() && live(hover.el)) measure(sel.frame, primary(), hover.el)
   }
@@ -698,6 +700,9 @@
     const top0 = parseFloat(cs(el).top) || 0
     let target = null
     const vp = dc.viewport
+    // What is dragged follows the pointer as an outline, its place in the page dimmed, as Figma carries a layer.
+    const from = positioned ? null : rectOn(frame, el)
+    const opacity0 = el.style.opacity
     const move = (ev) => {
       const dx = (ev.clientX - start.x) / dc.view.z / frame.s
       const dy = (ev.clientY - start.y) / dc.view.z / frame.s
@@ -711,6 +716,8 @@
       }
       target = dropTarget(frame, dc.toWorld(ev.clientX, ev.clientY), el)
       dropLine = target?.line ?? null
+      if (!dragGhost) el.style.opacity = '0.35'
+      dragGhost = { x: from.x + ev.clientX - start.x, y: from.y + ev.clientY - start.y, w: from.w, h: from.h, name: nameOf(el).text }
       draw()
     }
     let moving = false
@@ -718,6 +725,8 @@
       vp.removeEventListener('pointermove', move, true)
       removeEventListener('pointerup', up, true)
       dropLine = null
+      if (dragGhost) { el.style.opacity = opacity0; if (!el.getAttribute('style')) el.removeAttribute('style') }
+      dragGhost = null
       if (!moving) return draw()
       if (positioned) return send({ op: 'style', cv: cvOf(el), props: { left: el.style.left, top: el.style.top } })
       draw()

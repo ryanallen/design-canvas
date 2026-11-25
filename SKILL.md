@@ -53,6 +53,10 @@ Everything people do is a line before `</body>`, one JSON event each, never rewr
 - `<!-- edit {…} -->`: who, when, the file, the change in words, and a fingerprint of the file after it. The exact change is the file's own diff.
 - `<!-- board {…} -->`: notes, titles, rectangles and ellipses (each with its own text), sections, lines, arrows, pencil strokes, guides, groups (objects sharing a `group` id), stacking order (`z`), pages, frames moved by hand, the canvas's own name. A line or arrow with `from` and `to` (a board object's id or a frame's key) is drawn between those two wherever they move; an empty `from` or `to` lets go.
 
+## What a click picks
+
+In a prototype a click picks the element under the pointer (the line), Esc climbs to what holds it and Enter goes in. The canvas menu on the title has **Clicks pick the card** instead, as Figma: a click picks the outermost block holding what is under the pointer, passing over wrappers nearly as big as the page, and each click inside the selection goes one level in (the grid, then the card, then the line). Hover outlines what a click would pick. The choice is kept in that browser; **Clicks pick the line** goes back.
+
 ## Typing in place
 
 Enter (or double-click) on a selected text element types in it. Enter while typing goes on in a new element after it, as a text editor does: the same tag and attributes but the id (a paragraph after a heading), never a `<div>` inside the paragraph. Shift+Enter is a line break inside it; Escape, or Enter in a one-line element, ends typing. Everything typed, however many elements Enter made, is one edit for Ctrl+Z.

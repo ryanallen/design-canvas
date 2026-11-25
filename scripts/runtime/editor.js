@@ -281,7 +281,7 @@
         return true
       }
     }
-    const el = elementAt(frame, point)
+    const el = byDepth(frame, elementAt(frame, point))
     if (!el) return true
     const already = sel && sel.frame === frame && sel.els.includes(el)
     if (e.shiftKey) pick(frame, el, { add: true })
@@ -289,6 +289,28 @@
     // A press that moves drags the selection: a reorder in flow, or left and top when positioned.
     if (!e.shiftKey && sel && editable(primary()) && sel.els.length === 1 && primary().localName !== 'body') startMove(e, frame, point)
     return true
+  }
+  /** With "Clicks pick the card" (as Figma): a click outside the selection picks the outermost block holding the
+      element under the pointer, passing over wrappers that fill the page; a click inside the selection picks the
+      next one in on the way to it. Otherwise the element under the pointer, as before. */
+  function byDepth(frame, deep) {
+    if (!deep || dc.store?.get('clickDepth') !== 'outer') return deep
+    const body = frame.doc.body
+    const chain = []
+    for (let k = deep; k && k !== body && k.localName !== 'html'; k = k.parentElement) chain.unshift(k)
+    if (!chain.length) return deep
+    const cur = sel?.frame === frame ? primary() : null
+    const i = cur ? chain.indexOf(cur) : -1
+    if (i >= 0) return chain[Math.min(i + 1, chain.length - 1)]
+    // From the top down, past any block nearly as big as the page itself (a <main> or a wrapper).
+    const page = body.getBoundingClientRect()
+    let j = 0
+    while (j < chain.length - 1) {
+      const r = chain[j].getBoundingClientRect()
+      if (r.width * r.height < page.width * page.height * 0.6) break
+      j++
+    }
+    return chain[j]
   }
   hooks.onHover = (e, info) => {
     document.body.classList.toggle('over-action', !!(e && info?.frame && dc.tool === 'select' && !editing && !(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) && actionAt(info.frame, info.point)))
@@ -299,7 +321,8 @@
       }
       return
     }
-    const el = elementAt(info.frame, info.point)
+    // Outlined is what a click would pick, whichever the click setting.
+    const el = byDepth(info.frame, elementAt(info.frame, info.point))
     if (el !== hover?.el) {
       hover = el ? { frame: info.frame, el } : null
       draw()

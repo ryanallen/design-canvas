@@ -2575,6 +2575,10 @@
       sel ? { label: `Download ${sel}`, icon: 'download', run: () => downloadFile(sel) } : null,
       serve ? { label: 'Rename', run: rename } : null,
       { label: 'History', run: openHistory },
+      // Which element a click in a prototype picks: the one under the pointer, or the outermost block (as Figma), a
+      // click inside the selection then going one level in. Kept in this browser.
+      { label: `Clicks pick the line${store.get('clickDepth') === 'outer' ? '' : '  ✓'}`, run: () => { store.set('clickDepth', 'inner'); hint('A click picks what is under the pointer; Esc climbs out', 2200) } },
+      { label: `Clicks pick the card${store.get('clickDepth') === 'outer' ? '  ✓' : ''}`, run: () => { store.set('clickDepth', 'outer'); hint('A click picks the outermost block, as in Figma; click inside it to go in', 2600) } },
       { label: 'Keyboard shortcuts', key: 'Shift+?', run: openKeys },
       window.designCanvas?.startOver ? { label: 'Start over', run: () => window.designCanvas.startOver() } : null,
       serve && !data.memory && !local ? { label: 'Refresh from the prototypes', run: rebuild } : null,
@@ -2934,6 +2938,7 @@
     setTool, openPanel, setPanel, currentTab, openMenu, closeMenu, question, sure, openPlay, goPage, moveFrameToPage,
     startComment, commentOn, openAsk, renderPins, pickItem, apply, sendBoard, showEmpty,
     setName: (n) => setName(n),
+    store,
   }
 
   // ── start ──

@@ -1341,12 +1341,16 @@
     if (!along.items.includes(id)) along.items.push(id)
     // A line moved by hand lets go of what it held, and stays where it was drawn.
     const moving = along.items.map((x) => board.items.find((i) => i.id === x)).filter((i) => i && i.kind !== 'guide' && !isLocked(i.id))
+    // Alt held: the drag places copies where it ends, and what was dragged goes back where it was.
+    const copying = e.altKey && !resize && serve
+    const originals = copying ? moving.map((m) => ({ ...m })) : null
+    let last = { dx: 0, dy: 0 }
     for (const m of moving) {
-      if (m.id !== id || (!m.from && !m.to)) continue
+      if (copying || m.id !== id || (!m.from && !m.to)) continue
       Object.assign(m, geometryOf(m), { from: '', to: '' })
     }
     const starts = new Map(moving.map((m) => [m.id, { x: m.x, y: m.y }]))
-    const frameList = along.frames.map((k) => allFrames.get(k)).filter((f) => f && !isLocked(f.key))
+    const frameList = copying ? [] : along.frames.map((k) => allFrames.get(k)).filter((f) => f && !isLocked(f.key))
     const frameStarts = new Map(frameList.map((f) => [f.key, { x: f.x, y: f.y }]))
     const boxStart = group ? { ...group.box } : null
     const snap = resize ? null : snapper(moving.map((m) => m.id), frameList.map((f) => f.key))
@@ -1357,6 +1361,7 @@
         else {
           // Edges and centres catch on other objects' and frames' edges and centres; Ctrl or ⌘ held lets go.
           ;({ dx, dy } = snap && !(ev.ctrlKey || ev.metaKey) ? snap(dx, dy) : (clearSnap(), { dx, dy }))
+          last = { dx, dy }
           for (const m of moving) Object.assign(m, { x: Math.round(starts.get(m.id).x + dx), y: Math.round(starts.get(m.id).y + dy) })
           for (const f of frameList) {
             Object.assign(f, { x: Math.round(frameStarts.get(f.key).x + dx), y: Math.round(frameStarts.get(f.key).y + dy) })
@@ -1378,6 +1383,11 @@
         itemBar.classList.remove('dragging')
         if (!moved) return
         if (resize) return updateItem(id, { w: it.w, h: it.h })
+        if (copying) {
+          for (const m of moving) Object.assign(m, starts.get(m.id))
+          renderItems()
+          return placeCopies(originals, last.dx, last.dy)
+        }
         try {
           for (const m of moving) {
             const change = { x: m.x, y: m.y }

@@ -537,6 +537,18 @@ body.has-banner #panel { top: 88px; }
 /* Keyboard shortcuts sheet. */
 #keys-sheet { width: min(920px, calc(100vw - 32px)); max-height: calc(100vh - 64px); padding: 0; border: 0; border-radius: var(--r-lg, 18px); background: var(--panel); color: var(--ink); box-shadow: var(--chrome-shadow), var(--edge); }
 #keys-sheet::backdrop { background: rgb(0 0 0 / 0.45); }
+#history-sheet { width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 64px); padding: 0; border: 0; border-radius: var(--r-lg, 18px); background: var(--panel); color: var(--ink); box-shadow: var(--chrome-shadow), var(--edge); }
+#history-sheet::backdrop { background: rgb(0 0 0 / 0.45); }
+#history-sheet header { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px 20px; background: var(--panel); }
+#history-sheet header b { font-size: 15px; }
+#history-sheet .hist-list { padding: 0 12px 16px; }
+#history-sheet .hist-row { padding: 10px 8px; border-top: 1px solid var(--line); }
+#history-sheet .hist-head { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); }
+#history-sheet .hist-head b { color: var(--ink); font-size: 13px; }
+#history-sheet .hist-head .file { font-family: ui-monospace, Consolas, monospace; font-size: 11px; }
+#history-sheet .hist-head button { margin-left: auto; }
+#history-sheet .hist-what { font-size: 13px; margin-top: 3px; color: var(--ink); overflow-wrap: anywhere; }
+#history-sheet .empty { color: var(--ink-2); padding: 12px 8px; }
 #keys-sheet header { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px 20px; background: var(--panel); }
 #keys-sheet header b { font-size: 15px; }
 #keys-sheet .keys-cols { columns: 3 260px; column-gap: 28px; padding: 0 20px 20px; }

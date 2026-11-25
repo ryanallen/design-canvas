@@ -57,6 +57,10 @@ Everything people do is a line before `</body>`, one JSON event each, never rewr
 
 Enter (or double-click) on a selected text element types in it. Enter while typing goes on in a new element after it, as a text editor does: the same tag and attributes but the id (a paragraph after a heading), never a `<div>` inside the paragraph. Shift+Enter is a line break inside it; Escape, or Enter in a one-line element, ends typing. Everything typed, however many elements Enter made, is one edit for Ctrl+Z.
 
+## History
+
+**History**, in the canvas's own menu on its title, lists every edit the canvas has recorded, newest first: who made it, when, in which prototype and what it did (the same lines `canvas.html` keeps, read live through `/api/history` when served or editing from disk). **Show** goes to that prototype.
+
 ## Flows
 
 **Show flows on the board**, at the top of the Play menu, draws an arrow from each link in a screen to the screen on the page it opens (a link to `other.html` or `other.html#screen`), as Figma draws prototype connections: up from the link, over the tops of the screens, onto the top edge of the one it opens. Kept in that browser until **Hide flows**.

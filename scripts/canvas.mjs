@@ -469,6 +469,10 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         tell('board', {})
         return json(res, 200, { event })
       }
+      if (url.pathname === '/api/history') {
+        // Every edit recorded in the canvas, oldest first: who, when, which file, what.
+        return json(res, 200, { edits: lines.flatMap((l) => parseLines(l, 'edit')) })
+      }
       if (url.pathname === '/api/canvas') {
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'content-disposition': `attachment; filename="${path.basename(out)}"` })
         return res.end(memory ? renderPage(payload, lines) : canvasText)

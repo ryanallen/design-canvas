@@ -310,6 +310,8 @@
         return answer(200, { selection })
       case '/api/agent':
         return answer(200, { threads: foldEvents(parseEvents(lines.join('\n'))).filter((t) => t.agent && !t.resolved) })
+      case '/api/history':
+        return answer(200, { edits: parseLines(lines.join('\n'), 'edit') })
       case '/api/canvas':
         return new Response(canvasText, { headers: { 'content-type': 'text/html' } })
       case '/api/refresh':

@@ -2539,6 +2539,31 @@
     )
     keysSheet.showModal()
   }
+  // History, as Figma's version history: every edit recorded in the canvas, newest first, who made it, when, in which
+  // prototype and what it did; Show goes to that prototype. Served or editing from disk it is read live; else from the file.
+  const historySheet = h('dialog', { id: 'history-sheet', class: 'sheet', 'aria-label': 'History' })
+  document.body.append(historySheet)
+  historySheet.addEventListener('keydown', (e) => e.stopPropagation())
+  historySheet.addEventListener('click', (e) => e.target === historySheet && historySheet.close())
+  async function openHistory() {
+    let edits = editLines
+    if (serve) {
+      try { edits = (await (await fetch('/api/history')).json()).edits ?? edits } catch {}
+    }
+    const list = [...edits].filter((e) => e.summary || e.file).reverse()
+    const rows = list.slice(0, 500).map((e) => {
+      const f = [...allFrames.values()].find((x) => x.file === e.file)
+      return h('div', { class: 'hist-row' },
+        h('div', { class: 'hist-head' }, h('b', {}, e.name || 'someone'), h('span', {}, when(e.at)), e.file ? h('span', { class: 'file' }, e.file) : null,
+          f ? h('button', { type: 'button', class: 'mini', onclick: () => { historySheet.close(); showFrame(f) } }, 'Show') : null),
+        h('div', { class: 'hist-what' }, e.summary || e.op))
+    })
+    historySheet.replaceChildren(
+      h('header', {}, h('b', {}, `History · ${list.length} edit${list.length === 1 ? '' : 's'}`), h('button', { type: 'button', class: 'tool', 'aria-label': 'Close', onclick: () => historySheet.close() }, '✕')),
+      h('div', { class: 'hist-list' }, rows.length ? rows : h('p', { class: 'empty' }, 'No edits recorded yet.')),
+    )
+    historySheet.showModal()
+  }
   // The canvas's own menu, on its title.
   $('#title-btn').addEventListener('click', (e) => {
     // Only what works where the canvas is open: renaming needs editing on, rebuilding needs node serving it.
@@ -2549,6 +2574,7 @@
       { label: 'Download the canvas', icon: 'download', run: downloadCanvas },
       sel ? { label: `Download ${sel}`, icon: 'download', run: () => downloadFile(sel) } : null,
       serve ? { label: 'Rename', run: rename } : null,
+      { label: 'History', run: openHistory },
       { label: 'Keyboard shortcuts', key: 'Shift+?', run: openKeys },
       window.designCanvas?.startOver ? { label: 'Start over', run: () => window.designCanvas.startOver() } : null,
       serve && !data.memory && !local ? { label: 'Refresh from the prototypes', run: rebuild } : null,

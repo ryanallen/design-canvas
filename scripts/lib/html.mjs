@@ -394,6 +394,17 @@ function applyOne(src, edit) {
     return el
   }
   switch (edit.op) {
+    case 'link': {
+      // A stylesheet of the prototype's own folder linked at the end of its head, once (a web font's sheet). The
+      // element at `cv` stays selected, moved on by what was put in before it.
+      const href = String(edit.href ?? '')
+      if (!/^(\.\.\/)*[\w-]+(\/[\w-]+)*\.css$/.test(href)) throw new Error(`a linked sheet must be a .css file in the folder, not ${href}`)
+      const out = linkSheet(src, href)
+      let at = 0
+      while (at < src.length && src.charCodeAt(at) === out.charCodeAt(at)) at++
+      const cv = edit.cv == null ? null : Number(edit.cv)
+      return { src: out, select: cv == null ? null : cv >= at ? cv + out.length - src.length : cv }
+    }
     case 'styles': {
       // Several elements' own styles in one edit (one undo), as when a row of siblings is staggered.
       // Last in the file first, so each one's offset still holds when it is reached.
@@ -632,6 +643,7 @@ export function lockedFor(src, edit, { owner = false } = {}) {
     case 'style':
     case 'attr':
     case 'insert':
+    case 'link':
       return null
     case 'move': {
       if (targets.some(holds)) return SAY
@@ -647,3 +659,20 @@ export function lockedFor(src, edit, { owner = false } = {}) {
 
 /** The rules in the canvas's own stylesheet, for the panel to show. */
 export const canvasRules = (src) => parseRules(canvasStyle(src).css).map((r) => ({ selector: r.sel, props: Object.fromEntries(r.props) }))
+
+/** `html` with a link to `href` at the end of its head, unless it links it already. */
+export function linkSheet(html, href) {
+  const esc = href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  if (new RegExp(`<link\\b[^>]*href=["']${esc}["']`, 'i').test(html)) return html
+  const tag = `<link rel="stylesheet" href="${href}">`
+  const head = /<\/head\s*>/i.exec(html)
+  if (head) {
+    const lineStart = html.lastIndexOf('\n', head.index) + 1
+    const before = html.slice(lineStart, head.index)
+    // On a line of its own, the link goes on the line above, indented one step in; else just before </head>.
+    if (/^[ \t]*$/.test(before)) return `${html.slice(0, lineStart)}${before}  ${tag}\n${html.slice(lineStart)}`
+    return `${html.slice(0, head.index)}${tag}${html.slice(head.index)}`
+  }
+  const body = /<body\b/i.exec(html)
+  return body ? `${html.slice(0, body.index)}${tag}\n${html.slice(body.index)}` : `${tag}\n${html}`
+}

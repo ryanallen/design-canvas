@@ -191,16 +191,36 @@
     const quote = (f) => (/^[\w-]+$/.test(f) ? f : `"${f.replace(/"/g, '')}"`)
     const row = (f, value) => ({ label: f, font: value, run: () => pick(value) })
     const ownNames = own.map((f) => f.split(',')[0].replace(/["']/g, '').trim())
+    // Web fonts: downloaded once into the prototype's folder and linked from it, so they show for everyone who opens it.
+    const web = dc.serve ? (dc.data.webFonts ?? []).filter(([f]) => !ownNames.includes(f)) : []
+    const webRow = ([family]) => ({ label: family, run: () => useWebFont(family, pick) })
     dc.openMenu(anchor, [
       { note: 'In this prototype' },
       ...own.map((f, i) => row(ownNames[i], f)),
       '-',
+      ...(web.length ? [{ note: `Web fonts, saved into the folder (${web.length})` }, ...web.map(webRow), '-'] : []),
       { note: `On this computer (${installed.length})` },
       ...installed.filter((f) => !ownNames.includes(f)).map((f) => row(f, quote(f))),
       '-',
       { note: 'Generic' },
       ...GENERIC.filter((f) => !ownNames.includes(f)).map((f) => row(f, f)),
     ])
+  }
+  /** A web font for the selection: its files fetched into the folder, its sheet linked, then the font set. */
+  async function useWebFont(family, pick) {
+    const sel = ed.sel
+    if (!sel) return
+    dc.hint(`Saving ${family} into the folder…`, 8000)
+    let body
+    try {
+      const res = await fetch('/api/font', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ file: sel.frame.file, family }) })
+      body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.error || `Could not get ${family} (${res.status})`)
+    } catch (err) {
+      return dc.hint(err.message, 4000)
+    }
+    dc.hint(`${family} saved in fonts/`, 1600)
+    ed.send({ op: 'link', href: body.href, cv: ed.cvOf(ed.primary()) }, { file: sel.frame.file, key: sel.frame.key, copies: sel.els.length > 1, then: () => pick(body.value) })
   }
   /** The font dropdown: the current font, and every font when opened. */
   function fontBox(value, own, pick) {

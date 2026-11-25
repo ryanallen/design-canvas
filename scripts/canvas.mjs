@@ -34,6 +34,7 @@ import { applyEdit, lockedFor, parse, tag } from './lib/html.mjs'
 import { inlineFile } from './lib/inline.mjs'
 import { writeFileAtomic } from './lib/write.mjs'
 import { cropToOption } from './lib/crop.mjs'
+import { familyValue, fetchWebFont, WEB_FONTS } from './lib/webfont.mjs'
 import { launchChromium } from './lib/browser.mjs'
 import { CANVAS_MARK, foldBoard, foldEvents, insertEvent, makeBoardEvent, makeEvent, parseEvents, parseLines, randomId, storedLines } from './lib/events.mjs'
 
@@ -320,12 +321,17 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
   }
   // A prototype at the top of the folder keeps its own picture paths, which the server answers; one in a subfolder
   // would resolve them from the canvas's address, so it has them written in.
+  // A stylesheet the page's own table of sheets did not have when it was sent (one linked since, as a web font's)
+  // goes in as a <style> of its own, since the page would drop a link to a sheet it has no copy of.
+  let sentAssets = new Set(Object.keys(payload.assets))
   const servedFile = (file) => inlineFile(folder, file, tag(readShown(file)), payload.assets, [], { keepMedia: !file.includes('/') })
-  const servedPage = () => renderPage({ ...payload, serve: true, memory, canvas: path.basename(out), files: Object.fromEntries(Object.keys(payload.files).map((f) => [f, servedFile(f)])) }, lines)
+    .replace(/<link\b[^>]*__RC_ASSET__\(([^)]+)\)[^>]*>/g, (all, a) => (sentAssets.has(a) || !payload.assets[a] ? all : `<style>${payload.assets[a].text.replace(/<\/style/gi, '<\\/style')}</style>`))
+  const servedPage = () => renderPage({ ...payload, serve: true, memory, webFonts: memory ? [] : WEB_FONTS, canvas: path.basename(out), files: Object.fromEntries(Object.keys(payload.files).map((f) => [f, servedFile(f)])) }, lines)
   // Rebuild from the prototypes and the layout, keeping every line, and tell every open page.
   const rebuild = async () => {
     const again = await buildCanvas({ ...built.options, quiet: true })
     payload = again.payload
+    sentAssets = new Set(Object.keys(payload.assets))
     lines = again.lines
     canvasText = fs.readFileSync(out, 'utf8')
     tell('reload', {})
@@ -379,6 +385,8 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         return `${(edit.items ?? []).length} elements: ${(edit.items ?? []).map((it) => `${describe(src, it.cv)} ${Object.entries(it.props).map(([k, v]) => `${k}: ${v === '' || v == null ? '(removed)' : v}`).join('; ')}`).join(' · ')}`
       case 'style':
         return `${what} ${Object.entries(edit.props).map(([k, v]) => `${k}: ${v === '' || v == null ? '(removed)' : v}`).join('; ')}`
+      case 'link':
+        return `linked ${edit.href}`
       case 'decl':
         return `${edit.selector} ${edit.prop}: ${edit.value === '' || edit.value == null ? '(removed)' : edit.value}`
       case 'rule':
@@ -519,6 +527,20 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         const src = readFile(file)
         const el = parse(src).byStart.get(Number(url.searchParams.get('cv')))
         return json(res, 200, { html: el ? src.slice(el.start, el.end) : null })
+      }
+      // A web font picked for a prototype: its files downloaded once into the folder's fonts/, answered with the sheet's
+      // path from the prototype, which the page then links by a `link` edit, so the font shows on the board, in the
+      // built canvas and offline.
+      if (url.pathname === '/api/font' && req.method === 'POST') {
+        const { file, family } = await readBody(req)
+        if (!onCanvas(file)) return json(res, 404, { error: `${file} is not on this canvas` })
+        if (memory) return json(res, 409, { error: 'a canvas held in memory makes no files' })
+        try {
+          const { sheet, fetched } = await fetchWebFont(folder, String(family))
+          return json(res, 200, { href: path.posix.relative(path.posix.dirname(file), sheet), value: familyValue(String(family)), fetched })
+        } catch (e) {
+          return json(res, 502, { error: e.message })
+        }
       }
       if (url.pathname === '/api/edit' && req.method === 'POST') {
         const { file, edit, name } = await readBody(req)

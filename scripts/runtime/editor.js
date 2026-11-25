@@ -491,7 +491,11 @@
       const res = await fetch('/api/edit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ file, edit, name: dc.me || 'someone' }) })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(body.error || `Saving failed (${res.status})`)
-      if (body.same) return
+      // Nothing to write (a sheet already linked): what was to follow the redraw follows now.
+      if (body.same) {
+        if (then) setTimeout(() => then(sel?.frame, sel ? primary() : null), 0)
+        return
+      }
       dc.noteFileEdit?.()
       if (body.linked) hint(`Made in all ${body.linked + 1} copies of the component`, 1600)
       pendingSelect = { file, key, cv: body.select, copies, then }

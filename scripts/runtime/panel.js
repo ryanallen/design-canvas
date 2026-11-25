@@ -84,8 +84,10 @@
   }
   const color = (value, onPick, onRemove) => {
     const hex = ed.rgbHex(value)
-    const c = h('input', { type: 'color', value: hex })
-    const t = input(value === 'rgba(0, 0, 0, 0)' ? '' : hex.toUpperCase(), (v) => onPick(v))
+    // Nothing set shows as an empty swatch, not as black.
+    const clear = value === 'rgba(0, 0, 0, 0)' || value === 'transparent'
+    const c = h('input', { type: 'color', value: clear ? '#ffffff' : hex, class: clear ? 'clear' : null, title: clear ? 'None: pick a colour' : null })
+    const t = input(clear ? '' : hex.toUpperCase(), (v) => onPick(v), { placeholder: clear ? 'None' : '' })
     c.addEventListener('change', () => onPick(c.value))
     return h('div', { class: 'colorf' }, c, t, onRemove ? h('button', { type: 'button', class: 'mini', title: 'Remove', onclick: onRemove }, '−') : null)
   }

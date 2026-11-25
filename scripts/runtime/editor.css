@@ -123,6 +123,9 @@ body:has(#thread.open) #float.open, body:has(#thread.open) #itembar.open { displ
 #panel input[type='color']::-webkit-color-swatch { border: 0; border-radius: 50%; }
 #panel input[type='color']::-moz-color-swatch { border: 0; border-radius: 50%; }
 .colorf input:not([type]) { flex: 1; width: 0; }
+/* No colour set: an empty swatch crossed by a line, as Figma shows none. */
+#panel input[type='color'].clear::-webkit-color-swatch { background: linear-gradient(135deg, transparent 46%, #e5484d 46% 54%, transparent 54%) !important; }
+#panel input[type='color'].clear::-moz-color-swatch { background: linear-gradient(135deg, transparent 46%, #e5484d 46% 54%, transparent 54%) !important; }
 .contrast { margin: 0 0 4px 84px; font-size: 11px; }
 .contrast.ok { color: #7ee2a8; } .contrast.mid { color: #f5c26b; } .contrast.bad { color: var(--danger); }
 .wraps { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }

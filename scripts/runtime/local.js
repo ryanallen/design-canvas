@@ -210,6 +210,7 @@
     switch (edit.op) {
       case 'styles': return `${(edit.items ?? []).length} elements: ${(edit.items ?? []).map((it) => `${describe(src, it.cv)} ${props(it.props)}`).join(' · ')}`
       case 'style': return `${what} ${props(edit.props)}`
+      case 'decl': return `${edit.selector} ${edit.prop}: ${edit.value === '' || edit.value == null ? '(removed)' : edit.value}`
       case 'rule': return `${edit.selector} ${props(edit.props)}`
       case 'inner': return `${what} now reads "${edit.html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 140)}"`
       case 'attr': return `${what} ${edit.name}=${JSON.stringify(edit.value ?? null)}`

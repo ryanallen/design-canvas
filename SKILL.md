@@ -83,7 +83,7 @@ Ctrl+G in a prototype wraps the elements selected, side by side in one parent, i
 
 ## Code tab
 
-The **Code** tab shows the element's own style (editable), then each rule that matches it, strongest first as the cascade ranks them (`!important`, specificity, then order in the file), with every declaration a stronger one overrides struck through, so the value shown unstruck is the one that applies. Then its attributes, what it inherits and from which ancestor, and its source.
+The **Code** tab shows the element's own style (editable), then each rule that matches it, strongest first as the cascade ranks them (`!important`, specificity, then order in the file), with every declaration a stronger one overrides struck through, so the value shown unstruck is the one that applies. A rule in the prototype's own `<style>` is editable there, its values as the file writes them and its heading counting the elements it styles: a value changed, added (the empty row under it) or emptied is written into that rule where it stands (`decl` edit, one undo step), so every element the rule matches follows and nothing else does. A rule that styles a locked part stays as it is; the canvas's own overrides and rules from elsewhere are read only, with + to set a value on the element itself. Then its attributes, what it inherits and from which ancestor, and its source.
 
 ## States
 

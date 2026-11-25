@@ -237,6 +237,31 @@ function declaredAt(src, name) {
   return null
 }
 
+/** A selector as the browser prints it and as a file may write it, made comparable: one space between parts, none
+ *  around combinators and commas. */
+const sameSelector = (s) => String(s).replace(/\s+/g, ' ').replace(/\s*([>+~,])\s*/g, '$1').trim()
+
+/**
+ * The body of the nth rule (from 0, in file order) whose selector is `selector`, in the prototype's own <style>
+ * elements (never the canvas's): where its declarations start and end in the file. Comments are passed over; a rule
+ * inside an @media block is found as any other.
+ */
+function ruleBodyAt(src, selector, nth = 0) {
+  const want = sameSelector(selector)
+  let seen = 0
+  for (const s of src.matchAll(/<style\b(?![^>]*\bdata-canvas\b)[^>]*>([\s\S]*?)<\/style>/gi)) {
+    const css = s[1].replace(/\/\*[\s\S]*?\*\//g, (c) => ' '.repeat(c.length))
+    const cssAt = s.index + s[0].length - '</style>'.length - s[1].length
+    for (const r of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (sameSelector(r[1]) !== want) continue
+      if (seen++ !== nth) continue
+      const start = cssAt + r.index + r[0].length - 1 - r[2].length
+      return { start, end: start + r[2].length }
+    }
+  }
+  return null
+}
+
 function canvasStyle(src) {
   // The canvas's own rules: one <style data-canvas> at the end of <head>, made the first time.
   const m = /<style data-canvas>([\s\S]*?)<\/style>/.exec(src)
@@ -506,6 +531,41 @@ function applyOne(src, edit) {
       }
       return { src: out, select: edit.cv ?? null, count }
     }
+    case 'decl': {
+      // One declaration of a rule in the prototype's own stylesheet, changed where it is written, so every element
+      // the rule matches follows: its value replaced, added at the end of the rule, or taken out when empty.
+      const body = ruleBodyAt(src, edit.selector, Number(edit.nth) || 0)
+      if (!body) throw new Error(`no rule ${edit.selector} in the prototype's own stylesheet`)
+      const prop = String(edit.prop).trim().toLowerCase()
+      if (!/^-{0,2}[a-z][a-z0-9-]*$/.test(prop)) throw new Error(`not a property: ${edit.prop}`)
+      const value = String(edit.value ?? '').replace(/[{};<]/g, '').trim()
+      const text = src.slice(body.start, body.end)
+      const esc = prop.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      let last = null
+      for (const d of text.matchAll(new RegExp(`(^|[;\\s])(${esc}\\s*:\\s*)([^;]*?)(\\s*)(;|$)`, 'g'))) last = d
+      let out
+      if (last) {
+        const declAt = last.index + last[1].length
+        const valueAt = declAt + last[2].length
+        const valueEnd = valueAt + last[3].length
+        if (value) out = text.slice(0, valueAt) + value + text.slice(valueEnd)
+        else {
+          // Taken out with its semicolon and the space before it.
+          const end = valueEnd + last[4].length + last[5].length
+          let from = declAt
+          while (from > 0 && /[ \t]/.test(text[from - 1])) from--
+          out = text.slice(0, from) + text.slice(end)
+        }
+      } else if (value) {
+        const trimmed = text.replace(/\s*$/, '')
+        const tail = text.slice(trimmed.length)
+        const sep = !trimmed.trim() ? ' ' : trimmed.endsWith(';') ? ' ' : '; '
+        out = `${trimmed}${sep}${prop}: ${value};${tail || ' '}`
+      } else return { src, select: edit.cv == null ? null : Number(edit.cv) }
+      const shift = out.length - text.length
+      const sel = edit.cv == null ? null : Number(edit.cv) >= body.end ? Number(edit.cv) + shift : Number(edit.cv)
+      return { src: src.slice(0, body.start) + out + src.slice(body.end), select: sel }
+    }
     case 'rule': {
       // A variable the prototype declares in its own :root (a lever) changes where it is declared, so
       // the file keeps one value for it; any override of it in the canvas's stylesheet is dropped.
@@ -560,7 +620,7 @@ export function lockedFor(src, edit, { owner = false } = {}) {
   const holds = (el) => (el.children ?? []).some((c) => isLocked(c) || holds(c))
   const els = (cv) => [cv].flat().filter((v) => v != null).map((v) => byStart.get(Number(v))).filter(Boolean)
   const SAY = 'That part is locked.'
-  if (edit.op === 'rule') return null
+  if (edit.op === 'rule' || edit.op === 'decl') return null
   if (edit.op === 'attr' && edit.name === 'data-locked') return owner ? null : 'Only the owner locks and unlocks.'
   if (edit.op === 'styles') {
     if (!owner && (edit.items ?? []).some((it) => Object.keys(it.attrs ?? {}).some((n) => n.toLowerCase() === 'data-locked'))) return 'Only the owner locks and unlocks.'

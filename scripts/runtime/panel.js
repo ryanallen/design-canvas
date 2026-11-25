@@ -618,24 +618,56 @@
       return [d.slice(0, c).trim(), d.slice(c + 1).trim()]
     }).filter(([p]) => p)
   }
+  /** A selector made comparable however it is spaced, as the server compares it. */
+  const sameSelector = (s) => String(s).replace(/\s+/g, ' ').replace(/\s*([>+~,])\s*/g, '$1').trim()
+  /** The declarations of the prototype's nth rule with a selector, as its <style> elements write them (`#0b6e6e`, not
+   *  the browser's `rgb(11, 110, 110)`), by property. */
+  function writtenDecls(doc, key, nth) {
+    let seen = 0
+    for (const node of doc.querySelectorAll('style')) {
+      if ([...node.attributes].some((a) => a.name.startsWith('data-canvas') || a.name.startsWith('data-dc'))) continue
+      const css = node.textContent.replace(/\/\*[\s\S]*?\*\//g, '')
+      for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        if (sameSelector(m[1]) !== key || seen++ !== nth) continue
+        const map = new Map()
+        for (const d of m[2].split(';')) {
+          const i = d.indexOf(':')
+          if (i > 0) map.set(d.slice(0, i).trim().toLowerCase(), d.slice(i + 1).trim())
+        }
+        return map
+      }
+    }
+    return null
+  }
   function rulesFor(el) {
     const out = []
+    // A rule in one of the prototype's own <style> elements (not the canvas's) can be changed where it is written; it
+    // is named to the server by its selector and its place among the rules with that selector, in file order.
+    const seen = new Map()
     for (const sheet of el.ownerDocument.styleSheets) {
       let rules
       try { rules = sheet.cssRules } catch { continue }
-      const walk = (list) => {
+      const node = sheet.ownerNode
+      const own = node?.localName === 'style' && ![...node.attributes].some((a) => a.name.startsWith('data-canvas') || a.name.startsWith('data-dc'))
+      const walk = (list, active) => {
         for (const r of list) {
           if (r.cssRules && !r.selectorText) {
-            if (!r.media || win(el).matchMedia(r.media.mediaText).matches) walk(r.cssRules)
+            walk(r.cssRules, active && (!r.media || win(el).matchMedia(r.media.mediaText).matches))
             continue
           }
           if (!r.selectorText || !r.style) continue
+          const key = sameSelector(r.selectorText)
+          const nth = own ? seen.get(key) ?? 0 : null
+          if (own) seen.set(key, nth + 1)
+          if (!active) continue
           try { if (!el.matches(r.selectorText)) continue } catch { continue }
           const spec = splitList(r.selectorText).filter((s) => { try { return el.matches(s) } catch { return false } }).map(specificity).sort(bySpec).pop() ?? [0, 0, 0]
-          out.push({ selector: r.selectorText, decls: declsOf(r.style), spec, order: out.length })
+          const written = own ? writtenDecls(el.ownerDocument, key, nth) : null
+          const decls = declsOf(r.style).map(([p, v]) => [p, written?.get(p) ?? v])
+          out.push({ selector: r.selectorText, decls, spec, order: out.length, own, nth })
         }
       }
-      walk(rules)
+      walk(rules, true)
     }
     // Weakest first, as the cascade applies them (the panel shows them strongest first).
     return out.sort((a, b) => bySpec(a.spec, b.spec) || a.order - b.order)
@@ -734,9 +766,23 @@
       newDecl((p, v) => ed.setStyle({ [p]: v })))
     const rules = rulesFor(el).reverse()
     const lost = overridden(el, rules)
+    // A rule of the prototype's own changes where it is written, for every element it matches; the canvas's own
+    // overrides and rules from elsewhere are read only, with + to set a value on the element itself.
+    const ruleLocked = (sel) => { try { return [...el.ownerDocument.querySelectorAll(sel)].some((x) => x.closest('[data-locked]')) } catch { return true } }
+    const setDecl = (r, p, v) => {
+      if (ruleLocked(r.selector)) return dc.hint('That rule styles a locked part, so it stays as it is', 2600)
+      ed.send({ op: 'decl', selector: r.selector, nth: r.nth, prop: p, value: v.trim(), cv: ed.cvOf(el) })
+    }
     for (const [i, r] of rules.entries()) {
-      host.append(h('div', { class: 'chead' }, `From ${r.selector}`),
-        ...r.decls.map(([p, v], j) => h('div', { class: `decl ro${lost[i][j] ? ' lost' : ''}`, title: lost[i][j] ? 'Overridden by a stronger rule above' : null }, h('span', { class: 'p' }, p), h('span', { class: 'v' }, v), h('button', { type: 'button', class: 'mini', title: 'Set it on the element itself', onclick: () => ed.setStyle({ [p]: v.replace(/\s*!important$/, '') }) }, '+'))))
+      const count = r.own ? el.ownerDocument.querySelectorAll(r.selector).length : 0
+      const head = h('div', { class: 'chead' }, `From ${r.selector}`, r.own ? h('small', { title: 'A change here goes into this rule in the prototype, for every element it matches' }, ` · ${count} ${count === 1 ? 'element' : 'elements'}`) : null)
+      const plus = (p, v) => h('button', { type: 'button', class: 'mini', title: 'Set it on the element itself', onclick: () => ed.setStyle({ [p]: v.replace(/\s*!important$/, '') }) }, '+')
+      host.append(head,
+        ...r.decls.map(([p, v], j) => h('div', { class: `decl${r.own ? '' : ' ro'}${lost[i][j] ? ' lost' : ''}`, title: lost[i][j] ? 'Overridden by a stronger rule above' : null },
+          h('span', { class: 'p' }, p),
+          r.own ? input(v, (nv) => setDecl(r, p, nv), { class: 'v', 'aria-label': `${p} in ${r.selector}` }) : h('span', { class: 'v' }, v),
+          plus(p, v))),
+        ...(r.own ? [newDecl((p, v) => setDecl(r, p, v))] : []))
     }
     // Attributes
     const attrs = [...el.attributes].filter((a) => !['data-cv', 'style', 'contenteditable', 'spellcheck'].includes(a.name))
@@ -772,8 +818,12 @@
   function newDecl(onAdd, placeholder = 'property') {
     const p = h('input', { class: 'p', placeholder })
     const v = h('input', { class: 'v', placeholder: 'value' })
+    // Enter and the change that follows it are one addition: the fields empty once it is sent.
     const go = () => {
-      if (p.value.trim() && v.value.trim()) onAdd(p.value.trim(), v.value.trim())
+      if (!p.value.trim() || !v.value.trim()) return
+      const [name, value] = [p.value.trim(), v.value.trim()]
+      p.value = v.value = ''
+      onAdd(name, value)
     }
     for (const x of [p, v]) x.addEventListener('keydown', (e) => {
       e.stopPropagation()

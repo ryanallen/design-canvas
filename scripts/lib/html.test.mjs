@@ -294,3 +294,19 @@ test('a variant takes styles from its own variant only, and parts added from eve
   const root = find(src, (e) => e.tag === 'a')
   assert.equal((applyEdit(src, { op: 'insert', cv: root.start, where: 'inside', html: '<i>›</i>' }).src.match(/<i>›<\/i>/g) ?? []).length, 3)
 })
+
+test('decl changes a declaration of the prototype\'s own rule where it is written, adds one, takes one out', () => {
+  const src = '<html><head><style>\n  /* cards { color: x } */\n  .cards>.card h3 { color: #222; font-size: 14px }\n  @media (min-width: 9px) { .x { color: red; } }\n  .x { color: blue }\n</style></head><body><p>x</p></body></html>'
+  const a = applyEdit(src, { op: 'decl', selector: '.cards > .card h3', prop: 'color', value: '#0a6' })
+  assert.equal(a.src, src.replace('color: #222', 'color: #0a6'))
+  const b = applyEdit(src, { op: 'decl', selector: '.cards > .card h3', prop: 'font-weight', value: '600' })
+  assert.equal(b.src, src.replace('font-size: 14px }', 'font-size: 14px; font-weight: 600; }'))
+  const c = applyEdit(src, { op: 'decl', selector: '.cards > .card h3', prop: 'color', value: '' })
+  assert.equal(c.src, src.replace(' color: #222;', ''))
+  const d = applyEdit(src, { op: 'decl', selector: '.x', nth: 1, prop: 'color', value: 'green' })
+  assert.equal(d.src, src.replace('color: blue', 'color: green'))
+  const e = applyEdit(src, { op: 'decl', selector: '.x', prop: 'color', value: 'green' })
+  assert.equal(e.src, src.replace('color: red;', 'color: green;'))
+  assert.throws(() => applyEdit(src, { op: 'decl', selector: '.nope', prop: 'color', value: 'red' }), /no rule .nope/)
+  assert.throws(() => applyEdit(src, { op: 'decl', selector: '.x', prop: 'color: red; x', value: 'red' }), /not a property/)
+})

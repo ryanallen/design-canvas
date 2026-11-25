@@ -201,7 +201,11 @@
     style.textContent = `[data-dc-state][data-dc-state][data-dc-state] { ${decls.join(' ')} }`
     doc.head.append(style)
     shownIn = { el, style }
+    // The toolbar reads the element as it now looks.
+    ed.refreshFloat()
   }
+  /** The rule a style change goes to while a state is shown, or null for the element itself. */
+  dc.stateRuleFor = (el) => (state !== 'default' && shownIn?.el === el && stateSelector(el) ? `${stateSelector(el)}:${state}` : null)
   function renderProps() {
     const host = $('#props')
     host.replaceChildren()
@@ -214,7 +218,7 @@
     const c = cs(el)
     const S = (p) => ed.shared(p)
     const stateRule = state === 'default' ? null : stateSelector(el)
-    const set = (props) => (state === 'default' ? ed.setStyle(props) : stateRule ? ed.send({ op: 'rule', selector: `${stateRule}:${state}`, props, cv: ed.cvOf(el) }) : dc.hint('Give it an id or a class (Code tab) to style its states', 3000))
+    const set = (props) => (state === 'default' || stateRule ? ed.setStyle(props) : dc.hint('Give it an id or a class (Code tab) to style its states', 3000))
     const parent = el.parentElement
     const pc = parent ? cs(parent) : null
     const parentFlex = pc?.display.includes('flex')
@@ -359,7 +363,7 @@
     const now = ms ? SPEEDS.slice(1).reduce((a, b) => (Math.abs(b[2] - ms) < Math.abs(a[2] - ms) ? b : a))[0] : 'none'
     return field('Motion', seg(SPEEDS.map(([k, label, t]) => [k, label, t ? `${label}: ${t} ms into and out of each state` : 'No motion']), now, (k) => {
       const t = SPEEDS.find(([key]) => key === k)[2]
-      ed.setStyle({ transition: t ? `all ${t}ms ease-out` : '' })
+      ed.send({ op: 'style', cv: ed.cvOf(el), props: { transition: t ? `all ${t}ms ease-out` : '' } })
     }))
   }
 

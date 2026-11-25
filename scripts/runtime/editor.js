@@ -456,6 +456,9 @@
     if (!sel) return
     const el = primary()
     if (!sel.els.every(editable)) return dc.serve && hint(notEditable(el), 3000)
+    // While Properties shows a state (hover, pressed, focus), the toolbar changes that state too.
+    const state = sel.els.length === 1 ? dc.stateRuleFor?.(el) : null
+    if (state) return send({ op: 'rule', selector: state, props, cv: cvOf(el) })
     if (sel.els.length > 1 && sel.els.every((x) => sameKind(x, el))) {
       for (const x of sel.els) for (const [k, v] of Object.entries(props)) x.style.setProperty(k, v || '')
       return send({ op: 'rule', selector: copiesSelector(el), props, cv: cvOf(el) }, { copies: true })
@@ -1054,7 +1057,7 @@
   const api = {
     get sel() { return sel },
     get editing() { return editing },
-    primary, select, pick, setStyle, send, ops, undo, climb, cvOf, editable, nameOf, isText, cs, copiesOf, copiesSelector, rgbHex, shared, notEditable, anchorFor,
+    primary, select, pick, setStyle, send, refreshFloat: () => renderFloat(), ops, undo, climb, cvOf, editable, nameOf, isText, cs, copiesOf, copiesSelector, rgbHex, shared, notEditable, anchorFor,
     hover: (frame, el) => {
       hover = el ? { frame, el } : null
       draw()

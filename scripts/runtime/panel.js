@@ -382,12 +382,12 @@
       layout.push(field('Align', nine, seg([['space-between', '↔', 'Space between']], c.justifyContent, () => set({ 'justify-content': c.justifyContent === 'space-between' ? 'flex-start' : 'space-between' }))))
     }
     if (grid) layout.push(field('Columns', input(authored(el, 'grid-template-columns') ?? String(c.gridTemplateColumns.split(' ').length), (v) => set({ 'grid-template-columns': /^\d+$/.test(v.trim()) ? `repeat(${v.trim()}, 1fr)` : v }), { title: 'A number for that many equal columns, or any grid-template-columns' })))
-    if (flex || grid) layout.push(field('Gap', input(num(c.rowGap) === num(c.columnGap) ? num(c.rowGap) : `${c.rowGap} ${c.columnGap}`, (v) => set({ gap: v.split(/\s+/).map(px).join(' ') }), { class: 'n' })))
+    if (flex || grid) layout.push(field('Gap', input(lever(el, 'gap') ?? (num(c.rowGap) === num(c.columnGap) ? num(c.rowGap) : `${c.rowGap} ${c.columnGap}`), (v) => set({ gap: /var\(/.test(v) ? v.trim() : v.split(/\s+/).map(px).join(' ') }), { class: 'n' })))
     const pads = ['top', 'right', 'bottom', 'left'].map((s) => num(c.getPropertyValue(`padding-${s}`)))
     const uniform = pads.every((p) => p === pads[0])
     layout.push(paddingSides || !uniform
       ? field('Padding', ...['top', 'right', 'bottom', 'left'].map((s, i) => input(pads[i], (v) => set({ [`padding-${s}`]: px(v) }), { class: 'n s', title: s })), h('button', { type: 'button', class: 'mini', title: 'One value', onclick: () => { paddingSides = false; renderProps() } }, '▢'))
-      : field('Padding', input(pads[0], (v) => set({ padding: px(v) }), { class: 'n' }), h('button', { type: 'button', class: 'mini', title: 'Each side', onclick: () => { paddingSides = true; renderProps() } }, '⊞')))
+      : field('Padding', input(lever(el, 'padding') ?? pads[0], (v) => set({ padding: px(v) }), { class: 'n' }), h('button', { type: 'button', class: 'mini', title: 'Each side', onclick: () => { paddingSides = true; renderProps() } }, '⊞')))
     if (!flex) layout.push(h('div', { class: 'wraps' }, ...[['row', 'Wrap in flex row'], ['column', 'Wrap in flex column'], ['grid', 'Wrap in grid']].map(([k, l]) => h('button', { type: 'button', class: 'chipbtn', onclick: () => ed.ops.wrapIn(k) }, l))))
     host.append(section('Layout', ['margin', 'flex-basis', 'order', 'justify-items', 'align-content', 'grid-template-rows', 'grid-column', 'grid-row'], ...layout))
 
@@ -419,7 +419,7 @@
       field('Opacity', slider, h('span', { class: 'val' }, `${op}%`)),
       radiusCorners || !sameR
         ? field('Radius', ...['top-left', 'top-right', 'bottom-right', 'bottom-left'].map((k, i) => input(radii[i], (v) => set({ [`border-${k}-radius`]: px(v) }), { class: 'n s', title: k })), h('button', { type: 'button', class: 'mini', onclick: () => { radiusCorners = false; renderProps() } }, '▢'))
-        : field('Radius', input(radii[0], (v) => set({ 'border-radius': px(v) }), { class: 'n' }), h('button', { type: 'button', class: 'mini', title: 'Each corner', onclick: () => { radiusCorners = true; renderProps() } }, '⊞')),
+        : field('Radius', input(lever(el, 'border-radius') ?? radii[0], (v) => set({ 'border-radius': px(v) }), { class: 'n' }), h('button', { type: 'button', class: 'mini', title: 'Each corner', onclick: () => { radiusCorners = true; renderProps() } }, '⊞')),
       field('Border', seg([['none', 'None'], ['solid', 'Solid'], ['dashed', 'Dash'], ['dotted', 'Dot']], c.borderTopStyle, (v) => set(v === 'none' ? { border: 'none' } : { 'border-style': v, 'border-width': num(c.borderTopWidth) > 0 ? c.borderTopWidth : '1px', 'border-color': c.borderTopStyle === 'none' ? '#d1d5db' : c.borderTopColor }))),
       c.borderTopStyle !== 'none' ? field('Width · Color', input(num(c.borderTopWidth), (v) => set({ 'border-width': px(v) }), { class: 'n' }), color(c.borderTopColor, (v) => set({ 'border-color': v }))) : null,
       field('Shadow', input(c.boxShadow === 'none' ? '' : c.boxShadow, (v) => set({ 'box-shadow': v || 'none' }), { placeholder: '0 2px 8px rgba(0,0,0,.15)' })),
@@ -632,6 +632,11 @@
       if (j >= 0 && !lost[i][j]) return r.decls[j][1].replace(/\s*!important$/, '')
     }
     return null
+  }
+  /** The value as written when it is a lever (`var(--gap)`), so the field shows the link and typing a number is a choice to break it. */
+  const lever = (el, prop) => {
+    const a = authored(el, prop)
+    return a && /var\(/.test(a) ? a : null
   }
   /** A selector list split at its top-level commas. */
   function splitList(sel) {

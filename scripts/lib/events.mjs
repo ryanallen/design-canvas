@@ -184,7 +184,7 @@ export function foldBoard(events) {
     if (e.op === 'move' && e.key) moved.set(e.key, { x: e.x, y: e.y, page: e.page ?? moved.get(e.key)?.page ?? null })
     else if (e.op === 'item' && e.id) items.set(e.id, { ...(items.get(e.id) ?? {}), ...e })
     else if (e.op === 'remove' && e.id) items.delete(e.id)
-    else if (e.op === 'page' && e.id) pages.set(e.id, { ...(pages.get(e.id) ?? { id: e.id }), ...(e.title != null ? { title: e.title } : {}), ...(e.removed != null ? { removed: e.removed } : {}) })
+    else if (e.op === 'page' && e.id) pages.set(e.id, { ...(pages.get(e.id) ?? { id: e.id }), ...(e.title != null ? { title: e.title } : {}), ...(e.removed != null ? { removed: e.removed } : {}), ...(e.order != null ? { order: e.order } : {}) })
     else if (e.op === 'name' && e.title) name = e.title
     else if (e.op === 'lock' && e.key) e.locked ? locked.add(e.key) : locked.delete(e.key)
   }
@@ -245,6 +245,8 @@ export function makeBoardEvent(input, { now = new Date(), newId = randomId } = {
       const event = { op: 'page', at, name, id: input.id ? pageId(input.id) : newId('p') }
       if (input.title != null) event.title = text(input.title, LIMITS.frame, 'title')
       if (input.removed != null) event.removed = !!input.removed
+      // Its place among the pages: pages are listed by it, the ones without one where they fall.
+      if (input.order != null) event.order = coord(input.order, 'order')
       return event
     }
     case 'name':

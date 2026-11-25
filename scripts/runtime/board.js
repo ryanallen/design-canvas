@@ -148,10 +148,12 @@
     const list = data.pages.map((p) => ({ id: p.id, title: p.title, sections: p.sections }))
     for (const p of board.pages) {
       const known = list.find((x) => x.id === p.id)
-      if (known) Object.assign(known, p.title ? { title: p.title } : {}, p.removed != null ? { removed: p.removed } : {})
-      else list.push({ id: p.id, title: p.title || 'Untitled', sections: [], removed: !!p.removed })
+      if (known) Object.assign(known, p.title ? { title: p.title } : {}, p.removed != null ? { removed: p.removed } : {}, p.order != null ? { order: p.order } : {})
+      else list.push({ id: p.id, title: p.title || 'Untitled', sections: [], removed: !!p.removed, order: p.order })
     }
-    return list.filter((p) => !p.removed)
+    // A page moved up or down carries its place; the others keep the place they fall in.
+    const rank = (p, i) => p.order ?? i
+    return list.map((p, i) => [p, rank(p, i)]).sort((a, b) => a[1] - b[1]).map(([p]) => p).filter((p) => !p.removed)
   }
   let pageId = null
   const allFrames = new Map()
@@ -1934,7 +1936,8 @@
       // A page the layout made has no line until it is first changed: its name is the layout's.
       const own = ev.id ? b.pages.find((x) => x.id === ev.id) : null
       const laid = ev.id ? data.pages.find((x) => x.id === ev.id) : null
-      const p = own || laid ? { title: own?.title || laid?.title, removed: !!own?.removed } : null
+      const at = ev.order != null ? pages().findIndex((x) => x.id === ev.id) : -1
+      const p = own || laid ? { title: own?.title || laid?.title, removed: !!own?.removed, ...(ev.order != null ? { order: own?.order ?? at } : {}) } : null
       return { kind: 'page', id: ev.id ?? null, state: p }
     }
     if (ev.op === 'lock') return { kind: 'lock', key: ev.key, state: b.locked.includes(ev.key) }
@@ -1968,7 +1971,7 @@
         const want = back ? c.before : c.after
         const other = back ? c.after : c.before
         if (c.kind === 'page') {
-          await sendBoard(want ? { op: 'page', id: c.id, title: want.title, removed: want.removed } : { op: 'page', id: c.id, removed: true })
+          await sendBoard(want ? { op: 'page', id: c.id, title: want.title, removed: want.removed, ...(want.order != null ? { order: want.order } : {}) } : { op: 'page', id: c.id, removed: true })
           continue
         }
         if (c.kind === 'name') {
@@ -2697,6 +2700,8 @@
             if (!title?.trim()) return
             try { await sendBoard({ op: 'page', id: p.id, title: title.trim() }); renderPage() } catch (err) { hint(err.message, 3000) }
           } },
+          { label: 'Move up', disabled: pages()[0]?.id === p.id, run: () => movePage(p.id, -1) },
+          { label: 'Move down', disabled: pages().at(-1)?.id === p.id, run: () => movePage(p.id, 1) },
           { label: 'Delete', danger: true, disabled: pages().length < 2, run: async () => {
             if (!(await sure(`Delete the page "${p.title}"? Its frames stay in their files; the page is hidden.`, 'Delete', true))) return
             try { await sendBoard({ op: 'page', id: p.id, removed: true }); if (p.id === pageId) goPage(firstPage()); else renderPage() } catch (err) { hint(err.message, 3000) }
@@ -2714,6 +2719,20 @@
       } } : null,
     ].filter(Boolean))
   })
+  /** A page one place up or down: every page is given its place in the new order, sent together, so one Ctrl+Z puts it back. */
+  async function movePage(id, d) {
+    const list = pages()
+    const i = list.findIndex((p) => p.id === id)
+    const j = i + d
+    if (i < 0 || j < 0 || j >= list.length) return
+    ;[list[i], list[j]] = [list[j], list[i]]
+    try {
+      await Promise.all(list.map((p, n) => (p.order === n ? null : sendBoard({ op: 'page', id: p.id, order: n }))))
+      renderPage()
+    } catch (err) {
+      hint(err.message, 3000)
+    }
+  }
   /** The board objects selected, and the frames a drag box took, go to another page at the same spot. */
   async function moveSelectionToPage(page) {
     const list = selectedItems().filter((i) => !isLocked(i.id))

@@ -51,7 +51,7 @@ Everything people do is a line before `</body>`, one JSON event each, never rewr
 
 - `<!-- comment {…} -->`: `add` (with `file` and `anchor` when pinned to an element, `box` and `items` when it is about a region of the board, `agent: true` when it is work for an agent), `reply`, `resolve`, `delete`, `agent`.
 - `<!-- edit {…} -->`: who, when, the file, the change in words, and a fingerprint of the file after it. The exact change is the file's own diff.
-- `<!-- board {…} -->`: notes, titles, rectangles and ellipses (each with its own text), sections, lines, arrows, pencil strokes, guides, groups (objects sharing a `group` id), stacking order (`z`), pages, frames moved by hand, the canvas's own name. A line or arrow with `from` and `to` (a board object's id or a frame's key) is drawn between those two wherever they move; an empty `from` or `to` lets go.
+- `<!-- board {…} -->`: notes, titles, rectangles and ellipses (each with its own text), sections, lines, arrows, pencil strokes, guides, groups (objects sharing a `group` id), stacking order (`z`), pages (a page's `order` is its place in the list, set by Move up and Move down in its menu), frames moved by hand, the canvas's own name. A line or arrow with `from` and `to` (a board object's id or a frame's key) is drawn between those two wherever they move; an empty `from` or `to` lets go.
 
 ## What a click picks
 

@@ -18,6 +18,14 @@ test('a line holding --> and <!-- stays one HTML comment and reads back the same
   assert.deepEqual(parseEvents(line), [e])
 })
 
+test('a page carries its place, and the fold keeps it with its name', () => {
+  const a = board({ op: 'page', id: 'p2', title: 'Ideas' })
+  const b = board({ op: 'page', id: 'p2', order: 0 })
+  assert.equal(b.order, 0)
+  assert.deepEqual(foldBoard([a, b]).pages, [{ id: 'p2', title: 'Ideas', order: 0 }])
+  assert.throws(() => board({ op: 'page', id: 'p2', order: 'first' }))
+})
+
 test('a bad line is skipped, not fatal', () => {
   const good = eventLine(make({ op: 'add', name: 'A', text: 'ok', frame: null, x: 0, y: 0 }))
   const html = `<!-- comment {not json} -->\n${good}\n<!-- comment {"no":"op"} -->`

@@ -512,23 +512,44 @@
       }
       const commit = (v) => ed.send({ op: 'rule', selector: ':root', props: { [name]: v } }, { file: f.file, key: f.key })
       const live = (v) => root.style.setProperty(name, v)
-      let control
-      if (/^(#|rgb|hsl)/i.test(value)) {
-        const c = h('input', { type: 'color', value: ed.rgbHex(value) })
-        c.addEventListener('input', () => live(c.value))
-        c.addEventListener('change', () => commit(c.value))
-        control = c
-      } else if (/^-?[\d.]+(px|rem|em|%)?$/.test(value)) {
-        const unit = /[a-z%]+$/.exec(value)?.[0] ?? ''
-        const n = parseFloat(value)
-        const r = h('input', { type: 'range', min: 0, max: Math.max(100, Math.ceil(n * 4)), step: unit === 'rem' || unit === 'em' ? 0.05 : 1, value: n })
-        const out = h('span', { class: 'val' }, value)
-        r.addEventListener('input', () => { live(`${r.value}${unit}`); out.textContent = `${r.value}${unit}` })
-        r.addEventListener('change', () => commit(`${r.value}${unit}`))
-        control = h('div', { class: 'pc' }, r, out)
-      } else control = input(value, commit)
-      host.append(field(name, control))
+      host.append(field(name, leverControl(value, live, commit)))
     }
+  }
+  /** A colour lever keeps its alpha; a number lever gets a slider sized to its unit, beside a field for an exact value. */
+  function leverControl(value, live, commit) {
+    if (/^(#|rgb|hsl)/i.test(value)) {
+      const ctx = document.createElement('canvas').getContext('2d')
+      ctx.fillStyle = value
+      const alpha = /^rgba/.test(ctx.fillStyle) ? Number(/,\s*([\d.]+)\)$/.exec(ctx.fillStyle)[1]) : 1
+      const out = (hex) => {
+        if (alpha === 1) return hex
+        const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`
+      }
+      const c = h('input', { type: 'color', value: ed.rgbHex(value) })
+      c.addEventListener('input', () => live(out(c.value)))
+      c.addEventListener('change', () => commit(out(c.value)))
+      return alpha === 1 ? c : h('div', { class: 'pc' }, c, h('span', { class: 'val' }, `${Math.round(alpha * 100)}% opaque`))
+    }
+    const m = /^(-?(?:\d+\.?\d*|\.\d+))(px|rem|em|%|vw|vh|deg|ms|s)?$/.exec(value)
+    if (!m) return input(value, commit)
+    const n = Number(m[1])
+    const unit = m[2] ?? ''
+    let min, max, step
+    if (!unit && n >= 0 && n <= 1 && !Number.isInteger(n)) [min, max, step] = [0, 1, 0.01]
+    else {
+      const span = Math.max({ rem: 4, em: 4, '%': 100, deg: 360, s: 2, ms: 1000, '': 10 }[unit] ?? 100, Math.ceil(Math.abs(n) * 4))
+      ;[min, max] = [n < 0 ? -span : 0, span]
+      step = unit === 'rem' || unit === 'em' || unit === 's' || (!unit && !Number.isInteger(n)) ? 0.05 : 1
+    }
+    const r = h('input', { type: 'range', min, max, step, value: n })
+    const num = h('input', { type: 'number', step, value: n, 'aria-label': 'Exact value' })
+    const tidy = (v) => String(Math.round(Number(v) * 1000) / 1000)
+    r.addEventListener('input', () => { num.value = tidy(r.value); live(`${tidy(r.value)}${unit}`) })
+    r.addEventListener('change', () => commit(`${tidy(r.value)}${unit}`))
+    num.addEventListener('input', () => { if (num.value !== '') { r.value = num.value; live(`${tidy(num.value)}${unit}`) } })
+    num.addEventListener('change', () => { if (num.value !== '') commit(`${tidy(num.value)}${unit}`) })
+    return h('div', { class: 'pc lever' }, r, num, unit ? h('span', { class: 'val' }, unit) : null)
   }
   async function askForLevers(f) {
     const name = dc.me || (await dc.question('Your name, to sign the request:')) || ''

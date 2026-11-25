@@ -220,6 +220,23 @@ function setAttr(src, el, name, value) {
   return splice(src, el.nameEnd, el.nameEnd, ` ${text}`)
 }
 
+/** Where the value of custom property `name` sits in a `:root` rule of the prototype's own styles, or null. */
+function declaredAt(src, name) {
+  const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  for (const s of src.matchAll(/<style\b(?![^>]*\bdata-canvas\b)[^>]*>([\s\S]*?)<\/style>/gi)) {
+    const css = s[1]
+    const cssAt = s.index + s[0].length - '</style>'.length - css.length
+    for (const r of css.matchAll(/(^|[},;\s]):root\s*\{([^}]*)\}/g)) {
+      const bodyAt = cssAt + r.index + r[0].length - 1 - r[2].length
+      const d = new RegExp(`(^|[;{\\s])${esc}\\s*:\\s*([^;}]*?)(\\s*)(?=;|$)`).exec(r[2])
+      if (!d) continue
+      const start = bodyAt + d.index + d[0].length - d[3].length - d[2].length
+      return { start, end: start + d[2].length }
+    }
+  }
+  return null
+}
+
 function canvasStyle(src) {
   // The canvas's own rules: one <style data-canvas> at the end of <head>, made the first time.
   const m = /<style data-canvas>([\s\S]*?)<\/style>/.exec(src)
@@ -452,6 +469,20 @@ function applyOne(src, edit) {
       return { src: out, select: edit.cv ?? null, count }
     }
     case 'rule': {
+      // A variable the prototype declares in its own :root (a lever) changes where it is declared, so
+      // the file keeps one value for it; any override of it in the canvas's stylesheet is dropped.
+      if (edit.selector === ':root' && edit.cv == null) {
+        const props = { ...edit.props }
+        for (const [k, v] of Object.entries(edit.props)) {
+          if (!k.startsWith('--') || v == null || v === '') continue
+          const at = declaredAt(src, k)
+          if (!at) continue
+          src = src.slice(0, at.start) + String(v).replace(/\s*!important$/, '') + src.slice(at.end)
+          props[k] = ''
+        }
+        edit = { ...edit, props }
+        if (!canvasStyle(src).css && Object.values(props).every((v) => v == null || v === '')) return { src, select: null }
+      }
       // A rule in the canvas's own stylesheet: every element the selector matches changes at once.
       const box = canvasStyle(src)
       const rules = parseRules(box.css)

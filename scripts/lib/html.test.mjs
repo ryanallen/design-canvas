@@ -131,6 +131,20 @@ for (const [name, src] of [['fixture', fixture], ['home.html', real]]) {
   })
 }
 
+test('a lever declared in the prototype\'s :root changes where it is declared; an undeclared one goes to the canvas sheet', () => {
+  const src = '<html><head><style>\n  :root { --gap: 24px; --tint: rgba(1, 2, 3, 0.5) }\n  .a { gap: var(--gap) }\n</style></head><body><p>x</p></body></html>'
+  const r = applyEdit(src, { op: 'rule', selector: ':root', props: { '--gap': '32px', '--tint': 'rgba(4, 5, 6, 0.5)' } })
+  assert.equal(r.src, src.replace('24px', '32px').replace('rgba(1, 2, 3, 0.5)', 'rgba(4, 5, 6, 0.5)'))
+  const r2 = applyEdit(r.src, { op: 'rule', selector: ':root', props: { '--new': '1' } })
+  assert.deepEqual(canvasRules(r2.src), [{ selector: ':root', props: { '--new': '1 !important' } }])
+  const r3 = applyEdit(r2.src, { op: 'rule', selector: ':root', props: { '--gap': '8px', '--new': '2' } })
+  assert.match(r3.src, /:root \{ --gap: 8px;/)
+  assert.deepEqual(canvasRules(r3.src), [{ selector: ':root', props: { '--new': '2 !important' } }])
+  const over = applyEdit(src.replace('</head>', '<style data-canvas>\n:root { --gap: 40px !important }\n</style>\n</head>'), { op: 'rule', selector: ':root', props: { '--gap': '12px' } })
+  assert.match(over.src, /--gap: 12px;/)
+  assert.equal(canvasRules(over.src).length, 0, 'the old override is dropped so the declared value shows')
+})
+
 test('fixture: implied closings and raw text', () => {
   const ps = [...parse(fixture).byStart.values()].filter((e) => e.tag === 'p')
   assert.equal(ps.length, 2, 'the <p> inside the script is text')

@@ -127,9 +127,10 @@ body.labels-stacked .section-label { transform: scale(var(--iz, 1)) translateY(c
 .frame-label button.lock:disabled { cursor: default; background: transparent; }
 .item.locked { cursor: default; }
 .item.locked::after {
-  content: ''; position: absolute; right: calc(6px / var(--z, 1)); top: calc(6px / var(--z, 1));
-  width: calc(10px / var(--z, 1)); height: calc(10px / var(--z, 1)); border-radius: 50%; background: #f5b14c;
-  box-shadow: 0 0 0 calc(2px / var(--z, 1)) rgb(0 0 0 / 0.35); pointer-events: none;
+  /* Within a note's 18px padding at any zoom, so it never covers the text; zoomed out it shrinks with the note. */
+  content: ''; position: absolute; right: min(calc(6px / var(--z, 1)), 5px); top: min(calc(6px / var(--z, 1)), 4px);
+  width: min(calc(10px / var(--z, 1)), 12px); height: min(calc(10px / var(--z, 1)), 12px); border-radius: 50%; background: #f5b14c;
+  box-shadow: 0 0 0 min(calc(2px / var(--z, 1)), 2px) rgb(0 0 0 / 0.35); pointer-events: none;
 }
 .item.locked.svg::after, .item.locked.title::after { display: none; }
 .section-label {

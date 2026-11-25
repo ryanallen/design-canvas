@@ -52,6 +52,10 @@ Everything people do is a line before `</body>`, one JSON event each, never rewr
 - `<!-- edit {…} -->`: who, when, the file, the change in words, and a fingerprint of the file after it. The exact change is the file's own diff.
 - `<!-- board {…} -->`: notes, titles, rectangles and ellipses (each with its own text), sections, lines, arrows, pencil strokes, guides, groups (objects sharing a `group` id), stacking order (`z`), pages, frames moved by hand, the canvas's own name. A line or arrow with `from` and `to` (a board object's id or a frame's key) is drawn between those two wherever they move; an empty `from` or `to` lets go.
 
+## Typing in place
+
+Enter (or double-click) on a selected text element types in it. Enter while typing goes on in a new element after it, as a text editor does: the same tag and attributes but the id (a paragraph after a heading), never a `<div>` inside the paragraph. Shift+Enter is a line break inside it; Escape, or Enter in a one-line element, ends typing. Everything typed, however many elements Enter made, is one edit for Ctrl+Z.
+
 ## Code tab
 
 The **Code** tab shows the element's own style (editable), then each rule that matches it, strongest first as the cascade ranks them (`!important`, specificity, then order in the file), with every declaration a stronger one overrides struck through, so the value shown unstruck is the one that applies. Then its attributes, what it inherits and from which ancestor, and its source.

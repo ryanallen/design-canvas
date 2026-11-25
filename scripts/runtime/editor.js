@@ -529,6 +529,9 @@
     if (e.key === 'Escape' || (e.key === 'Enter' && !e.shiftKey && single)) {
       e.preventDefault()
       stopEditing(true)
+    } else if (e.key === 'Enter' && !e.shiftKey && !mod) {
+      e.preventDefault()
+      splitAtCaret()
     } else if (mod && ['b', 'i', 'u'].includes(e.key.toLowerCase())) {
       e.preventDefault()
       editing.frame.doc.execCommand({ b: 'bold', i: 'italic', u: 'underline' }[e.key.toLowerCase()])
@@ -537,6 +540,48 @@
       const at = editing
       askLink('Link to:', 'https://').then((href) => linkInPlace(at, href))
     }
+  }
+  /** Enter while typing: the text after the caret goes on in a new element after this one (a paragraph after a
+      heading, else the same tag and attributes but the id), typed into from its start. The browser's own Enter
+      would put a <div> inside the paragraph, which the file's next reader closes the paragraph before. */
+  function splitAtCaret() {
+    const { frame, el, before } = editing
+    const doc = frame.doc
+    const s = doc.getSelection()
+    if (!s.rangeCount || !el.contains(s.getRangeAt(0).endContainer)) return
+    const r = s.getRangeAt(0)
+    r.deleteContents()
+    const tail = doc.createRange()
+    tail.setStart(r.endContainer, r.endOffset)
+    tail.setEnd(el, el.childNodes.length)
+    const box = doc.createElement('div')
+    box.append(tail.extractContents())
+    const clean = (html) => html.replace(/\s+data-cv="\d+"/g, '')
+    const tag = /^h[1-6]$/.test(el.localName) ? 'p' : el.localName
+    const attrs = tag === el.localName ? [...el.attributes].filter((a) => !['id', 'data-cv', 'contenteditable', 'spellcheck'].includes(a.name)) : []
+    const empty = (html) => (html.replace(/<br\s*\/?>/g, '').trim() ? html : '<br>')
+    const next = doc.createElement(tag)
+    for (const a of attrs) next.setAttribute(a.name, a.value)
+    next.innerHTML = empty(clean(box.innerHTML))
+    if (!el.innerHTML.replace(/<br\s*\/?>/g, '').trim()) el.innerHTML = '<br>'
+    el.after(next)
+    // Typing goes on in the new element at once; the file gets one edit when typing ends (stopEditing).
+    for (const [k, fn] of [['keydown', editKeys], ['input', onEditInput], ['paste', plainPaste]]) el.removeEventListener(k, fn)
+    el.removeAttribute('contenteditable')
+    el.removeAttribute('spellcheck')
+    editing = { frame, el: next, before, chain: [...(editing.chain ?? [el]), next] }
+    next.contentEditable = 'true'
+    next.spellcheck = false
+    for (const [k, fn] of [['keydown', editKeys], ['input', onEditInput], ['paste', plainPaste]]) next.addEventListener(k, fn)
+    next.focus()
+    const c = doc.createRange()
+    c.setStart(next, 0)
+    c.collapse(true)
+    s.removeAllRanges()
+    s.addRange(c)
+    sel = { ...sel, els: [next] }
+    draw()
+    placeFloat()
   }
   /** Wrap what is selected inside the text being edited in a span carrying one style. */
   function styleRun(prop, value) {
@@ -557,8 +602,27 @@
   }
   function stopEditing(save) {
     if (!editing) return
-    const { frame, el, before } = editing
+    const { frame, el, before, chain } = editing
     editing = null
+    if (chain) {
+      // Split by Enter: the element first typed in is replaced by it and the ones made after it, in one edit.
+      for (const [k, fn] of [['keydown', editKeys], ['input', onEditInput], ['paste', plainPaste]]) el.removeEventListener(k, fn)
+      el.removeAttribute('contenteditable')
+      el.removeAttribute('spellcheck')
+      frame.el?.classList.remove('editing')
+      frame.doc.getSelection()?.removeAllRanges()
+      const html = chain.map((x) => x.outerHTML.replace(/\s+data-cv="\d+"/g, '').replace(/^(<[^>]*?)\s+style=""/, '$1')).join('')
+      const at = chain.indexOf(el)
+      send({ op: 'outer', cv: cvOf(chain[0]), html }, {
+        file: frame.file, key: frame.key,
+        then: (f, first) => {
+          let x = first
+          for (let i = 0; i < at && x; i++) x = x.nextElementSibling
+          if (x) select(f, [x])
+        },
+      })
+      return
+    }
     el.removeAttribute('contenteditable')
     el.removeAttribute('spellcheck')
     el.removeEventListener('keydown', editKeys)

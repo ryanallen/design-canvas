@@ -511,6 +511,30 @@
       busy = false
     }
   }
+  /** One declaration of a rule in a stylesheet the prototypes link: written into that file, every frame linking it
+   *  redraws, and the selection comes back. */
+  async function sendSheet(sheet, selector, nth, prop, value) {
+    if (!dc.serve || !sel) return
+    if (busy) return hint('Still saving the last change', 1200)
+    busy = true
+    // Set before asking: the server tells every page of the change, and that may redraw the frames before the answer.
+    const keep = { file: sel.frame.file, key: sel.frame.key, cv: cvOf(primary()), copies: sel.els.length > 1 }
+    pendingSelect = keep
+    const drop = () => { if (pendingSelect === keep) pendingSelect = null }
+    try {
+      const res = await fetch('/api/sheet', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sheet, selector, nth, prop, value, name: dc.me || 'someone' }) })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.error || `Saving failed (${res.status})`)
+      if (body.same) return drop()
+      dc.noteFileEdit?.()
+      dc.reloadSheet(body.sheet, body.text)
+    } catch (err) {
+      drop()
+      hint(err.message, 4000)
+    } finally {
+      busy = false
+    }
+  }
   /** A style change to the selection: inline on one element, a rule for several copies. */
   function setStyle(props) {
     if (!sel) return
@@ -535,10 +559,19 @@
   }
   async function undo(redo = false) {
     if (!dc.serve) return
+    // A stylesheet undone is told to every page, which may redraw the frames before this answer: the selection is
+    // set to come back before asking.
+    const held = sel ? { file: sel.frame.file, key: sel.frame.key, cv: cvOf(primary()), copies: sel.els.length > 1 } : null
+    pendingSelect = held
+    const drop = () => { if (pendingSelect === held) pendingSelect = null }
     const res = await fetch(redo ? '/api/redo' : '/api/undo', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: dc.me || 'someone' }) })
     const body = await res.json().catch(() => ({}))
-    if (!res.ok) return hint(body.error || 'Nothing changed', 4000)
-    if (body.none) return hint(redo ? 'Nothing to redo' : 'Nothing to undo', 1200)
+    if (!res.ok) return drop(), hint(body.error || 'Nothing changed', 4000)
+    if (body.none) return drop(), hint(redo ? 'Nothing to redo' : 'Nothing to undo', 1200)
+    if (body.sheet) {
+      dc.reloadSheet(body.sheet, body.text)
+      return hint(redo ? 'Redone' : 'Undone', 900)
+    }
     const keep = sel && sel.frame.file === body.file ? { file: body.file, key: sel.frame.key, cv: cvOf(primary()), copies: sel.els.length > 1 } : null
     pendingSelect = keep
     dc.reloadFile(body.file, body.html)
@@ -1364,7 +1397,7 @@
   const api = {
     get sel() { return sel },
     get editing() { return editing },
-    primary, select, pick, setStyle, send, refreshFloat: () => renderFloat(), ops, undo, climb, cvOf, editable, nameOf, isText, cs, boxOf, copiesOf, copiesSelector, rgbHex, shared, notEditable, anchorFor,
+    primary, select, pick, setStyle, send, sendSheet, refreshFloat: () => renderFloat(), ops, undo, climb, cvOf, editable, nameOf, isText, cs, boxOf, copiesOf, copiesSelector, rgbHex, shared, notEditable, anchorFor,
     hover: (frame, el) => {
       hover = el ? { frame, el } : null
       draw()

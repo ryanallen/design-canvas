@@ -30,8 +30,8 @@ import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { applyEdit, lockedFor, parse, tag } from './lib/html.mjs'
-import { inlineFile } from './lib/inline.mjs'
+import { applyEdit, cssDecl, lockedFor, parse, tag } from './lib/html.mjs'
+import { inlineCss, inlineFile } from './lib/inline.mjs'
 import { writeFileAtomic } from './lib/write.mjs'
 import { cropToOption } from './lib/crop.mjs'
 import { familyValue, fetchWebFont, WEB_FONTS } from './lib/webfont.mjs'
@@ -320,12 +320,12 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
     writeFileAtomic(out, canvasText)
   }
   // A prototype at the top of the folder keeps its own picture paths, which the server answers; one in a subfolder
-  // would resolve them from the canvas's address, so it has them written in.
-  // A stylesheet the page's own table of sheets did not have when it was sent (one linked since, as a web font's)
-  // goes in as a <style> of its own, since the page would drop a link to a sheet it has no copy of.
+  // would resolve them from the canvas's address, so it has them written in. A stylesheet the page's own table of
+  // sheets did not have when it was sent (one linked since, as a web font's) goes in as a <style> of its own, named
+  // by its file as the page names the sheets it swaps in, since the page would drop a link to a sheet it has no copy of.
   let sentAssets = new Set(Object.keys(payload.assets))
   const servedFile = (file) => inlineFile(folder, file, tag(readShown(file)), payload.assets, [], { keepMedia: !file.includes('/') })
-    .replace(/<link\b[^>]*__RC_ASSET__\(([^)]+)\)[^>]*>/g, (all, a) => (sentAssets.has(a) || !payload.assets[a] ? all : `<style>${payload.assets[a].text.replace(/<\/style/gi, '<\\/style')}</style>`))
+    .replace(/<link\b[^>]*__RC_ASSET__\(([^)]+)\)[^>]*>/g, (all, a) => (sentAssets.has(a) || !payload.assets[a] ? all : `<style data-dc-sheet="${esc(a)}">${payload.assets[a].text.replace(/<\/style/gi, '<\\/style')}</style>`))
   const servedPage = () => renderPage({ ...payload, serve: true, memory, webFonts: memory ? [] : WEB_FONTS, canvas: path.basename(out), files: Object.fromEntries(Object.keys(payload.files).map((f) => [f, servedFile(f)])) }, lines)
   // Rebuild from the prototypes and the layout, keeping every line, and tell every open page.
   const rebuild = async () => {
@@ -339,6 +339,15 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
   const refresh = (file) => {
     payload.files[file] = inlineFile(folder, file, readShown(file), payload.assets, [])
   }
+  // A stylesheet the prototypes link, changed: kept as the canvas writes it in, and every open page told, so each
+  // frame that links it redraws.
+  const sheetChanged = (sheet, text) => {
+    payload.assets[sheet] = { type: 'text/css', text: inlineCss(text, path.join(folder, sheet), []) }
+    tell('sheet', { sheet, text: payload.assets[sheet].text })
+    return payload.assets[sheet].text
+  }
+  /** A linked sheet the canvas may write: one it has, inside the folder. */
+  const sheetInFolder = (sheet) => typeof sheet === 'string' && !!payload.assets[sheet] && !sheet.split('/').some((s) => s === '..' || s.startsWith('.') || s === '') && path.resolve(folder, sheet).startsWith(path.resolve(folder) + path.sep)
   const undo = []
   const redo = []
   let selection = null
@@ -352,6 +361,22 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
     const timers = new Map()
     try {
       fs.watch(folder, (kind, name) => {
+        if (name && payload.assets[name] && sheetInFolder(name)) {
+          clearTimeout(timers.get(name))
+          timers.set(name, setTimeout(() => {
+            let text
+            try {
+              text = fs.readFileSync(path.join(folder, name), 'utf8')
+            } catch {
+              return
+            }
+            if (ownWrites.get(name) === text) return
+            ownWrites.delete(name)
+            sheetChanged(name, text)
+            writeOut()
+          }, 150))
+          return
+        }
         if (!name || !payload.files[name]) return
         clearTimeout(timers.get(name))
         timers.set(name, setTimeout(() => {
@@ -542,6 +567,27 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
           return json(res, 502, { error: e.message })
         }
       }
+      // One declaration of a rule in a stylesheet the prototypes link (a shared portal.css), changed in that file, so
+      // every prototype linking it follows. A sheet outside the folder is read only.
+      if (url.pathname === '/api/sheet' && req.method === 'POST') {
+        const { sheet, selector, nth, prop, value, name } = await readBody(req)
+        if (!sheetInFolder(sheet)) return json(res, 404, { error: `${sheet} is not a stylesheet in this folder` })
+        const before = readFile(sheet)
+        let after
+        try {
+          after = cssDecl(before, String(selector), nth, prop, value)
+        } catch (e) {
+          return json(res, 400, { error: e.message })
+        }
+        if (after === before) return json(res, 200, { sheet, text: payload.assets[sheet].text, same: true })
+        writeFile(sheet, after)
+        undo.push({ file: sheet, before, after, sheet: true })
+        redo.length = 0
+        record({ op: 'decl', id: randomId('e'), at: new Date().toISOString(), name: String(name || 'someone').slice(0, 80), file: sheet, summary: `${selector} ${prop}: ${value === '' || value == null ? '(removed)' : value}`.slice(0, 600), sha: sha(after) })
+        const text = sheetChanged(sheet, after)
+        writeOut()
+        return json(res, 200, { sheet, text })
+      }
       if (url.pathname === '/api/edit' && req.method === 'POST') {
         const { file, edit, name } = await readBody(req)
         if (!onCanvas(file)) return json(res, 404, { error: `${file} is not on this canvas` })
@@ -573,6 +619,11 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         writeFile(step.file, want)
         to.push(step)
         record({ op: url.pathname.slice(5), id: randomId('e'), at: new Date().toISOString(), name: String(name || 'someone').slice(0, 80), file: step.file, summary: url.pathname === '/api/undo' ? 'undid the last edit' : 'redid an edit', sha: sha(want) })
+        if (step.sheet) {
+          const text = sheetChanged(step.file, want)
+          writeOut()
+          return json(res, 200, { sheet: step.file, text })
+        }
         refresh(step.file)
         writeOut()
         return json(res, 200, { file: step.file, html: servedFile(step.file) })

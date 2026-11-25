@@ -98,7 +98,8 @@
   const fileHtml = {}
   const withAssets = (file) => {
     if (!fileHtml[file]) {
-      fileHtml[file] = data.files[file].replace(/<link\b[^>]*__RC_ASSET__\(([^)]+)\)[^>]*>/g, (_, a) => (data.assets[a] ? `<style>${data.assets[a].text}</style>` : ''))
+      // Each sheet named by its file, so the Code tab can tell a shared sheet's rules from the prototype's own.
+      fileHtml[file] = data.files[file].replace(/<link\b[^>]*__RC_ASSET__\(([^)]+)\)[^>]*>/g, (_, a) => (data.assets[a] ? `<style data-dc-sheet="${a.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}">${data.assets[a].text}</style>` : ''))
     }
     return fileHtml[file]
   }
@@ -624,6 +625,19 @@
     delete fileHtml[file]
     for (const f of allFrames.values()) if (f.file === file && f.loaded && f.el) loadFrame(f)
     if (playing?.file === file) playFrame.srcdoc = docFor(playing)
+  }
+  /** A stylesheet the prototypes link, changed: every file that links it redraws. False when nothing changed. */
+  function reloadSheet(sheet, text) {
+    const known = data.assets[sheet]
+    if (known && known.text === text) return false
+    if (known) known.text = text
+    for (const file of Object.keys(data.files)) {
+      const html = data.files[file]
+      if (known && html.includes(`__RC_ASSET__(${sheet})`)) reloadFile(file, html)
+      // A sheet the page was sent after it loaded is in the file itself: the file is asked for again.
+      else if (html.includes(`data-dc-sheet="${sheet}"`)) fileChanged(file, { quiet: true })
+    }
+    return true
   }
 
   function boardWheel(e, sx, sy) {
@@ -2969,12 +2983,13 @@
   addEventListener('resize', () => { placeThread(); loadVisible(); placeItemBar(); call('onView'); if (playing) setPlayWidth(playWidth) })
 
   /** A prototype changed by something else (an agent, a build script): redraw it everywhere. */
-  async function fileChanged(file) {
+  async function fileChanged(file, { quiet = false } = {}) {
     try {
       const res = await fetch(`/api/file?f=${encodeURIComponent(file)}`, { cache: 'no-store' })
       const body = await res.json()
       if (res.ok) {
         reloadFile(file, body.html)
+        if (quiet) return
         call('onOutsideChange', file)
         hint(`${file} changed outside the canvas; redrawn`, 2000)
       }
@@ -3001,6 +3016,7 @@
       stream.addEventListener('file', (e) => fileChanged(JSON.parse(e.data).file))
       stream.addEventListener('lines', refresh)
       stream.addEventListener('board', refreshBoard)
+      stream.addEventListener('sheet', (e) => { const { sheet, text } = JSON.parse(e.data); reloadSheet(sheet, text) })
       stream.addEventListener('reload', () => location.reload())
     } catch {}
   }
@@ -3044,7 +3060,7 @@
     get pages() { return pages() },
     get threads() { return threads },
     overlay, viewport, world,
-    toWorld, toScreen, frameAt, findFrame, showFrame, docFor, plainFile, reloadFile, relayout, downloadFile,
+    toWorld, toScreen, frameAt, findFrame, showFrame, docFor, plainFile, reloadFile, reloadSheet, relayout, downloadFile,
     setTool, openPanel, setPanel, currentTab, openMenu, closeMenu, question, sure, openPlay, goPage, moveFrameToPage,
     startComment, commentOn, openAsk, renderPins, pickItem, apply, sendBoard, showEmpty,
     setName: (n) => setName(n),

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { applyEdit, canvasRules, lockedFor, parse, tag, untag } from './html.mjs'
+import { applyEdit, canvasRules, cssDecl, lockedFor, parse, tag, untag } from './html.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const fixture = `<!doctype html>
@@ -309,4 +309,15 @@ test('decl changes a declaration of the prototype\'s own rule where it is writte
   assert.equal(e.src, src.replace('color: red;', 'color: green;'))
   assert.throws(() => applyEdit(src, { op: 'decl', selector: '.nope', prop: 'color', value: 'red' }), /no rule .nope/)
   assert.throws(() => applyEdit(src, { op: 'decl', selector: '.x', prop: 'color: red; x', value: 'red' }), /not a property/)
+})
+
+test('a linked stylesheet: one declaration of its nth rule changed in the file, comments and @media counted as the browser does', () => {
+  const css = '@import url(base.css);\n/* .title { color: blue } */\n.title { color: #123; font-size: 30px; }\n@media (min-width: 600px) {\n  .title { color: #456; }\n}\n.note{color:gray}\n'
+  assert.equal(cssDecl(css, '.title', 0, 'color', '#a00'), css.replace('#123', '#a00'))
+  assert.equal(cssDecl(css, '.title', 1, 'color', '#a00'), css.replace('#456', '#a00'))
+  assert.equal(cssDecl(css, '.title', 0, 'font-size', ''), css.replace(' font-size: 30px;', ''))
+  assert.equal(cssDecl(css, '.note', 0, 'margin', '0'), css.replace('.note{color:gray}', '.note{color:gray; margin: 0; }'))
+  assert.equal(cssDecl(css, '.title', 0, 'color', '#123'), css)
+  assert.throws(() => cssDecl(css, '.title', 2, 'color', 'red'), /no rule .title/)
+  assert.equal(cssDecl(css, '.note', 0, 'color', 'red}</style><script>'), css.replace('color:gray', 'color:red/style>script>'))
 })

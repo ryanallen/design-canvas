@@ -19,7 +19,7 @@ const local = (from, ref) => {
 }
 const dataUri = (full) => `data:${mime[path.extname(full).toLowerCase()] ?? 'application/octet-stream'};base64,${fs.readFileSync(full).toString('base64')}`
 
-function inlineCss(css, from, warnings) {
+export function inlineCss(css, from, warnings) {
   return css
     .replace(/@import\s+(?:url\()?["']?([^"')]+)["']?\)?\s*;/g, (all, ref) => {
       const full = local(from, ref)

@@ -642,10 +642,11 @@
   const sameSelector = (s) => String(s).replace(/\s+/g, ' ').replace(/\s*([>+~,])\s*/g, '$1').trim()
   /** The declarations of the prototype's nth rule with a selector, as its <style> elements write them (`#0b6e6e`, not
    *  the browser's `rgb(11, 110, 110)`), by property. */
-  function writtenDecls(doc, key, nth) {
+  function writtenDecls(doc, key, nth, sheet = null) {
     let seen = 0
     for (const node of doc.querySelectorAll('style')) {
-      if ([...node.attributes].some((a) => a.name.startsWith('data-canvas') || a.name.startsWith('data-dc'))) continue
+      // The prototype's own <style> elements, or the one linked sheet named.
+      if (sheet != null ? node.getAttribute('data-dc-sheet') !== sheet : [...node.attributes].some((a) => a.name.startsWith('data-canvas') || a.name.startsWith('data-dc'))) continue
       const css = node.textContent.replace(/\/\*[\s\S]*?\*\//g, '')
       for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
         if (sameSelector(m[1]) !== key || seen++ !== nth) continue
@@ -669,6 +670,9 @@
       try { rules = sheet.cssRules } catch { continue }
       const node = sheet.ownerNode
       const own = node?.localName === 'style' && ![...node.attributes].some((a) => a.name.startsWith('data-canvas') || a.name.startsWith('data-dc'))
+      // A stylesheet the prototype links, swapped in by the canvas and named by its file: changed in that file.
+      const sheetName = node?.getAttribute?.('data-dc-sheet') ?? null
+      const counted = own || sheetName != null
       const walk = (list, active) => {
         for (const r of list) {
           if (r.cssRules && !r.selectorText) {
@@ -677,14 +681,15 @@
           }
           if (!r.selectorText || !r.style) continue
           const key = sameSelector(r.selectorText)
-          const nth = own ? seen.get(key) ?? 0 : null
-          if (own) seen.set(key, nth + 1)
+          const slot = `${sheetName ?? ''}\n${key}`
+          const nth = counted ? seen.get(slot) ?? 0 : null
+          if (counted) seen.set(slot, nth + 1)
           if (!active) continue
           try { if (!el.matches(r.selectorText)) continue } catch { continue }
           const spec = splitList(r.selectorText).filter((s) => { try { return el.matches(s) } catch { return false } }).map(specificity).sort(bySpec).pop() ?? [0, 0, 0]
-          const written = own ? writtenDecls(el.ownerDocument, key, nth) : null
+          const written = counted ? writtenDecls(el.ownerDocument, key, nth, sheetName) : null
           const decls = declsOf(r.style).map(([p, v]) => [p, written?.get(p) ?? v])
-          out.push({ selector: r.selectorText, decls, spec, order: out.length, own, nth })
+          out.push({ selector: r.selectorText, decls, spec, order: out.length, own, nth, sheet: sheetName })
         }
       }
       walk(rules, true)
@@ -791,18 +796,27 @@
     const ruleLocked = (sel) => { try { return [...el.ownerDocument.querySelectorAll(sel)].some((x) => x.closest('[data-locked]')) } catch { return true } }
     const setDecl = (r, p, v) => {
       if (ruleLocked(r.selector)) return dc.hint('That rule styles a locked part, so it stays as it is', 2600)
+      // A rule of a stylesheet the prototypes link changes in that file, for every screen that links it.
+      if (r.sheet != null) return ed.sendSheet(r.sheet, r.selector, r.nth, p, v.trim())
       ed.send({ op: 'decl', selector: r.selector, nth: r.nth, prop: p, value: v.trim(), cv: ed.cvOf(el) })
     }
+    // A sheet outside the prototypes' folder is not the canvas's to write, and only a canvas served by node writes one.
+    const writable = (r) => r.own || (r.sheet != null && !dc.local && !r.sheet.split('/').includes('..'))
+    const linkedBy = (sheet) => Object.values(dc.data.files).filter((html) => html.includes(`__RC_ASSET__(${sheet})`) || html.includes(`data-dc-sheet="${sheet}"`)).length
     for (const [i, r] of rules.entries()) {
-      const count = r.own ? el.ownerDocument.querySelectorAll(r.selector).length : 0
-      const head = h('div', { class: 'chead' }, `From ${r.selector}`, r.own ? h('small', { title: 'A change here goes into this rule in the prototype, for every element it matches' }, ` · ${count} ${count === 1 ? 'element' : 'elements'}`) : null)
+      const count = writable(r) ? el.ownerDocument.querySelectorAll(r.selector).length : 0
+      const screens = r.sheet != null ? linkedBy(r.sheet) : 0
+      const where = r.sheet != null
+        ? h('small', { title: writable(r) ? `A change here goes into ${r.sheet}, for every screen that links it` : `${r.sheet} is outside this folder, so it is read only here` }, ` · ${r.sheet}${screens > 1 ? `, linked by ${screens} screens` : ''}`)
+        : r.own ? h('small', { title: 'A change here goes into this rule in the prototype, for every element it matches' }, ` · ${count} ${count === 1 ? 'element' : 'elements'}`) : null
+      const head = h('div', { class: 'chead' }, `From ${r.selector}`, where)
       const plus = (p, v) => h('button', { type: 'button', class: 'mini', title: 'Set it on the element itself', onclick: () => ed.setStyle({ [p]: v.replace(/\s*!important$/, '') }) }, '+')
       host.append(head,
-        ...r.decls.map(([p, v], j) => h('div', { class: `decl${r.own ? '' : ' ro'}${lost[i][j] ? ' lost' : ''}`, title: lost[i][j] ? 'Overridden by a stronger rule above' : null },
+        ...r.decls.map(([p, v], j) => h('div', { class: `decl${writable(r) ? '' : ' ro'}${lost[i][j] ? ' lost' : ''}`, title: lost[i][j] ? 'Overridden by a stronger rule above' : null },
           h('span', { class: 'p' }, p),
-          r.own ? input(v, (nv) => setDecl(r, p, nv), { class: 'v', 'aria-label': `${p} in ${r.selector}` }) : h('span', { class: 'v' }, v),
+          writable(r) ? input(v, (nv) => setDecl(r, p, nv), { class: 'v', 'aria-label': `${p} in ${r.selector}` }) : h('span', { class: 'v' }, v),
           plus(p, v))),
-        ...(r.own ? [newDecl((p, v) => setDecl(r, p, v))] : []))
+        ...(writable(r) ? [newDecl((p, v) => setDecl(r, p, v))] : []))
     }
     // Attributes
     const attrs = [...el.attributes].filter((a) => !['data-cv', 'style', 'contenteditable', 'spellcheck'].includes(a.name))

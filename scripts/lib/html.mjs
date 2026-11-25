@@ -246,6 +246,50 @@ const sameSelector = (s) => String(s).replace(/\s+/g, ' ').replace(/\s*([>+~,])\
  * elements (never the canvas's): where its declarations start and end in the file. Comments are passed over; a rule
  * inside an @media block is found as any other.
  */
+/** A rule's body with one declaration changed: its value replaced, added at the end, or taken out when the value is
+ *  empty; null when there is nothing to change. */
+function declIn(text, prop, value) {
+  prop = String(prop).trim().toLowerCase()
+  if (!/^-{0,2}[a-z][a-z0-9-]*$/.test(prop)) throw new Error(`not a property: ${prop}`)
+  value = String(value ?? '').replace(/[{};<]/g, '').trim()
+  const esc = prop.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  let last = null
+  for (const d of text.matchAll(new RegExp(`(^|[;\\s])(${esc}\\s*:\\s*)([^;]*?)(\\s*)(;|$)`, 'g'))) last = d
+  if (last) {
+    const declAt = last.index + last[1].length
+    const valueAt = declAt + last[2].length
+    const valueEnd = valueAt + last[3].length
+    if (value) return text.slice(0, valueAt) + value + text.slice(valueEnd)
+    // Taken out with its semicolon and the space before it.
+    const end = valueEnd + last[4].length + last[5].length
+    let from = declAt
+    while (from > 0 && /[ \t]/.test(text[from - 1])) from--
+    return text.slice(0, from) + text.slice(end)
+  }
+  if (!value) return null
+  const trimmed = text.replace(/\s*$/, '')
+  const tail = text.slice(trimmed.length)
+  const sep = !trimmed.trim() ? ' ' : trimmed.endsWith(';') ? ' ' : '; '
+  return `${trimmed}${sep}${prop}: ${value};${tail || ' '}`
+}
+
+/**
+ * A stylesheet file's text with one declaration of its nth rule with `selector` changed, as `decl` does in a
+ * prototype's own <style>: a sheet several prototypes link changes once, and every one of them follows.
+ */
+export function cssDecl(css, selector, nth, prop, value) {
+  const want = sameSelector(selector)
+  const bare = css.replace(/\/\*[\s\S]*?\*\//g, (c) => ' '.repeat(c.length))
+  let seen = 0
+  for (const r of bare.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (sameSelector(r[1].replace(/^[\s\S]*;/, '')) !== want || seen++ !== (Number(nth) || 0)) continue
+    const start = r.index + r[0].length - 1 - r[2].length
+    const out = declIn(css.slice(start, start + r[2].length), prop, value)
+    return out == null ? css : css.slice(0, start) + out + css.slice(start + r[2].length)
+  }
+  throw new Error(`no rule ${selector} in the stylesheet`)
+}
+
 function ruleBodyAt(src, selector, nth = 0) {
   const want = sameSelector(selector)
   let seen = 0
@@ -547,32 +591,9 @@ function applyOne(src, edit) {
       // the rule matches follows: its value replaced, added at the end of the rule, or taken out when empty.
       const body = ruleBodyAt(src, edit.selector, Number(edit.nth) || 0)
       if (!body) throw new Error(`no rule ${edit.selector} in the prototype's own stylesheet`)
-      const prop = String(edit.prop).trim().toLowerCase()
-      if (!/^-{0,2}[a-z][a-z0-9-]*$/.test(prop)) throw new Error(`not a property: ${edit.prop}`)
-      const value = String(edit.value ?? '').replace(/[{};<]/g, '').trim()
       const text = src.slice(body.start, body.end)
-      const esc = prop.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      let last = null
-      for (const d of text.matchAll(new RegExp(`(^|[;\\s])(${esc}\\s*:\\s*)([^;]*?)(\\s*)(;|$)`, 'g'))) last = d
-      let out
-      if (last) {
-        const declAt = last.index + last[1].length
-        const valueAt = declAt + last[2].length
-        const valueEnd = valueAt + last[3].length
-        if (value) out = text.slice(0, valueAt) + value + text.slice(valueEnd)
-        else {
-          // Taken out with its semicolon and the space before it.
-          const end = valueEnd + last[4].length + last[5].length
-          let from = declAt
-          while (from > 0 && /[ \t]/.test(text[from - 1])) from--
-          out = text.slice(0, from) + text.slice(end)
-        }
-      } else if (value) {
-        const trimmed = text.replace(/\s*$/, '')
-        const tail = text.slice(trimmed.length)
-        const sep = !trimmed.trim() ? ' ' : trimmed.endsWith(';') ? ' ' : '; '
-        out = `${trimmed}${sep}${prop}: ${value};${tail || ' '}`
-      } else return { src, select: edit.cv == null ? null : Number(edit.cv) }
+      const out = declIn(text, edit.prop, edit.value)
+      if (out == null) return { src, select: edit.cv == null ? null : Number(edit.cv) }
       const shift = out.length - text.length
       const sel = edit.cv == null ? null : Number(edit.cv) >= body.end ? Number(edit.cv) + shift : Number(edit.cv)
       return { src: src.slice(0, body.start) + out + src.slice(body.end), select: sel }

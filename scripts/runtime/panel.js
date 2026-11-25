@@ -305,6 +305,31 @@
   }
 
   // ── code ──
+  /** A rule's declarations as the browser writes them back, shorthands kept (`margin: 0px`, not four
+      longhands; `background: …`, not a dozen of them set to `initial`). */
+  function declsOf(style) {
+    const out = []
+    let part = ''
+    let depth = 0
+    let quote = ''
+    for (const ch of style.cssText) {
+      if (quote) quote = ch === quote ? '' : quote
+      else if (ch === '"' || ch === "'") quote = ch
+      else if (ch === '(') depth++
+      else if (ch === ')') depth--
+      else if (ch === ';' && !depth) {
+        out.push(part)
+        part = ''
+        continue
+      }
+      part += ch
+    }
+    out.push(part)
+    return out.map((d) => d.trim()).filter(Boolean).map((d) => {
+      const c = d.indexOf(':')
+      return [d.slice(0, c).trim(), d.slice(c + 1).trim()]
+    }).filter(([p]) => p)
+  }
   function rulesFor(el) {
     const out = []
     for (const sheet of el.ownerDocument.styleSheets) {
@@ -318,7 +343,7 @@
           }
           if (!r.selectorText || !r.style) continue
           try { if (!el.matches(r.selectorText)) continue } catch { continue }
-          out.push({ selector: r.selectorText, decls: [...r.style].map((p) => [p, r.style.getPropertyValue(p) + (r.style.getPropertyPriority(p) ? ' !important' : '')]) })
+          out.push({ selector: r.selectorText, decls: declsOf(r.style) })
         }
       }
       walk(rules)

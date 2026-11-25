@@ -2391,6 +2391,11 @@
       if (e.key === 'Escape') closePlay()
       return
     }
+    // An open menu takes Escape first, opened by mouse or keyboard: it closes, and nothing under it moves.
+    if (e.key === 'Escape' && menu.classList.contains('open')) {
+      e.preventDefault()
+      return closeMenu(true)
+    }
     if (call('onKey', e)) return
     if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
       e.preventDefault()

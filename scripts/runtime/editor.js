@@ -1104,7 +1104,10 @@
     const o = dc.toScreen(f.x, f.y)
     const ink = inkOf(f).map((r) => ({ x: o.x + r.x * k, y: o.y + r.y * k, w: r.w * k, h: r.h * k }))
     const over = (a, c) => Math.max(0, Math.min(a.x + a.w, c.x + w) - Math.max(a.x, c.x)) * Math.max(0, Math.min(a.y + a.h, c.y + hh) - Math.max(a.y, c.y))
-    const cost = (c) => over(b, c) * 20 + ink.reduce((s, r) => s + over(r, c), 0)
+    // The selection and its name tag just above it are never to be covered.
+    // The tag sits on the selection's top left; it may not be drawn yet, so only its width is read, when it is.
+    const tag = { x: b.x, y: b.y - 24, w: overlay.querySelector('.ov.sel .ov-tag')?.offsetWidth || 240, h: 24 }
+    const cost = (c) => (over(b, c) + over(tag, c)) * 20 + ink.reduce((s, r) => s + over(r, c), 0)
     const costs = spots.map(cost)
     let at = 0
     for (let i = 1; i < spots.length; i++) if (costs[i] < costs[at] - 1) at = i

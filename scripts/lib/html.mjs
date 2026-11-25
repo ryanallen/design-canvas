@@ -172,7 +172,7 @@ export function tag(src) {
 }
 
 /** Strips what the canvas added from HTML a browser handed back. */
-export const untag = (html) => html.replace(/\s+data-cv="\d+"/g, '').replace(/\s+contenteditable="[^"]*"/g, '').replace(/\s+spellcheck="[^"]*"/g, '')
+export const untag = (html) => html.replace(/\s+data-cv="\d+"/g, '').replace(/\s+contenteditable="[^"]*"/g, '').replace(/\s+spellcheck="[^"]*"/g, '').replace(/\s+data-dc-state="[^"]*"/g, '')
 
 export const attr = (el, name) => el.attrs.find((a) => a.name === name)
 

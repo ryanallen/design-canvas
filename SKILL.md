@@ -52,6 +52,10 @@ Everything people do is a line before `</body>`, one JSON event each, never rewr
 - `<!-- edit {…} -->`: who, when, the file, the change in words, and a fingerprint of the file after it. The exact change is the file's own diff.
 - `<!-- board {…} -->`: notes, titles, rectangles and ellipses (each with its own text), sections, lines, arrows, pencil strokes, guides, groups (objects sharing a `group` id), stacking order (`z`), pages, frames moved by hand, the canvas's own name. A line or arrow with `from` and `to` (a board object's id or a frame's key) is drawn between those two wherever they move; an empty `from` or `to` lets go.
 
+## States
+
+Properties has **Default · Hover · Pressed · Focus** above an element's properties. In a state, the element is shown on the board as it looks in that state (every `:hover`, `:active` or `:focus` rule for it applied, the prototype's own and the canvas's), Properties reads those values, and a change is written as that state's rule for the element's id, or else its tag and classes, so Play shows it for real. An element with neither is asked for one.
+
 ## Find and replace
 
 Ctrl+F opens Find: it counts the words wherever they appear in the text of the page's artboards and its board objects, any case; Enter and Shift+Enter step through them, each selected and zoomed to. **Replace all** puts the new words in every place, through `replaceText` in `scripts/lib/html.mjs`, which changes only text between tags (never a tag, an attribute, a comment, a script, a style or a locked part); Ctrl+Z takes it back.

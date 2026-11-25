@@ -163,14 +163,58 @@
   }
   let paddingSides = false
   let radiusCorners = false
+  // ── states: hover, pressed and focus, shown on the board and written as the element's :hover (…) rule ──
+  let state = 'default'
+  let shownIn = null // the element now shown in a state, and its style
+  const STATES = [['default', 'Default'], ['hover', 'Hover'], ['active', 'Pressed'], ['focus', 'Focus']]
+  /** The rule a state is written to: the element's id, else its tag and classes (every element like it, as CSS states usually are). */
+  const stateSelector = (el) => (el.id ? `#${CSS.escape(el.id)}` : el.classList.length ? ed.copiesSelector(el) : null)
+  function clearStateShown() {
+    if (!shownIn) return
+    shownIn.el.removeAttribute?.('data-dc-state')
+    shownIn.style.remove()
+    shownIn = null
+  }
+  /** Shows the element as it looks in the state: every rule for it in that state, its own and the canvas's, applied as if the pointer were on it. */
+  function showState(el) {
+    clearStateShown()
+    if (state === 'default' || !el?.isConnected) return
+    const doc = el.ownerDocument
+    const decls = []
+    for (const sheet of doc.styleSheets) {
+      let rules
+      try { rules = sheet.cssRules } catch { continue }
+      const walk = (list) => {
+        for (const r of list) {
+          if (r.cssRules && !r.selectorText) { walk(r.cssRules); continue }
+          if (!r.selectorText?.includes(`:${state}`)) continue
+          for (const one of r.selectorText.split(',')) {
+            if (!one.includes(`:${state}`)) continue
+            try { if (el.matches(one.replaceAll(`:${state}`, ''))) decls.push(r.style.cssText) } catch {}
+          }
+        }
+      }
+      walk(rules)
+    }
+    el.setAttribute('data-dc-state', state)
+    const style = doc.createElement('style')
+    style.textContent = `[data-dc-state][data-dc-state][data-dc-state] { ${decls.join(' ')} }`
+    doc.head.append(style)
+    shownIn = { el, style }
+  }
   function renderProps() {
     const host = $('#props')
     host.replaceChildren()
     const el = ed.primary()
-    if (!el) return host.append(h('div', { class: 'empty' }, 'Nothing selected. Click any element in the design to edit it here.'))
+    if (!el) {
+      clearStateShown()
+      return host.append(h('div', { class: 'empty' }, 'Nothing selected. Click any element in the design to edit it here.'))
+    }
+    showState(el)
     const c = cs(el)
     const S = (p) => ed.shared(p)
-    const set = (props) => ed.setStyle(props)
+    const stateRule = state === 'default' ? null : stateSelector(el)
+    const set = (props) => (state === 'default' ? ed.setStyle(props) : stateRule ? ed.send({ op: 'rule', selector: `${stateRule}:${state}`, props, cv: ed.cvOf(el) }) : dc.hint('Give it an id or a class (Code tab) to style its states', 3000))
     const parent = el.parentElement
     const pc = parent ? cs(parent) : null
     const parentFlex = pc?.display.includes('flex')
@@ -192,6 +236,10 @@
       return
     }
 
+    // Which state is being looked at and changed; outside Default, every change below goes into that state's rule.
+    host.append(h('div', { class: 'state-row' },
+      seg(STATES, state, (v) => { state = v; renderProps() }),
+      state !== 'default' ? h('small', { class: 'state-note' }, stateRule ? `Shown ${STATES.find(([k]) => k === state)[1].toLowerCase()}; changes go to ${stateRule}:${state}` : 'Give it an id or a class (Code tab) to style its states') : null))
     // The align row: where it sits in its parent, the way its parent lays it out.
     const alignH = (where) => {
       if (parentFlex && !parentRow) return set({ 'align-self': { left: 'flex-start', center: 'center', right: 'flex-end' }[where] })
@@ -485,8 +533,9 @@
     queued = true
     requestAnimationFrame(() => {
       queued = false
-      if (!document.body.classList.contains('panel-open')) return
+      if (!document.body.classList.contains('panel-open')) return clearStateShown()
       const tab = dc.currentTab()
+      if (tab !== 'properties') clearStateShown()
       if (tab === 'properties') {
         renderLayers()
         renderProps()

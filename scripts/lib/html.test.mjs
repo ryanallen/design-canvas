@@ -158,6 +158,16 @@ test('a style edit carrying keyframes writes them once, by name, in the head; th
   assert.throws(() => applyEdit(src, { op: 'style', cv: el.start, props: {}, keyframes: { x: '</style><script>' } }))
 })
 
+test('styles sets several elements\' own styles in one edit; a locked one refuses it whole', () => {
+  const src = '<html><head></head><body><ul><li class="r">a</li><li class="r">b</li><li class="r" data-locked>c</li></ul></body></html>'
+  const lis = [...parse(src).byStart.values()].filter((e) => e.tag === 'li')
+  const r = applyEdit(src, { op: 'styles', items: lis.slice(0, 2).map((li, i) => ({ cv: li.start, props: { 'animation-delay': `${i * 60}ms` } })) })
+  assert.equal(r.src, src.replace('<li class="r">a', '<li style="animation-delay: 0ms" class="r">a').replace('<li class="r">b', '<li style="animation-delay: 60ms" class="r">b'))
+  assert.equal(parse(r.src).byStart.get(r.select)?.tag, 'li')
+  assert.ok(lockedFor(src, { op: 'styles', items: lis.map((li) => ({ cv: li.start, props: { color: 'red' } })) }))
+  assert.equal(lockedFor(src, { op: 'styles', items: lis.slice(0, 2).map((li) => ({ cv: li.start, props: { color: 'red' } })) }), null)
+})
+
 test('fixture: implied closings and raw text', () => {
   const ps = [...parse(fixture).byStart.values()].filter((e) => e.tag === 'p')
   assert.equal(ps.length, 2, 'the <p> inside the script is text')

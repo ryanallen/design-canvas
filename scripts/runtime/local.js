@@ -208,6 +208,7 @@
   const summarize = (src, edit) => {
     const what = edit.cv == null ? '' : describe(src, [edit.cv].flat()[0])
     switch (edit.op) {
+      case 'styles': return `${(edit.items ?? []).length} elements: ${(edit.items ?? []).map((it) => `${describe(src, it.cv)} ${props(it.props)}`).join(' · ')}`
       case 'style': return `${what} ${props(edit.props)}`
       case 'rule': return `${edit.selector} ${props(edit.props)}`
       case 'inner': return `${what} now reads "${edit.html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 140)}"`

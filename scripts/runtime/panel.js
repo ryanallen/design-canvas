@@ -495,11 +495,13 @@
         a.currentTime = delay + (dur * Number(scrub.value)) / 100
       }
     })
+    // Every entrance on the screen plays again, so a stagger is seen as a whole.
     const replay = () => {
-      const a = el.style.animation
-      el.style.animation = 'none'
-      void el.offsetWidth
-      el.style.animation = a
+      for (const a of el.ownerDocument.getAnimations()) {
+        if (a.effect?.getComputedTiming().iterations === Infinity) continue
+        a.cancel()
+        a.play()
+      }
     }
     if (name !== 'none' && now === 'none') return [field('Entrance', h('span', { class: 'val' }, `${name} (the prototype's own)`))]
     return [
@@ -514,7 +516,29 @@
       now !== 'none' ? field('Speed · Delay', seg(ENTRANCE_SPEEDS.map(([t, label]) => [t, label, `${t} ms`]), speed, (t) => write(now, t)),
         input(String(delay), (v) => write(now, speed, Math.max(0, Math.round(Number(v) || 0))), { class: 'n', title: 'Delay in ms, to come in after what is above it' })) : null,
       now !== 'none' ? field('Scrub', scrub) : null,
+      now !== 'none' ? staggerField(el, name, dur, delay) : null,
     ]
+  }
+  /** Siblings like it (its tag and first class): the ones a stagger reaches, in page order. */
+  const alikeOf = (el) => [...(el.parentElement?.children ?? [])].filter((c) => c.localName === el.localName && (c.classList[0] ?? '') === (el.classList[0] ?? ''))
+  /** Stagger: every sibling like it takes the same entrance, each so many ms after the one before (from its own delay),
+      in one edit; Off takes it off the others. The pick shows the step they have now. */
+  function staggerField(el, name, dur, delay) {
+    const alike = alikeOf(el)
+    if (alike.length < 2 || alike.some((a) => ed.cvOf(a) == null)) return null
+    const ms = (d) => Math.round(parseFloat(d) * (d.trim().endsWith('ms') ? 1 : 1000) || 0)
+    const delays = alike.map((a) => (cs(a).animationName.split(',')[0].trim() === name ? ms(cs(a).animationDelay.split(',')[0]) : null))
+    const step = delays.every((d) => d != null) ? delays[1] - delays[0] : 0
+    const steady = step > 0 && delays.every((d, i) => d === delays[0] + i * step)
+    const now = steady ? String(step) : 'off'
+    const anim = (d) => `${name} ${dur}ms cubic-bezier(0.2, 0.7, 0.2, 1) ${d}ms both`
+    // The first of them starts when this one would; each after it so many ms later.
+    const base = steady ? delays[0] : delay
+    const pick = (k) => {
+      const items = alike.map((a, i) => ({ cv: ed.cvOf(a), props: { animation: k === 'off' ? (a === el ? anim(delay) : '') : anim(base + i * Number(k)) } }))
+      ed.send({ op: 'styles', items }, { file: ed.sel.frame.file, key: ed.sel.frame.key })
+    }
+    return field(`Stagger ${alike.length}`, seg([['off', 'Off', 'Only this one comes in'], ['60', '60', `All ${alike.length} alike, 60 ms apart`], ['120', '120', `All ${alike.length} alike, 120 ms apart`], ['200', '200', `All ${alike.length} alike, 200 ms apart`]], now, pick), h('span', { class: 'val' }, 'ms'))
   }
   /** How fast it changes into a state and back: CSS transition on the element itself, whatever state is shown. */
   function motionField(el, c) {

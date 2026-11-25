@@ -370,6 +370,8 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
   const summarize = (src, edit) => {
     const what = edit.cv == null ? '' : describe(src, [edit.cv].flat()[0])
     switch (edit.op) {
+      case 'styles':
+        return `${(edit.items ?? []).length} elements: ${(edit.items ?? []).map((it) => `${describe(src, it.cv)} ${Object.entries(it.props).map(([k, v]) => `${k}: ${v === '' || v == null ? '(removed)' : v}`).join('; ')}`).join(' · ')}`
       case 'style':
         return `${what} ${Object.entries(edit.props).map(([k, v]) => `${k}: ${v === '' || v == null ? '(removed)' : v}`).join('; ')}`
       case 'rule':

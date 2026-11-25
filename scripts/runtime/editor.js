@@ -488,8 +488,16 @@
     frame.doc.execCommand?.('styleWithCSS', false, false)
     el.addEventListener('keydown', editKeys)
     el.addEventListener('input', onEditInput)
+    el.addEventListener('paste', plainPaste)
     draw()
     renderFloat()
+  }
+  /** Text pasted while typing comes in as words, never as another page's markup and styles. */
+  function plainPaste(e) {
+    const text = e.clipboardData?.getData('text/plain')
+    if (text == null) return
+    e.preventDefault()
+    e.currentTarget.ownerDocument.execCommand('insertText', false, text)
   }
   const onEditInput = () => {
     draw()
@@ -535,6 +543,7 @@
     el.removeAttribute('spellcheck')
     el.removeEventListener('keydown', editKeys)
     el.removeEventListener('input', onEditInput)
+    el.removeEventListener('paste', plainPaste)
     frame.el?.classList.remove('editing')
     frame.doc.getSelection()?.removeAllRanges()
     const after = el.innerHTML
@@ -625,14 +634,21 @@
     const el = primary()
     const f = sel.frame
     const r = el.getBoundingClientRect()
+    // The handles drag the box as drawn; a content-box element's CSS size is that less its padding and border.
+    const c = cs(el)
+    const n = (v) => parseFloat(v) || 0
+    const inner = c.boxSizing === 'border-box' ? { w: 0, h: 0 } : {
+      w: n(c.paddingLeft) + n(c.paddingRight) + n(c.borderLeftWidth) + n(c.borderRightWidth),
+      h: n(c.paddingTop) + n(c.paddingBottom) + n(c.borderTopWidth) + n(c.borderBottomWidth),
+    }
     const start = { x: e.clientX, y: e.clientY }
     const move = (ev) => {
       const dx = (ev.clientX - start.x) / dc.view.z / f.s
       const dy = (ev.clientY - start.y) / dc.view.z / f.s
       const sx = hd.includes('w') ? -1 : hd.includes('e') ? 1 : 0
       const sy = hd.includes('n') ? -1 : hd.includes('s') ? 1 : 0
-      if (sx) el.style.width = `${Math.max(1, Math.round(r.width + sx * dx))}px`
-      if (sy) el.style.height = `${Math.max(1, Math.round(r.height + sy * dy))}px`
+      if (sx) el.style.width = `${Math.max(0, Math.round(r.width + sx * dx - inner.w))}px`
+      if (sy) el.style.height = `${Math.max(0, Math.round(r.height + sy * dy - inner.h))}px`
       draw()
     }
     const up = () => {

@@ -48,7 +48,7 @@
           const on = sel?.frame === f && sel.els.includes(c)
           const n = ed.nameOf(c)
           const row = h('button', { type: 'button', class: `lrow${on ? ' on' : ''}${ed.cvOf(c) == null ? ' runtime' : ''}`, style: `--d:${d}`, title: ed.cvOf(c) == null ? 'Made by the prototype\'s own script: can be inspected, not edited' : '',
-            onclick: (e) => ed.pick(f, c, { add: e.shiftKey, alone: !e.altKey ? true : false }),
+            onclick: (e) => ed.pick(f, c, { add: e.shiftKey, copies: e.altKey }),
             onpointerenter: () => ed.hover(f, c), onpointerleave: () => ed.hover(null, null) },
             h('span', { class: 'tw', onclick: (e) => { e.stopPropagation(); open.has(c) ? open.delete(c) : open.add(c); renderLayers() } }, kids.length ? (open.has(c) ? '▾' : '▸') : ''),
             h('span', { class: 'lk' }, c.localName === 'a' ? dc.icon('link') : kindGlyph(n.kind)),

@@ -191,8 +191,8 @@ export async function check(options, { buildCanvas, serveCanvas } = {}) {
     const textSel = await page.evaluate((key) => {
       const f = window.designCanvas.frames.find((x) => x.key === key)
       const plain = (e) => Number(getComputedStyle(e).fontWeight) < 600 && !e.closest('a, button')
-      // One a click selects as itself, and alone: a run inside a text block selects the block, and
-      // an element with copies selects them all, which neither the text nor the style steps are about.
+      // One a click selects as itself: a run inside a text block selects the block, and an element
+      // with copies is left to the copies step.
       const ed = window.designCanvas.editor
       const own = (e) => ed.climb(e) === e && ed.copiesOf(e).length === 1
       const el = [...f.doc.querySelectorAll('[data-cv]')].find((e) => /^(p|li|h1|h2|h3|span|td)$/.test(e.localName) && plain(e) && own(e) && [...e.childNodes].some((n) => n.nodeType === 3 && n.data.trim()) && !e.children.length && e.getBoundingClientRect().width > 4)
@@ -334,7 +334,7 @@ export async function check(options, { buildCanvas, serveCanvas } = {}) {
       await undoBack('the resize')
     })
 
-    await step('Repeated copies: one click selects them all, a change goes to a rule', async () => {
+    await step('Repeated copies: a click selects the one clicked and styles it alone; Select every copy styles them all by a rule', async () => {
       const cls = await page.evaluate((key) => {
         const f = window.designCanvas.frames.find((x) => x.key === key)
         const ed = window.designCanvas.editor
@@ -343,12 +343,15 @@ export async function check(options, { buildCanvas, serveCanvas } = {}) {
       }, target.key)
       if (!cls) return 'no repeated element in this frame; skipped'
       let { sel } = await pick(cls.cv, { dx: 0.05, dy: 0.1 })
-      // Climbing to it with Esc selects that one; the "…" menu selects every copy.
-      if (sel && sel.n === 1) {
-        await page.click('#float [title="More"]')
-        await page.click('#menu .mi:has-text("Select every copy")')
-        sel = await selected()
-      }
+      must(sel && sel.n === 1, `a click selected ${sel?.n} elements, not the one clicked`)
+      await page.evaluate(() => window.designCanvas.editor.setStyle({ opacity: '0.9' }))
+      await settle()
+      expectOnly(applyEdit(original, { op: 'style', cv: cls.cv, props: { opacity: '0.9' } }).src, 'style on the one copy')
+      await undoBack('the style on one copy')
+      ;({ sel } = await pick(cls.cv, { dx: 0.05, dy: 0.1 }))
+      await page.click('#float [title="More"]')
+      await page.click('#menu .mi:has-text("Select every copy")')
+      sel = await selected()
       must(sel && sel.n === cls.n, `selected ${sel?.n} of ${cls.n} copies`)
       await page.evaluate(() => window.designCanvas.editor.setStyle({ opacity: '0.9' }))
       await settle()

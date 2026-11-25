@@ -48,7 +48,8 @@
   const sameKind = (a, b) => a.localName === b.localName && a.className === b.className && a.parentElement?.localName === b.parentElement?.localName && (a.parentElement?.className ?? '') === (b.parentElement?.className ?? '')
   const copiesOf = (el) => {
     if (['body', 'html'].includes(el.localName) || !el.className || typeof el.className !== 'string') return [el]
-    return [...el.ownerDocument.querySelectorAll(el.localName)].filter((x) => sameKind(x, el))
+    // The one asked about first, so it stays the one the toolbar and panel speak of.
+    return [el, ...[...el.ownerDocument.querySelectorAll(el.localName)].filter((x) => x !== el && sameKind(x, el))]
   }
   const esc = (s) => String(s).replace(/[^\w-]/g, (c) => `\\${c}`)
   /** The selector a change to several copies is written to: their tag and classes, under their parent's class. */
@@ -108,13 +109,14 @@
       fetch('/api/selection', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selection: body }) }).catch(() => {})
     }
   }
-  const pick = (frame, el, { add = false, alone = false } = {}) => {
+  // A click selects the one element clicked; its copies (same tag and classes under the same kind of parent) only when asked for.
+  const pick = (frame, el, { add = false, copies = false } = {}) => {
     if (!el) return select(null, [])
     if (add && sel && sel.frame === frame) {
       const has = sel.els.includes(el)
       return select(frame, has ? sel.els.filter((x) => x !== el) : [...sel.els, el])
     }
-    select(frame, alone ? [el] : copiesOf(el))
+    select(frame, copies ? copiesOf(el) : [el])
   }
   const local = (f, p) => ({ x: (p.x - f.x) / f.s, y: (p.y - f.y) / f.s })
   const elementAt = (f, p) => {
@@ -211,7 +213,7 @@
     if (!el) return true
     const already = sel && sel.frame === frame && sel.els.includes(el)
     if (e.shiftKey) pick(frame, el, { add: true })
-    else if (!already || e.altKey) pick(frame, el, { alone: e.altKey })
+    else if (!already || e.altKey) pick(frame, el, { copies: e.altKey })
     // A press that moves drags the selection: a reorder in flow, or left and top when positioned.
     if (!e.shiftKey && sel && editable(primary()) && sel.els.length === 1 && primary().localName !== 'body') startMove(e, frame, point)
     return true
@@ -242,12 +244,12 @@
       const deep = frame.doc.elementFromPoint(local(frame, point).x, local(frame, point).y)
       let k = deep
       while (k && k.parentElement !== el) k = k.parentElement
-      if (k) pick(frame, k, { alone: true })
+      if (k) pick(frame, k)
     }
   }
   hooks.onEmptyClick = () => select(null, [])
   hooks.onFramePick = (f) => {
-    if (f.doc) pick(f, f.doc.body, { alone: true })
+    if (f.doc) pick(f, f.doc.body)
   }
   hooks.onItemPick = () => select(null, [], { quiet: true })
   hooks.onMarquee = () => select(null, [], { quiet: true, keep: true })

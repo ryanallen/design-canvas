@@ -509,7 +509,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         record({ op: edit.op, id: randomId('e'), at: new Date().toISOString(), name: String(name || 'someone').slice(0, 80), file, summary: summarize(before, edit).slice(0, 600), sha: sha(result.src) })
         refresh(file)
         writeOut()
-        return json(res, 200, { select: result.select, html: servedFile(file) })
+        return json(res, 200, { select: result.select, linked: result.linked ?? 0, html: servedFile(file) })
       }
       if ((url.pathname === '/api/undo' || url.pathname === '/api/redo') && req.method === 'POST') {
         const { name } = await readBody(req)

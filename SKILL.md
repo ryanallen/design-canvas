@@ -50,7 +50,11 @@ Everything people do is a line before `</body>`, one JSON event each, never rewr
 
 - `<!-- comment {…} -->`: `add` (with `file` and `anchor` when pinned to an element, `box` and `items` when it is about a region of the board, `agent: true` when it is work for an agent), `reply`, `resolve`, `delete`, `agent`.
 - `<!-- edit {…} -->`: who, when, the file, the change in words, and a fingerprint of the file after it. The exact change is the file's own diff.
-- `<!-- board {…} -->`: notes, titles, rectangles and ellipses (each with its own text), sections, lines, arrows, pencil strokes, guides, groups (objects sharing a  id), pages, frames moved by hand, the canvas's own name. A line or arrow with `from` and `to` (a board object's id or a frame's key) is drawn between those two wherever they move; an empty `from` or `to` lets go.
+- `<!-- board {…} -->`: notes, titles, rectangles and ellipses (each with its own text), sections, lines, arrows, pencil strokes, guides, groups (objects sharing a `group` id), pages, frames moved by hand, the canvas's own name. A line or arrow with `from` and `to` (a board object's id or a frame's key) is drawn between those two wherever they move; an empty `from` or `to` lets go.
+
+## Components
+
+**Make component…** under the toolbar's … (Ctrl+Alt+K) names the selected element a component: it carries `data-component="Name"`, and every element of that name in the file is a copy of it. Duplicate one to make another. A style, an attribute, or a part added, duplicated or removed anywhere inside one copy is made at the same place in every copy, and the toolbar says so; text typed into a copy, markup replaced whole in the Code tab, and a copy's `id` stay that copy's own, as does anything in a locked part. The toolbar shows **◇ Name · n** inside a copy (a click selects the copy whole), **Select all n Name** selects every copy, and **Detach from component** makes one copy a plain element again. `applyEdit` in `scripts/lib/html.mjs` makes the change in every copy, so an agent's edits through `/api/edit` reach them all too.
 
 ## The whiteboard
 

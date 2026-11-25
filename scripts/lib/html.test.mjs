@@ -165,3 +165,45 @@ test('a locked element and what holds it are refused; around it, editing goes on
   assert.equal(lockedFor(src, { op: 'style', cv: at('main'), props: { color: 'red' } }), null)
   assert.equal(lockedFor(src, { op: 'move', cv: at('p'), target: at('section'), where: 'before' }), null)
 })
+
+const comp = `<body>
+<div data-component="Card" class="card"><h3>Tides</h3><p class="m">High</p></div>
+<div data-component="Card" class="card"><h3>Swell</h3><p class="m">Big</p></div>
+<div class="card"><h3>Wind</h3><p class="m">Calm</p></div>
+<div data-component="Card" class="card"><h3>Rain</h3><p class="m" data-locked>Wet</p></div>
+</body>`
+
+test('a style made inside one copy of a component is made in every copy, and nowhere else', () => {
+  const second = byTag(comp, 'p', 1)
+  const r = applyEdit(comp, { op: 'style', cv: second.start, props: { color: 'red' } })
+  const ps = [...parse(r.src).byStart.values()].filter((e) => e.tag === 'p')
+  assert.deepEqual(ps.map((p) => p.attrs.find((a) => a.name === 'style')?.value ?? ''), ['color: red', 'color: red', '', ''])
+  assert.equal(r.linked, 1, 'the locked copy is left as it is')
+  assert.equal(parse(r.src).byStart.get(r.select)?.tag, 'p')
+  assert.equal(r.src.slice(r.select).startsWith('<p style="color: red" class="m">Big'), true, 'the one clicked stays selected')
+})
+
+test('text typed into a copy, its id and only: true stay that copy\'s own', () => {
+  const h = byTag(comp, 'h3', 0)
+  assert.equal(applyEdit(comp, { op: 'inner', cv: h.start, html: 'Tide times' }).src.match(/Tide times/g).length, 1)
+  assert.equal(applyEdit(comp, { op: 'attr', cv: h.start, name: 'id', value: 'x' }).src.match(/id="x"/g).length, 1)
+  assert.equal(applyEdit(comp, { op: 'style', cv: h.start, props: { color: 'red' }, only: true }).src.match(/color: red/g).length, 1)
+})
+
+test('something put into, duplicated or removed from one copy happens in every copy', () => {
+  const card = byTag(comp, 'div', 0)
+  const ins = applyEdit(comp, { op: 'insert', cv: card.start, where: 'inside', html: '<button>Go</button>' })
+  assert.equal(ins.src.match(/<button>Go<\/button>/g).length, 3)
+  const h = byTag(comp, 'h3', 1)
+  assert.equal(applyEdit(comp, { op: 'delete', cv: h.start }).src.match(/<h3>/g).length, 1, 'only the plain card keeps its heading')
+  assert.equal(applyEdit(comp, { op: 'duplicate', cv: h.start }).src.match(/<h3>/g).length, 7)
+})
+
+test('duplicating a whole copy makes one more copy, linked to the rest', () => {
+  const card = byTag(comp, 'div', 1)
+  const r = applyEdit(comp, { op: 'duplicate', cv: card.start })
+  assert.equal(r.src.match(/data-component="Card"/g).length, 4)
+  const p = byTag(r.src, 'p', 0)
+  assert.equal(applyEdit(r.src, { op: 'style', cv: p.start, props: { opacity: '0.5' } }).linked, 2)
+})
+

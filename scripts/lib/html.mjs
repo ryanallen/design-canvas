@@ -219,11 +219,84 @@ function parseRules(css) {
 }
 const rulesText = (rules) => `\n${rules.map((r) => `${r.sel} { ${styleText(r.props)} }`).join('\n')}\n`
 
+// ── components: copies of one element that change together ──
+// An element carrying `data-component="Name"` is a copy of the component Name. A style, an
+// attribute, something put in, removed or duplicated, made anywhere inside one copy, is made at
+// the same place in every other copy of that name in the file. Text typed into a copy (`inner`)
+// and markup replaced whole (`outer`) stay that copy's own, as do `id`, `data-component` and
+// `data-locked`; `only: true` on an edit keeps it to the one copy.
+const LINKED = new Set(['style', 'attr', 'insert', 'delete', 'duplicate'])
+const OWN_ATTRS = new Set(['id', 'data-component', 'data-locked', 'data-name'])
+const componentName = (el) => (el?.attrs ? attr(el, 'data-component')?.value?.trim() || null : null)
+/** The copy an element is in, nearest first: its root and the component's name. */
+export function componentOf(el) {
+  for (let p = el; p && p.tag !== '#root'; p = p.parent) {
+    const name = componentName(p)
+    if (name) return { root: p, name }
+  }
+  return null
+}
+/** Where an element is inside a copy: the index among its parent's elements at each step down, with the tag expected there. */
+const pathIn = (root, el) => {
+  const path = []
+  for (let p = el; p !== root; p = p.parent) path.unshift([p.parent.children.indexOf(p), p.tag])
+  return path
+}
+const atPath = (root, path) => {
+  let el = root
+  for (const [i, t] of path) {
+    el = el.children[i]
+    if (!el || el.tag !== t) return null
+  }
+  return el
+}
+/** Every copy of a component in the file. */
+export function copiesOfComponent(src, name) {
+  return [...parse(src).byStart.values()].filter((el) => componentName(el) === name)
+}
+
+/**
+ * Apply one edit, and when it is made inside a component's copy, the same edit at the same place in
+ * every other copy (see above). Returns the new source, the offset of the element to select
+ * afterwards, and `linked`, how many other copies took it.
+ */
+export function applyEdit(src, edit) {
+  const cvs = [edit.cv].flat()
+  const skip = !LINKED.has(edit.op) || edit.only || cvs.length !== 1 || (edit.op === 'attr' && OWN_ATTRS.has(String(edit.name).toLowerCase()))
+  const el = skip ? null : parse(src).byStart.get(Number(cvs[0]))
+  const comp = el && componentOf(el)
+  // Removing a whole copy, or duplicating one to make another, is that copy's own.
+  if (!comp || (comp.root === el && ['delete', 'duplicate'].includes(edit.op))) return applyOne(src, edit)
+  const path = pathIn(comp.root, el)
+  const outside = (r) => r.end <= comp.root.start || r.start >= comp.root.end
+  const targets = [el, ...copiesOfComponent(src, comp.name).filter(outside).map((r) => atPath(r, path)).filter(Boolean)]
+  // Last in the file first: an edit changes nothing before its own element, so the offsets of
+  // the copies still to do hold.
+  targets.sort((a, b) => b.start - a.start)
+  let out = src
+  let select = null
+  let linked = 0
+  for (const t of targets) {
+    const one = { ...edit, cv: t.start }
+    if (t !== el && lockedFor(out, one, { owner: true })) continue
+    const before = out.length
+    const r = applyOne(out, one)
+    out = r.src
+    if (t === el) select = r.select
+    else {
+      linked++
+      // A copy earlier in the file moves the selection by what it grew or shrank.
+      if (select != null && t.start < el.start) select += out.length - before
+    }
+  }
+  return { src: out, select, linked }
+}
+
 /**
  * Apply one edit. Returns the new source and the offset of the element to select afterwards.
  * Every op names elements by `data-cv` offsets taken from the source it is applied to.
  */
-export function applyEdit(src, edit) {
+function applyOne(src, edit) {
   const { byStart } = parse(src)
   const get = (cv) => {
     const el = byStart.get(Number(cv))

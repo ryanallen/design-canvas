@@ -280,7 +280,7 @@
         redo.length = 0
         lines.push(lineOf({ op: edit.op, id: randomId('e'), at: new Date().toISOString(), name: nameOf(name), file, summary: summarize(before, edit).slice(0, 600), sha: await sha(result.src) }, 'edit'))
         await writeCanvas([file])
-        return answer(200, { select: result.select, html: await served(file) })
+        return answer(200, { select: result.select, linked: result.linked ?? 0, html: await served(file) })
       }
       case '/api/undo':
       case '/api/redo': {

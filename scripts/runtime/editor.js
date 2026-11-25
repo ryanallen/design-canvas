@@ -51,6 +51,14 @@
     // The one asked about first, so it stays the one the toolbar and panel speak of.
     return [el, ...[...el.ownerDocument.querySelectorAll(el.localName)].filter((x) => x !== el && sameKind(x, el))]
   }
+  /** The component copy an element is in, nearest first (`data-component`), and every copy of it in its file. */
+  const componentOf = (el) => {
+    for (let p = el; p && p.localName !== 'html'; p = p.parentElement) {
+      const name = p.getAttribute('data-component')?.trim()
+      if (name) return { root: p, name, copies: [...el.ownerDocument.querySelectorAll('[data-component]')].filter((x) => x.getAttribute('data-component').trim() === name) }
+    }
+    return null
+  }
   const esc = (s) => String(s).replace(/[^\w-]/g, (c) => `\\${c}`)
   /** The selector a change to several copies is written to: their tag and classes, under their parent's class. */
   function copiesSelector(el) {
@@ -64,6 +72,8 @@
   }
   /** A layer's name: data-name, aria-label, then what it is and what it says. */
   function nameOf(el) {
+    const comp = el.getAttribute('data-component')?.trim()
+    if (comp) return { kind: 'component', text: `◇ ${comp}` }
     const own = el.getAttribute('data-name') || el.getAttribute('aria-label')
     if (own) return { kind: 'named', text: own }
     const t = el.localName
@@ -349,6 +359,7 @@
       const body = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(body.error || `Saving failed (${res.status})`)
       if (body.same) return
+      if (body.linked) hint(`Made in all ${body.linked + 1} copies of the component`, 1600)
       pendingSelect = { file, key, cv: body.select, copies, then }
       dc.reloadFile(file, body.html)
     } catch (err) {
@@ -590,6 +601,19 @@
       if (sel.els.length !== 1 || !primary().children.length) return hint('Select one element that holds others to ungroup it', 2500)
       send({ op: 'unwrap', cv: cvOf(primary()) })
     },
+    makeComponent: async () => {
+      if (!needEditable()) return
+      const el = primary()
+      const own = el.getAttribute('data-name') || el.classList[0] || nameOf(el).kind
+      const name = await dc.question('Name the component. Duplicate it to make copies: a style or a part added or removed in any copy is made in all of them; text typed stays each copy\'s own.', own.charAt(0).toUpperCase() + own.slice(1))
+      if (!name?.trim()) return
+      send({ op: 'attr', cv: cvOf(el), name: 'data-component', value: name.trim() })
+    },
+    detach: () => {
+      const c = componentOf(primary())
+      if (!c || !needEditable()) return
+      send({ op: 'attr', cv: cvOf(c.root), name: 'data-component', value: null })
+    },
     wrapIn: (kind) => ops.group({ row: 'display: flex; flex-direction: row; gap: 8px', column: 'display: flex; flex-direction: column; gap: 8px', grid: 'display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px' }[kind], { row: 'Row', column: 'Column', grid: 'Grid' }[kind]),
     copy: async () => {
       if (!sel) return
@@ -645,7 +669,8 @@
     }
     const el = primary()
     if (!sel || !el) return false
-    if (mod && k === 'd') ops.duplicate()
+    if (mod && e.altKey && k === 'k') ops.makeComponent()
+    else if (mod && k === 'd') ops.duplicate()
     else if (mod && k === 'g') e.shiftKey ? ops.ungroup() : ops.group()
     else if (mod && k === 'c') ops.copy()
     else if (mod && k === 'v') ops.paste()
@@ -703,6 +728,9 @@
     const parts = []
     const text = isText(el)
     const boxy = !text || cs(el).backgroundColor !== 'rgba(0, 0, 0, 0)' || ['a', 'button'].includes(el.localName) && cs(el).display !== 'inline'
+    // Inside a component's copy: its name and how many copies a change here reaches; a click selects the copy whole.
+    const comp = sel.els.length === 1 ? componentOf(el) : null
+    if (comp) parts.push(h('button', { type: 'button', class: 'fbtn wide comp', title: `A copy of the component ${comp.name}: a style or a part added or removed here is made in all ${comp.copies.length} copies; text typed stays this copy's own. Click to select the copy whole.`, onclick: () => select(sel.frame, [comp.root]) }, h('span', { class: 'comp-mark', 'aria-hidden': 'true' }, '◇'), `${comp.name} · ${comp.copies.length}`))
     if (text && canEdit) {
       const cls = el.classList[0]
       const label = cls ? `.${cls}` : `${shared('font-family').split(',')[0].replace(/["']/g, '')} · ${shared('font-size')}`
@@ -845,12 +873,15 @@
             { label: 'Wrap in flex row', run: () => ops.wrapIn('row') },
             { label: 'Wrap in flex column', run: () => ops.wrapIn('column') },
             { label: 'Wrap in grid', run: () => ops.wrapIn('grid') },
+            sel.els.length === 1 && !componentOf(primary()) && primary().localName !== 'body' ? { label: 'Make component…', key: 'Ctrl+Alt+K', run: ops.makeComponent } : null,
+            sel.els.length === 1 && componentOf(primary())?.root === primary() ? { label: 'Detach from component', run: ops.detach } : null,
             { label: 'Copy', key: 'Ctrl+C', run: ops.copy },
             clip ? { label: 'Paste after it', key: 'Ctrl+V', run: ops.paste } : null,
           ]
         : []),
       sel.els.length > 1 ? { label: 'Select this one alone', run: () => select(sel.frame, [primary()]) } : null,
       copiesOf(primary()).length > 1 && sel.els.length === 1 ? { label: 'Select every copy', run: () => select(sel.frame, copiesOf(primary())) } : null,
+      componentOf(primary())?.copies.length > 1 && sel.els.length === 1 ? { label: `Select all ${componentOf(primary()).copies.length} ${componentOf(primary()).name}`, run: () => { const c = componentOf(primary()); select(sel.frame, [c.root, ...c.copies.filter((x) => x !== c.root)]) } } : null,
       dc.commenting || can ? '-' : null,
       dc.commenting ? { label: 'Ask agent about it', run: () => dc.openAsk() } : null,
       can ? { label: 'Delete', key: 'Del', danger: true, run: ops.remove } : null,

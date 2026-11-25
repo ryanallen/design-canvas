@@ -976,6 +976,134 @@
       takeBoardAgain()
     }
   }
+  // ── duplicate, copy and paste ──
+  let boardClip = null // { items, times }
+  /** What is selected on the board: a drag box's or Shift's objects, or the one picked with its group. */
+  const selectedItems = () => (chosen ? [...chosen.items] : picked ? withGroup(picked) : []).map((id) => board.items.find((i) => i.id === id)).filter((i) => i && i.kind !== 'guide')
+  const COPIED = ['kind', 'x', 'y', 'w', 'h', 'text', 'color', 'points', 'from', 'to', 'group']
+  /** New objects like these, moved by dx, dy: a group copied is a new group, and a line holding an
+   * object copied with it holds the copy; one holding something left behind lets go where it is. */
+  async function placeCopies(list, dx, dy) {
+    if (!serve) return hint(readOnly, 2000)
+    const ids = new Map()
+    const groups = new Map()
+    const made = []
+    const lines = list.filter((i) => ['line', 'arrow'].includes(i.kind) && (i.from || i.to))
+    try {
+      for (const src of [...list.filter((i) => !lines.includes(i)), ...lines]) {
+        let it = Object.fromEntries(COPIED.filter((k) => src[k] != null).map((k) => [k, src[k]]))
+        if (lines.includes(src)) {
+          const keep = ['from', 'to'].every((k) => !it[k] || ids.has(it[k]))
+          if (keep) for (const k of ['from', 'to']) it[k] = it[k] ? ids.get(it[k]) : it[k]
+          else it = { ...it, ...Object.fromEntries(['x', 'y', 'w', 'h', 'points'].map((k) => [k, geometryOf(src)[k]])), from: '', to: '' }
+        }
+        if (it.group) {
+          if (!groups.has(it.group)) groups.set(it.group, newGroupId())
+          it.group = groups.get(it.group)
+        }
+        const id = await addItem({ ...it, x: Math.round(it.x + dx), y: Math.round(it.y + dy) })
+        if (!id) break
+        ids.set(src.id, id)
+        made.push(id)
+      }
+    } finally {
+      renderItems()
+    }
+    if (made.length) chooseItems(made)
+    return made
+  }
+  const duplicateItems = () => {
+    const list = selectedItems()
+    if (list.length) placeCopies(list, 24, 24)
+  }
+  function copyItems() {
+    const list = selectedItems()
+    if (!list.length) return false
+    boardClip = { items: list.map((i) => ({ ...i })), times: 0 }
+    hint(`Copied ${list.length === 1 ? 'it' : list.length}`, 900)
+    return true
+  }
+  function pasteItems() {
+    if (!boardClip) return false
+    boardClip.times++
+    placeCopies(boardClip.items, 24 * boardClip.times, 24 * boardClip.times)
+    return true
+  }
+  // ── align and distribute: a group in the selection moves as one ──
+  function selectedUnits() {
+    const ids = [...(chosen?.items ?? [])].filter((id) => {
+      const it = board.items.find((i) => i.id === id)
+      // A line that holds on to something follows it, so it is not moved on its own.
+      return it && it.kind !== 'guide' && !(['line', 'arrow'].includes(it.kind) && (it.from || it.to))
+    })
+    const units = new Map()
+    for (const id of ids) {
+      const g = board.items.find((i) => i.id === id).group
+      const key = g && groupMembers(g).every((m) => chosen.items.has(m)) ? g : id
+      units.set(key, [...(units.get(key) ?? []), id])
+    }
+    return [...units.values()].map((members) => ({ members, box: boxAround(members) }))
+  }
+  async function moveUnits(moves) {
+    const sends = []
+    for (const { members, dx, dy } of moves) {
+      if (!dx && !dy) continue
+      for (const id of members) {
+        if (isLocked(id)) continue
+        const it = board.items.find((i) => i.id === id)
+        it.x = Math.round(it.x + dx)
+        it.y = Math.round(it.y + dy)
+        sends.push({ op: 'item', id, x: it.x, y: it.y })
+      }
+    }
+    if (chosen) chosen.box = boxAround([...chosen.items], [...chosen.frames])
+    renderItems()
+    try {
+      for (const s of sends) await sendBoard(s)
+    } catch (err) {
+      hint(err.message, 3000)
+      takeBoardAgain()
+    }
+  }
+  function alignChosen(how) {
+    const units = selectedUnits()
+    if (units.length < 2) return hint('Select two or more to align them', 1600)
+    const all = boxAround(units.flatMap((u) => u.members))
+    moveUnits(units.map(({ members, box: b }) => ({
+      members,
+      dx: how === 'left' ? all.x - b.x : how === 'centre' ? all.x + all.w / 2 - (b.x + b.w / 2) : how === 'right' ? all.x + all.w - (b.x + b.w) : 0,
+      dy: how === 'top' ? all.y - b.y : how === 'middle' ? all.y + all.h / 2 - (b.y + b.h / 2) : how === 'bottom' ? all.y + all.h - (b.y + b.h) : 0,
+    })))
+  }
+  /** Equal gaps between neighbours across (x) or down (y), the first and last staying where they are. */
+  function distributeChosen(axis) {
+    const units = selectedUnits()
+    if (units.length < 3) return hint('Select three or more to space them evenly', 1600)
+    const [p, s] = axis === 'x' ? ['x', 'w'] : ['y', 'h']
+    units.sort((a, b) => a.box[p] - b.box[p])
+    const first = units[0].box
+    const last = units[units.length - 1].box
+    const gap = (last[p] + last[s] - first[p] - units.reduce((t, u) => t + u.box[s], 0)) / (units.length - 1)
+    let at = first[p]
+    moveUnits(units.map((u) => {
+      const d = Math.round(at - u.box[p])
+      at += u.box[s] + gap
+      return { members: u.members, dx: axis === 'x' ? d : 0, dy: axis === 'y' ? d : 0 }
+    }))
+  }
+  function alignMenu(anchor) {
+    const n = selectedUnits().length
+    openMenu(anchor, [
+      { label: 'Align left', key: 'Alt+A', run: () => alignChosen('left') },
+      { label: 'Align centres', key: 'Alt+H', run: () => alignChosen('centre') },
+      { label: 'Align right', key: 'Alt+D', run: () => alignChosen('right') },
+      '-',
+      { label: 'Align top', key: 'Alt+W', run: () => alignChosen('top') },
+      { label: 'Align middles', key: 'Alt+V', run: () => alignChosen('middle') },
+      { label: 'Align bottom', key: 'Alt+S', run: () => alignChosen('bottom') },
+      ...(n >= 3 ? ['-', { label: 'Space evenly across', key: 'Alt+Shift+H', run: () => distributeChosen('x') }, { label: 'Space evenly down', key: 'Alt+Shift+V', run: () => distributeChosen('y') }] : []),
+    ])
+  }
   /** One colour for every selected object that takes one. */
   async function colorChosen(color) {
     const ids = [...(chosen?.items ?? [])].filter((id) => !isLocked(id) && board.items.find((i) => i.id === id)?.kind !== 'guide')
@@ -1035,6 +1163,7 @@
         h('span', { class: 'count-note' }, grouped ? `Group of ${its.length}` : `${n} selected`),
         ...colors.map((c) => h('button', { type: 'button', class: `swatch${same === c ? ' on' : ''}`, style: `background:${c}`, title: COLOR_NAMES[c] ?? c, 'aria-label': COLOR_NAMES[c] ?? c, 'aria-pressed': String(same === c), onclick: () => colorChosen(c) })),
         colors.length ? h('span', { class: 'sep' }) : null,
+        selectedUnits().length > 1 ? h('button', { type: 'button', class: 'tool', title: 'Align and space evenly', 'aria-haspopup': 'menu', onclick: (e) => alignMenu(e.currentTarget) }, 'Align', h('span', { class: 'caret' }, '▾')) : null,
         its.length > 1 && !grouped ? h('button', { type: 'button', class: 'tool', title: 'Group them: they move, colour and delete as one (Ctrl+G)', onclick: () => groupChosen(true) }, 'Group') : null,
         anyGroup ? h('button', { type: 'button', class: 'tool', title: 'Ungroup (Ctrl+Shift+G)', onclick: () => groupChosen(false) }, 'Ungroup') : null,
         api ? h('button', { type: 'button', class: 'tool', title: 'Ask the agent about what is in the box', onclick: () => openAsk() }, '✦ Ask agent') : null,
@@ -2088,6 +2217,19 @@
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'g' && chosen?.items.size && serve) {
       e.preventDefault()
       return groupChosen(!e.shiftKey)
+    }
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && serve) {
+      const k = e.key.toLowerCase()
+      const done = k === 'd' ? (selectedItems().length ? (duplicateItems(), true) : false) : k === 'c' ? copyItems() : k === 'v' ? pasteItems() : false
+      if (done) return e.preventDefault()
+    }
+    // Figma's align keys, by the key's place so a Mac's Option characters do not matter.
+    if (e.altKey && !e.ctrlKey && !e.metaKey && serve && chosen?.items.size > 1) {
+      const how = e.shiftKey ? { KeyH: 'x', KeyV: 'y' }[e.code] : { KeyA: 'left', KeyH: 'centre', KeyD: 'right', KeyW: 'top', KeyV: 'middle', KeyS: 'bottom' }[e.code]
+      if (how) {
+        e.preventDefault()
+        return e.shiftKey ? distributeChosen(how) : alignChosen(how)
+      }
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return
     const k = e.key.toLowerCase()

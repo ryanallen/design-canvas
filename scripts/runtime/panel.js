@@ -381,7 +381,7 @@
       }
       layout.push(field('Align', nine, seg([['space-between', '↔', 'Space between']], c.justifyContent, () => set({ 'justify-content': c.justifyContent === 'space-between' ? 'flex-start' : 'space-between' }))))
     }
-    if (grid) layout.push(field('Columns', input(c.gridTemplateColumns.split(' ').length > 6 ? c.gridTemplateColumns.slice(0, 40) : c.gridTemplateColumns, (v) => set({ 'grid-template-columns': /^\d+$/.test(v.trim()) ? `repeat(${v.trim()}, 1fr)` : v }))))
+    if (grid) layout.push(field('Columns', input(authored(el, 'grid-template-columns') ?? String(c.gridTemplateColumns.split(' ').length), (v) => set({ 'grid-template-columns': /^\d+$/.test(v.trim()) ? `repeat(${v.trim()}, 1fr)` : v }), { title: 'A number for that many equal columns, or any grid-template-columns' })))
     if (flex || grid) layout.push(field('Gap', input(num(c.rowGap) === num(c.columnGap) ? num(c.rowGap) : `${c.rowGap} ${c.columnGap}`, (v) => set({ gap: v.split(/\s+/).map(px).join(' ') }), { class: 'n' })))
     const pads = ['top', 'right', 'bottom', 'left'].map((s) => num(c.getPropertyValue(`padding-${s}`)))
     const uniform = pads.every((p) => p === pads[0])
@@ -619,6 +619,19 @@
     }
     // Weakest first, as the cascade applies them (the panel shows them strongest first).
     return out.sort((a, b) => bySpec(a.spec, b.spec) || a.order - b.order)
+  }
+  /** A property as the prototype wrote it for the element (its own style, else the strongest rule that sets it), not as the
+      browser resolved it: `repeat(3, 1fr)`, not three pixel widths that would stop the grid stretching if written back. */
+  function authored(el, prop) {
+    const own = el.style.getPropertyValue(prop)
+    if (own) return own
+    const rules = rulesFor(el).reverse()
+    const lost = overridden(el, rules)
+    for (const [i, r] of rules.entries()) {
+      const j = r.decls.findIndex(([p]) => p === prop)
+      if (j >= 0 && !lost[i][j]) return r.decls[j][1].replace(/\s*!important$/, '')
+    }
+    return null
   }
   /** A selector list split at its top-level commas. */
   function splitList(sel) {

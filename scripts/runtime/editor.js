@@ -822,6 +822,8 @@
       const ta = shared('text-align')
       parts.push(h('button', { type: 'button', class: 'fbtn', title: `Align: ${ta}`, onclick: (e) => dc.openMenu(e.currentTarget, ['left', 'center', 'right', 'justify'].map((a) => ({ label: a[0].toUpperCase() + a.slice(1), tick: ta === a || (a === 'left' && ta === 'start'), run: () => setStyle({ 'text-align': a }) }))) }, alignGlyph(['center', 'right', 'justify'].includes(ta) ? ta : 'left')))
     }
+    // A list selected whole is not text, but the List button is how it becomes numbers or a paragraph again.
+    if (!text && canEdit && ['ul', 'ol'].includes(el.localName)) parts.push(h('button', { type: 'button', class: 'fbtn', title: 'List', 'aria-label': el.localName === 'ul' ? 'List: make it numbered' : 'List: make it a paragraph', onclick: list }, el.localName === 'ul' ? '1.' : '¶'))
     if (boxy && canEdit) {
       if (text) parts.push(h('span', { class: 'sep' }))
       parts.push(colorButton('Fill', 'background-color', shared('background-color'), (v) => setStyle({ 'background-color': v })))
@@ -923,15 +925,21 @@
     at.el.focus()
     at.frame.doc.execCommand('createLink', false, href)
   }
+  /** List: a paragraph becomes bullets, one per line; bullets become numbers; numbers become a
+      paragraph again. The element keeps its own attributes (class, style, id) and its lines their markup. */
   function list() {
     const el = primary()
     if (!needEditable()) return
-    if (el.localName === 'ul' || el.localName === 'ol') {
-      const html = el.outerHTML.replace(/\s+data-cv="\d+"/g, '').replace(/^<(ul|ol)/, (_, t) => `<${t === 'ul' ? 'ol' : 'ul'}`).replace(/<\/(ul|ol)>$/, (_, t) => `</${t === 'ul' ? 'ol' : 'ul'}>`)
-      return send({ op: 'outer', cv: cvOf(el), html })
+    const attrs = [...el.attributes].filter((a) => !['data-cv', 'contenteditable', 'spellcheck'].includes(a.name)).map((a) => ` ${a.name}="${a.value.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`).join('')
+    const clean = (html) => html.replace(/\s+data-cv="\d+"/g, '').trim()
+    let html
+    if (el.localName === 'ul') html = `<ol${attrs}>${clean(el.innerHTML)}</ol>`
+    else if (el.localName === 'ol') html = `<p${attrs}>${[...el.children].map((li) => clean(li.innerHTML)).join('<br>')}</p>`
+    else {
+      const lines = clean(el.innerHTML).split(/<br\s*\/?>|\n/i).map((l) => l.trim()).filter(Boolean)
+      html = `<ul${attrs}>${lines.map((l) => `<li>${l}</li>`).join('')}</ul>`
     }
-    const lines = el.innerText.split('\n').map((s) => s.trim()).filter(Boolean)
-    send({ op: 'outer', cv: cvOf(el), html: `<ul>${lines.map((l) => `<li>${l.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</li>`).join('')}</ul>` })
+    send({ op: 'outer', cv: cvOf(el), html })
   }
   function more(anchor) {
     const can = sel.els.every(editable)

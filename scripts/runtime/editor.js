@@ -597,8 +597,30 @@
     el.addEventListener('input', onEditInput)
     el.addEventListener('paste', plainPaste)
     el.addEventListener('dblclick', wordOnly)
+    frame.doc.addEventListener('pointerdown', pressAway, true)
     draw()
     renderFloat()
+  }
+  /** While typing, the frame takes the pointer (to place the caret). A press elsewhere in it ends the typing, saved,
+   *  and selects what was pressed, as a click on the board would; found again by its place once the frame redraws. */
+  function pressAway(e) {
+    if (!editing || e.target.ownerDocument !== editing.frame.doc) return
+    if ((editing.chain ?? [editing.el]).some((x) => x.contains(e.target))) return
+    e.preventDefault()
+    e.stopPropagation()
+    const frame = editing.frame
+    const doc = frame.doc
+    const target = e.target.nodeType === 1 ? e.target : e.target.parentElement
+    const next = target && target !== doc.body && target !== doc.documentElement ? byDepth(frame, target) : null
+    const path = []
+    for (let x = next; x && x !== doc.body; x = x.parentElement) path.unshift([...x.parentElement.children].indexOf(x))
+    stopEditing(true, {
+      now: next,
+      then: next && ((f) => {
+        const x = path.reduce((n, i) => n?.children[i], f.doc.body)
+        if (x) select(f, [x])
+      }),
+    })
   }
   /** A word double-clicked while typing is the word alone: Windows takes the space after it too, so bold or a link
    *  would run on past it. */
@@ -699,10 +721,11 @@
     s.addRange(r)
     return true
   }
-  function stopEditing(save) {
+  function stopEditing(save, { now = null, then = null } = {}) {
     if (!editing) return
     const { frame, el, before, chain } = editing
     editing = null
+    frame.doc.removeEventListener('pointerdown', pressAway, true)
     if (chain) {
       // Split by Enter: the element first typed in is replaced by it and the ones made after it, in one edit.
       for (const [k, fn] of [['keydown', editKeys], ['input', onEditInput], ['paste', plainPaste]]) el.removeEventListener(k, fn)
@@ -714,11 +737,11 @@
       const at = chain.indexOf(el)
       send({ op: 'outer', cv: cvOf(chain[0]), html }, {
         file: frame.file, key: frame.key,
-        then: (f, first) => {
+        then: then ?? ((f, first) => {
           let x = first
           for (let i = 0; i < at && x; i++) x = x.nextElementSibling
           if (x) select(f, [x])
-        },
+        }),
       })
       return
     }
@@ -731,7 +754,8 @@
     frame.el?.classList.remove('editing')
     frame.doc.getSelection()?.removeAllRanges()
     const after = el.innerHTML
-    if (save && after !== before) send({ op: 'inner', cv: cvOf(el), html: after },{ file: frame.file, key: frame.key })
+    if (save && after !== before) send({ op: 'inner', cv: cvOf(el), html: after }, { file: frame.file, key: frame.key, then })
+    else if (now) select(frame, [now])
     draw()
     renderFloat()
   }

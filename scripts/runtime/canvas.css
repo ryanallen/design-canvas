@@ -112,6 +112,7 @@ body.labels-stacked .section-label { transform: scale(var(--iz, 1)) translateY(c
   padding: 0 5px; height: 22px; font-size: 11px; color: var(--ink-2); display: inline-flex; align-items: center; gap: 4px;
 }
 .frame-label button:hover { color: var(--ink); background: var(--panel-2); }
+.frame-label button.width { font-variant-numeric: tabular-nums; }
 .frame-label button.play { background: var(--panel-2); color: var(--ink); border-radius: 999px; padding: 0 10px; font-weight: 600; letter-spacing: 0.06em; }
 .frame-label button.play:hover { background: var(--ink); color: var(--bg); }
 /* With a mouse, a frame's secondary actions show when the pointer is on the frame or its label, or

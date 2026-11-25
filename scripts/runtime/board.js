@@ -317,6 +317,7 @@
     const m = f.meta
     f.labelEl = h('div', { class: 'label frame-label', 'data-key': f.key },
       h('span', { class: 'name', title: `${f.key} · drag to move` }, f.label),
+      serve && !f.crop ? h('button', { type: 'button', class: 'width', title: 'Width on the board', onclick: (e) => { e.stopPropagation(); widthMenu(e.currentTarget, f) } }, String(f.w)) : null,
       h('button', { type: 'button', title: 'Download this prototype', onclick: (e) => { e.stopPropagation(); downloadFile(f.file) } }, icon('download')),
       h('button', { type: 'button', title: 'Full screen', onclick: (e) => { e.stopPropagation(); openPlay(f, 'fill') } }, icon('full')),
       m.levers?.length ? h('button', { type: 'button', title: 'Tweaks', onclick: (e) => { e.stopPropagation(); call('onTweaks', f); openPanel('tweaks') } }, icon('tweaks')) : null,
@@ -326,6 +327,55 @@
     drawLock(f)
     positionFrame(f)
     world.append(f.el, f.labelEl)
+  }
+  function widthMenu(anchor, f) {
+    openMenu(anchor, [
+      { note: 'Width on the board' },
+      ...ARTBOARD_SIZES.map(([n, w]) => ({ label: `${n} · ${w}${f.w === w ? '  ✓' : ''}`, run: () => setFrameWidth(f, w) })),
+      { label: 'Custom…', run: async () => {
+        const v = Math.round(Number(await question('Width in pixels, 240 to 3840:', String(f.w))))
+        if (v >= 240 && v <= 3840) setFrameWidth(f, v)
+        else if (v) hint('A width from 240 to 3840', 2000)
+      } },
+    ])
+  }
+  /** A prototype's width on the board is its `<meta name="canvas-width">`, written into the file (one edit, so Ctrl+Z
+      takes it back); every frame of that file is drawn at the new width and measured again for its height. */
+  async function setFrameWidth(f, w) {
+    if (!f.doc || w === f.w) return
+    const cvOf = (el) => (el?.hasAttribute('data-cv') ? Number(el.getAttribute('data-cv')) : null)
+    const tag = f.doc.head?.querySelector('meta[name="canvas-width"]')
+    const edit = tag
+      ? w === 1440 ? { op: 'delete', cv: cvOf(tag) } : { op: 'attr', cv: cvOf(tag), name: 'content', value: String(w) }
+      : { op: 'insert', cv: cvOf(f.doc.head), where: 'inside', html: `<meta name="canvas-width" content="${w}">` }
+    if (edit.cv == null) return hint('This prototype has no <head> to hold its width', 2500)
+    try {
+      const res = await fetch('/api/edit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ file: f.file, edit, name: me || 'someone' }) })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.error || `Changing the width failed (${res.status})`)
+      noteFileEdit()
+      applyWidth(f.file, w)
+      reloadFile(f.file, body.html)
+    } catch (err) {
+      hint(err.message, 3000)
+    }
+  }
+  /** Every layout entry and frame of a file takes width `w`; heights are measured again when they load. */
+  function applyWidth(file, w) {
+    const walk = (o) => {
+      if (Array.isArray(o)) return o.forEach(walk)
+      if (!o || typeof o !== 'object') return
+      if (o.file === file && !o.crop) o.w = w
+      for (const v of Object.values(o)) if (v && typeof v === 'object') walk(v)
+    }
+    walk(data.pages)
+    walk(data.loose)
+    for (const fr of allFrames.values()) if (fr.file === file && !fr.crop) {
+      delete heights[fr.key]
+      const b = fr.labelEl?.querySelector('.width')
+      if (b) b.textContent = String(w)
+    }
+    relayout()
   }
   function positionFrame(f) {
     if (!f.el) return
@@ -472,6 +522,11 @@
           boardWheel(e, at.x, at.y)
         }, { passive: false })
         listenForPinch(f.doc, toBoard)
+      }
+      // The file's own width, changed here, by an undo or by an agent, is the width the frame is drawn at.
+      if (serve && !f.crop && f.doc?.head) {
+        const own = Number(f.doc.head.querySelector('meta[name="canvas-width"]')?.getAttribute('content')) || 1440
+        if (own >= 240 && own <= 3840 && own !== f.w) applyWidth(f.file, own)
       }
       // An edit that makes the page taller or shorter makes the frame follow.
       if (serve && !f.crop && f.doc?.documentElement) {

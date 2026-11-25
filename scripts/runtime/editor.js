@@ -191,7 +191,57 @@
       })
     }
     if (dropLine) overlay.append(h('div', { class: 'ov drop', style: box(dropLine) }))
+    if (measuring && sel?.els.length === 1 && hover && hover.frame === sel.frame && hover.el !== primary() && live(hover.el)) measure(sel.frame, primary(), hover.el)
   }
+  // ── measure: Alt held over another element shows how far it is from the selection, in the prototype's own pixels ──
+  let measuring = false
+  function measure(f, a, b) {
+    const A = a.getBoundingClientRect()
+    const B = b.getBoundingClientRect()
+    const at = (x, y) => dc.toScreen(f.x + x * f.s, f.y + y * f.s)
+    const lines = []
+    /** A line across (y fixed) or down (x fixed) from p to q, labelled with its length. */
+    const line = (horiz, fixed, p, q) => {
+      if (Math.round(Math.abs(q - p)) < 1) return
+      const [s, e] = [Math.min(p, q), Math.max(p, q)]
+      const a1 = horiz ? at(s, fixed) : at(fixed, s)
+      const a2 = horiz ? at(e, fixed) : at(fixed, e)
+      lines.push(h('div', { class: `ov measure ${horiz ? 'h' : 'v'}`, style: horiz ? `left:${a1.x}px;top:${a1.y}px;width:${a2.x - a1.x}px` : `left:${a1.x}px;top:${a1.y}px;height:${a2.y - a1.y}px` },
+        h('span', { class: 'measure-n' }, String(Math.round(e - s)))))
+    }
+    const inside = (o, i) => i.left >= o.left && i.right <= o.right && i.top >= o.top && i.bottom <= o.bottom
+    if (inside(B, A) || inside(A, B)) {
+      // One holds the other: its distance to each of the outer one's sides.
+      const [i, o] = inside(B, A) ? [A, B] : [B, A]
+      const my = (i.top + i.bottom) / 2
+      const mx = (i.left + i.right) / 2
+      line(true, my, o.left, i.left)
+      line(true, my, i.right, o.right)
+      line(false, mx, o.top, i.top)
+      line(false, mx, i.bottom, o.bottom)
+    } else {
+      // Apart: the gap across and the gap down, drawn where they face each other.
+      const overlapY = [Math.max(A.top, B.top), Math.min(A.bottom, B.bottom)]
+      const overlapX = [Math.max(A.left, B.left), Math.min(A.right, B.right)]
+      const y = overlapY[0] < overlapY[1] ? (overlapY[0] + overlapY[1]) / 2 : (A.top + A.bottom) / 2
+      const x = overlapX[0] < overlapX[1] ? (overlapX[0] + overlapX[1]) / 2 : (A.left + A.right) / 2
+      if (B.left >= A.right) line(true, y, A.right, B.left)
+      else if (A.left >= B.right) line(true, y, B.right, A.left)
+      if (B.top >= A.bottom) line(false, x, A.bottom, B.top)
+      else if (A.top >= B.bottom) line(false, x, B.bottom, A.top)
+    }
+    const hb = rectOn(f, b)
+    overlay.append(h('div', { class: 'ov measure-to', style: box(hb) }), ...lines)
+  }
+  const setMeasuring = (on) => {
+    if (on === measuring) return
+    measuring = on
+    document.body.classList.toggle('measuring', on)
+    draw()
+  }
+  addEventListener('keydown', (e) => e.key === 'Alt' && sel && setMeasuring(true))
+  addEventListener('keyup', (e) => e.key === 'Alt' && setMeasuring(false))
+  addEventListener('blur', () => setMeasuring(false))
   const box = (b) => `left:${b.x}px;top:${b.y}px;width:${Math.max(1, b.w)}px;height:${Math.max(1, b.h)}px`
 
   // ── the board's pointer, seen first here ──

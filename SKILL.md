@@ -49,7 +49,7 @@ Measuring each prototype's height needs a Chromium: `scripts/lib/browser.mjs` fi
 
 Everything people do is a line before `</body>`, one JSON event each, never rewritten:
 
-- `<!-- comment {…} -->`: `add` (with `file` and `anchor` when pinned to an element, `box` and `items` when it is about a region of the board, `agent: true` when it is work for an agent), `reply`, `resolve`, `delete`, `agent`.
+- `<!-- comment {…} -->`: `add` (with `file` and `anchor` when pinned to an element, `box` and `items` when it is about a region of the board, `agent: true` when it is work for an agent), `reply`, `resolve`, `delete`, `agent`. A thread offers Delete on what the person viewing wrote, and on everything to the owner, as Figma does.
 - `<!-- edit {…} -->`: who, when, the file, the change in words, and a fingerprint of the file after it. The exact change is the file's own diff.
 - `<!-- board {…} -->`: notes, titles, rectangles and ellipses (each with its own text), sections, lines, arrows, pencil strokes, guides, groups (objects sharing a `group` id), stacking order (`z`), pages (a page's `order` is its place in the list, set by Move up and Move down in its menu; Duplicate there makes a page after it with a copy of each of its board objects, groups and arrows between them kept), frames moved by hand, the canvas's own name. A line or arrow with `from` and `to` (a board object's id or a frame's key) is drawn between those two wherever they move; an empty `from` or `to` lets go.
 

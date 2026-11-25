@@ -2244,7 +2244,8 @@
       for (const m of [{ ...t, root: true }, ...t.replies]) {
         msgs.append(h('div', { class: 'msg' },
           h('div', { class: 'who' }, h('b', {}, m.name), h('span', {}, when(m.at)),
-            api ? h('button', { type: 'button', title: m.root ? 'Delete the whole thread' : 'Delete this reply', onclick: async () => {
+            // As in Figma, people delete what they wrote; the owner deletes anything.
+            api && (owner() || (me && m.name === me)) ? h('button', { type: 'button', title: m.root ? 'Delete the whole thread' : 'Delete this reply', onclick: async () => {
               if (!(await sure(m.root ? 'Delete this thread and its replies for everyone?' : 'Delete this reply for everyone?', 'Delete', true))) return
               try {
                 await send({ op: 'delete', to: m.id, name: me || 'someone' })

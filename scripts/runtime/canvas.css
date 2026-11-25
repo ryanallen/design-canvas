@@ -181,6 +181,10 @@ body.tiny .item.locked::after { display: none; }
 /* The box round a selection of several, so it reads as one thing; solid for a group. */
 .chosen-box { position: absolute; pointer-events: none; outline: calc(1.5px / var(--z, 1)) dashed var(--accent); outline-offset: calc(8px / var(--z, 1)); }
 .chosen-box.grouped { outline-style: solid; }
+/* The line a dragged object has caught on. */
+.snap-line { position: absolute; pointer-events: none; z-index: 50; background: rgb(255 64 129); }
+.snap-line.v { width: calc(1.5px / var(--z, 1)); margin-left: calc(-0.75px / var(--z, 1)); }
+.snap-line.h { height: calc(1.5px / var(--z, 1)); margin-top: calc(-0.75px / var(--z, 1)); }
 
 /* ── pins ──────────────────────────────────────────────────── */
 .pin {
@@ -492,3 +496,4 @@ body.has-banner #panel { top: 88px; }
   #panel { left: 0; width: auto; top: auto; height: 62vh; box-shadow: 0 -1px 0 rgb(255 255 255 / 0.06), 0 -12px 32px rgb(0 0 0 / 0.5); border-radius: var(--r-lg) var(--r-lg) 0 0; }
   #play .head { overflow-x: auto; }
 }
+#itembar.dragging { visibility: hidden; }

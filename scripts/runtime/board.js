@@ -1244,6 +1244,53 @@
       return null
     }
   }
+  // ── snapping: what is dragged lines up with what it passes, and the line it lines up on is drawn ──
+  const SNAP_PX = 6
+  let snapEls = []
+  const clearSnap = () => {
+    for (const el of snapEls) el.remove()
+    snapEls = []
+  }
+  /** For a drag of these objects and frames: a function from the drag's offset to the offset caught on the nearest edge or centre. */
+  function snapper(ids, keys) {
+    const start = boxAround(ids, keys)
+    if (!start.w && !start.h) return null
+    const skip = new Set(ids)
+    const others = [
+      ...items().filter((i) => !skip.has(i.id) && i.kind !== 'guide' && !['line', 'arrow', 'pencil'].includes(i.kind)).map(geometryOf).filter((i) => i.w && i.h).map((i) => ({ x: i.x, y: i.y, w: i.w, h: i.h })),
+      ...frames().filter((f) => !keys.includes(f.key)).map((f) => ({ x: f.x, y: f.y, w: f.W, h: f.H })),
+    ]
+    const marks = (b, p, s) => [b[p], b[p] + b[s] / 2, b[p] + b[s]]
+    const along = (p, s) => others.flatMap((o) => marks(o, p, s).map((v) => ({ v, o })))
+    const xs = along('x', 'w')
+    const ys = along('y', 'h')
+    const nearest = (mine, list) => {
+      let best = null
+      for (const m of mine) for (const t of list) {
+        const d = t.v - m
+        if (Math.abs(d) <= SNAP_PX / view.z && (!best || Math.abs(d) < Math.abs(best.d))) best = { d, at: t.v, o: t.o }
+      }
+      return best
+    }
+    return (dx, dy) => {
+      const b = { x: start.x + dx, y: start.y + dy, w: start.w, h: start.h }
+      const sx = nearest(marks(b, 'x', 'w'), xs)
+      const sy = nearest(marks(b, 'y', 'h'), ys)
+      if (sx) b.x += sx.d
+      if (sy) b.y += sy.d
+      clearSnap()
+      if (sx) {
+        const top = Math.min(b.y, sx.o.y) - 12 / view.z
+        snapEls.push(h('div', { class: 'snap-line v', style: `left:${sx.at}px;top:${top}px;height:${Math.max(b.y + b.h, sx.o.y + sx.o.h) + 12 / view.z - top}px` }))
+      }
+      if (sy) {
+        const left = Math.min(b.x, sy.o.x) - 12 / view.z
+        snapEls.push(h('div', { class: 'snap-line h', style: `top:${sy.at}px;left:${left}px;width:${Math.max(b.x + b.w, sy.o.x + sy.o.w) + 12 / view.z - left}px` }))
+      }
+      world.append(...snapEls)
+      return { dx: dx + (sx?.d ?? 0), dy: dy + (sy?.d ?? 0) }
+    }
+  }
   function startItemDrag(e, id) {
     const it = board.items.find((i) => i.id === id)
     if (!it) return
@@ -1272,11 +1319,14 @@
     const frameList = along.frames.map((k) => allFrames.get(k)).filter((f) => f && !isLocked(f.key))
     const frameStarts = new Map(frameList.map((f) => [f.key, { x: f.x, y: f.y }]))
     const boxStart = group ? { ...group.box } : null
+    const snap = resize ? null : snapper(moving.map((m) => m.id), frameList.map((f) => f.key))
     drag = {
       kind: 'item', id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false,
-      move: (_, dx, dy) => {
+      move: (ev, dx, dy) => {
         if (resize) Object.assign(it, { w: Math.max(40, Math.round(w0 + dx)), h: Math.max(30, Math.round(h0 + dy)) })
         else {
+          // Edges and centres catch on other objects' and frames' edges and centres; Ctrl or ⌘ held lets go.
+          ;({ dx, dy } = snap && !(ev.ctrlKey || ev.metaKey) ? snap(dx, dy) : (clearSnap(), { dx, dy }))
           for (const m of moving) Object.assign(m, { x: Math.round(starts.get(m.id).x + dx), y: Math.round(starts.get(m.id).y + dy) })
           for (const f of frameList) {
             Object.assign(f, { x: Math.round(frameStarts.get(f.key).x + dx), y: Math.round(frameStarts.get(f.key).y + dy) })
@@ -1284,13 +1334,18 @@
           }
           if (group) Object.assign(group.box, { x: Math.round(boxStart.x + dx), y: Math.round(boxStart.y + dy) })
         }
+        // The bar would sit over what is being moved; it comes back where the drag ends.
+        itemBar.classList.add('dragging')
         renderItems()
+        if (snapEls.length) world.append(...snapEls)
         if (frameList.length) {
           renderPins()
           call('onView')
         }
       },
       end: async (_, moved) => {
+        clearSnap()
+        itemBar.classList.remove('dragging')
         if (!moved) return
         if (resize) return updateItem(id, { w: it.w, h: it.h })
         try {

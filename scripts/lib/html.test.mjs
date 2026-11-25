@@ -168,6 +168,17 @@ test('styles sets several elements\' own styles in one edit; a locked one refuse
   assert.equal(lockedFor(src, { op: 'styles', items: lis.slice(0, 2).map((li) => ({ cv: li.start, props: { color: 'red' } })) }), null)
 })
 
+test('styles also sets attributes, in the same edit; data-locked through it is the owner\'s alone', () => {
+  const src = '<html><head></head><body><div class="c" data-component="Card"><b style="color: red">x</b></div></body></html>'
+  const els = [...parse(src).byStart.values()]
+  const div = els.find((e) => e.tag === 'div')
+  const b = els.find((e) => e.tag === 'b')
+  const r = applyEdit(src, { op: 'styles', items: [{ cv: div.start, props: {}, attrs: { 'data-variant': 'Dark' } }, { cv: b.start, props: { color: 'white' } }] })
+  assert.match(r.src, /<div [^>]*data-variant="Dark"[^>]*><b style="color: white">x<\/b><\/div>/)
+  assert.ok(lockedFor(src, { op: 'styles', items: [{ cv: div.start, attrs: { 'data-locked': '' } }] }))
+  assert.equal(lockedFor(src, { op: 'styles', items: [{ cv: div.start, attrs: { 'data-locked': '' } }] }, { owner: true }), null)
+})
+
 test('fixture: implied closings and raw text', () => {
   const ps = [...parse(fixture).byStart.values()].filter((e) => e.tag === 'p')
   assert.equal(ps.length, 2, 'the <p> inside the script is text')

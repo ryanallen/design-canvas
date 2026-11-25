@@ -374,7 +374,11 @@ function applyOne(src, edit) {
       // Last in the file first, so each one's offset still holds when it is reached.
       const items = [...(edit.items ?? [])].map((it) => ({ ...it, el: get(it.cv) })).sort((a, b) => b.el.start - a.el.start)
       let out = src
-      for (const it of items) out = applyOne(out, { op: 'style', cv: it.el.start, props: it.props }).src
+      for (const it of items) {
+        out = applyOne(out, { op: 'style', cv: it.el.start, props: it.props ?? {} }).src
+        // Attributes too, as a copy switched to another variant takes its data-variant with its look.
+        for (const [name, value] of Object.entries(it.attrs ?? {})) out = applyOne(out, { op: 'attr', cv: it.el.start, name, value }).src
+      }
       const first = Math.min(...items.map((it) => it.el.start))
       return { src: out, select: Number.isFinite(first) ? first : null }
     }
@@ -558,7 +562,10 @@ export function lockedFor(src, edit, { owner = false } = {}) {
   const SAY = 'That part is locked.'
   if (edit.op === 'rule') return null
   if (edit.op === 'attr' && edit.name === 'data-locked') return owner ? null : 'Only the owner locks and unlocks.'
-  if (edit.op === 'styles') return els((edit.items ?? []).map((it) => it.cv)).some(within) ? SAY : null
+  if (edit.op === 'styles') {
+    if (!owner && (edit.items ?? []).some((it) => Object.keys(it.attrs ?? {}).some((n) => n.toLowerCase() === 'data-locked'))) return 'Only the owner locks and unlocks.'
+    return els((edit.items ?? []).map((it) => it.cv)).some(within) ? SAY : null
+  }
   const targets = els(edit.cv)
   if (targets.some(within)) return SAY
   switch (edit.op) {

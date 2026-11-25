@@ -815,6 +815,25 @@
       if (name == null) return
       send({ op: 'attr', cv: cvOf(c.root), name: 'data-variant', value: name.trim() || null })
     },
+    /** Switch this copy to another variant, as Figma's variant picker: each of its parts takes the style the same part has
+        in a copy of that variant, and it takes that variant's name; its words stay its own. One edit. */
+    switchVariant: (to) => {
+      const c = componentOf(primary())
+      if (!c || !needEditable()) return
+      const model = c.copies.find((x) => x !== c.root && (x.getAttribute('data-variant')?.trim() ?? '') === to)
+      if (!model) return
+      const mine = [c.root, ...c.root.querySelectorAll('*')]
+      const theirs = [model, ...model.querySelectorAll('*')]
+      if (mine.length !== theirs.length) return hint('This copy\'s parts differ from that variant\'s: change it by hand', 2600)
+      const styleOf = (el) => Object.fromEntries((el.getAttribute('style') ?? '').split(';').map((d) => d.split(':')).filter((d) => d.length > 1).map(([k, ...v]) => [k.trim().toLowerCase(), v.join(':').trim()]))
+      const items = mine.map((el, i) => {
+        const want = styleOf(theirs[i])
+        const have = styleOf(el)
+        const props = { ...Object.fromEntries(Object.keys(have).filter((k) => !(k in want)).map((k) => [k, ''])), ...Object.fromEntries(Object.entries(want).filter(([k, v]) => have[k] !== v)) }
+        return { cv: cvOf(el), props, ...(i === 0 ? { attrs: { 'data-variant': to || null } } : {}) }
+      }).filter((it, i) => it.cv != null && (i === 0 || Object.keys(it.props).length))
+      send({ op: 'styles', items })
+    },
     detach: () => {
       const c = componentOf(primary())
       if (!c || !needEditable()) return
@@ -1250,6 +1269,13 @@
             { label: 'Wrap in grid', run: () => ops.wrapIn('grid') },
             sel.els.length === 1 && !componentOf(primary()) && primary().localName !== 'body' ? { label: 'Make component…', key: 'Ctrl+Alt+K', run: ops.makeComponent } : null,
             sel.els.length === 1 && componentOf(primary())?.root === primary() ? { label: componentOf(primary()).variant ? 'Rename variant…' : 'Make a variant…', run: ops.variant } : null,
+            ...(sel.els.length === 1 && componentOf(primary())?.root === primary()
+              ? (() => {
+                  const c = componentOf(primary())
+                  const others = [...new Set(c.copies.map((x) => x.getAttribute('data-variant')?.trim() ?? ''))].filter((v) => v !== c.variant)
+                  return others.map((v) => ({ label: `Switch to ${v || 'the main one'}`, run: () => ops.switchVariant(v) }))
+                })()
+              : []),
             sel.els.length === 1 && componentOf(primary())?.root === primary() ? { label: 'Detach from component', run: ops.detach } : null,
             { label: 'Copy', key: 'Ctrl+C', run: ops.copy },
             clip ? { label: 'Paste after it', key: 'Ctrl+V', run: ops.paste } : null,

@@ -549,7 +549,7 @@
     r.addEventListener('change', () => commit(`${tidy(r.value)}${unit}`))
     num.addEventListener('input', () => { if (num.value !== '') { r.value = num.value; live(`${tidy(num.value)}${unit}`) } })
     num.addEventListener('change', () => { if (num.value !== '') commit(`${tidy(num.value)}${unit}`) })
-    return h('div', { class: 'pc lever' }, r, num, unit ? h('span', { class: 'val' }, unit) : null)
+    return h('div', { class: 'pc lever' }, r, num, h('span', { class: 'val unit' }, unit))
   }
   async function askForLevers(f) {
     const name = dc.me || (await dc.question('Your name, to sign the request:')) || ''

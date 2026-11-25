@@ -139,6 +139,7 @@
 #tweaks .pf { padding: 0 12px; grid-template-columns: 110px 1fr; }
 #tweaks .lever { flex-wrap: nowrap; }
 #tweaks .lever input[type='range'] { flex: 1; min-width: 0; }
+#tweaks .lever .unit { width: 26px; flex: none; }
 #tweaks .lever input[type='number'] { width: 58px; flex: none; min-width: 0; background: var(--panel-2); border: 1px solid transparent; border-radius: var(--r-sm); padding: 3px 6px; height: 28px; color: var(--ink); font-variant-numeric: tabular-nums; }
 #panel .note .btn { display: block; margin-top: 8px; }
 #panel .font-box { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 6px; height: 26px; padding: 0 8px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; color: var(--ink); font-size: 13px; }

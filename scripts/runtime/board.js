@@ -872,7 +872,9 @@
     const edit = !serve && document.querySelector('button#canvas-mode:not(:disabled)')
     el.replaceChildren(
       h('b', {}, 'An empty board'),
-      serve ? h('span', {}, 'Pick a tool below to add text, notes, drawings and shapes.')
+      serve ? h('span', { class: 'start' },
+        h('button', { type: 'button', onclick: () => setTool('artboard') }, h('kbd', {}, 'A'), ' A new prototype screen'),
+        h('span', {}, 'or pick a tool below for notes, text, drawings and shapes. ', h('kbd', {}, '?'), ' shows every key.'))
         : edit ? h('span', {}, h('button', { type: 'button', onclick: () => edit.click() }, 'Edit'), ' and pick this folder to draw on it.')
           : h('span', {}, 'Nothing has been put on this page yet.'))
   }

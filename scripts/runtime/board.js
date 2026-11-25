@@ -876,15 +876,15 @@
     // The one object picked shows where it resizes from: its bottom-right corner.
     const grip = serve && picked === it.id && !chosen && !isLocked(it.id) && ['note', 'rect', 'ellipse', 'section'].includes(it.kind) ? h('span', { class: 'grip', 'aria-hidden': 'true' }) : null
     if (it.kind === 'note') return h('div', { class: cls, 'data-id': it.id, style: `${box};background:${it.color || NOTE_COLORS[0]}` }, it.text ?? '', grip)
-    if (it.kind === 'title') return h('div', { class: cls, 'data-id': it.id, style: `left:${it.x}px;top:${it.y}px;${it.color ? `color:${it.color}` : ''}` }, it.text || 'Title')
+    if (it.kind === 'title') return h('div', { class: cls, 'data-id': it.id, style: `left:${it.x}px;top:${it.y}px;${it.color ? `color:${it.color};` : ''}${it.size ? `font-size:${num(it.size)}px` : ''}` }, it.text || 'Title')
     if (it.kind === 'rect' || it.kind === 'ellipse') return h('div', { class: cls, 'data-id': it.id, style: `${box};--c:${it.color || SHAPE_COLORS[0]}` }, h('span', { class: 'txt' }, it.text ?? ''), grip)
     if (it.kind === 'section') return h('div', { class: cls, 'data-id': it.id, style: `${box};--c:${it.color || SECTION_COLORS[0]}` }, h('span', { class: 'txt' }, it.text ?? ''), grip)
     if (it.kind === 'guide') {
       const f = findFrame(it.frame)
       if (!f || f.page !== pageId) return null
       const cols = Math.min(48, Math.max(1, Math.round(num(it.cols)) || 12))
-      const m = num(it.margin ?? 80) * f.s
-      const g = num(it.gutter ?? 24) * f.s
+      const m = num((it.margin === '' ? 80 : it.margin ?? 80)) * f.s
+      const g = num((it.gutter === '' ? 24 : it.gutter ?? 24)) * f.s
       return h('div', { class: `item guide`, 'data-id': it.id, style: `left:${f.x + m}px;top:${f.y}px;width:${f.W - m * 2}px;height:${f.H}px;grid-template-columns:repeat(${cols},1fr);column-gap:${g}px` }, ...Array.from({ length: cols }, () => h('span'))
       )
     }
@@ -1235,11 +1235,13 @@
     const colors = it.kind === 'note' ? NOTE_COLORS : it.kind === 'section' ? SECTION_COLORS : it.kind === 'guide' ? [] : SHAPE_COLORS
     itemBar.replaceChildren(...[
       ...colors.map((c) => h('button', { type: 'button', class: `swatch${(it.color || colors[0]) === c ? ' on' : ''}`, style: `background:${c}`, title: COLOR_NAMES[c] ?? c, 'aria-label': COLOR_NAMES[c] ?? c, 'aria-pressed': String((it.color || colors[0]) === c), onclick: () => updateItem(it.id, { color: c }) })),
+      // A title's size: four steps, the middle one where a title starts.
+      ...(it.kind === 'title' ? [h('span', { class: 'sep' }), ...[['S', 48], ['M', 96], ['L', 160], ['XL', 240]].map(([label, px]) => h('button', { type: 'button', class: `tool${(it.size || 96) === px ? ' on' : ''}`, title: `${px} px`, 'aria-pressed': String((it.size || 96) === px), onclick: () => updateItem(it.id, { size: px }) }, label))] : []),
       ...(it.kind === 'guide'
         ? [
-            h('label', {}, 'Cols', h('input', { type: 'number', min: 1, max: 24, value: it.cols ?? 12, onchange: (e) => updateItem(it.id, { cols: Number(e.target.value) || 12 }) })),
-            h('label', {}, 'Gutter', h('input', { type: 'number', min: 0, max: 200, value: it.gutter ?? 24, onchange: (e) => updateItem(it.id, { gutter: Number(e.target.value) || 0 }) })),
-            h('label', {}, 'Margin', h('input', { type: 'number', min: 0, max: 600, value: it.margin ?? 80, onchange: (e) => updateItem(it.id, { margin: Number(e.target.value) || 0 }) })),
+            h('label', {}, 'Cols', h('input', { type: 'number', min: 1, max: 24, value: it.cols || 12, onchange: (e) => updateItem(it.id, { cols: Number(e.target.value) || 12 }) })),
+            h('label', {}, 'Gutter', h('input', { type: 'number', min: 0, max: 200, value: (it.gutter === '' ? 24 : it.gutter ?? 24), onchange: (e) => updateItem(it.id, { gutter: Number(e.target.value) || 0 }) })),
+            h('label', {}, 'Margin', h('input', { type: 'number', min: 0, max: 600, value: (it.margin === '' ? 80 : it.margin ?? 80), onchange: (e) => updateItem(it.id, { margin: Number(e.target.value) || 0 }) })),
           ]
         : []),
       h('span', { class: 'sep' }),
@@ -1773,7 +1775,7 @@
   const future = []
   let openStep = null
   let replaying = false
-  const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points']
+  const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points', 'size']
   /** The one thing a line touches, as a board says it is: an object's fields, a frame's place, or null for nothing there. */
   function stateOf(b, ev) {
     if (ev.op === 'item' || ev.op === 'remove') {
@@ -1846,7 +1848,7 @@
           continue
         }
         // A field the other side had and this one lacks is cleared.
-        const clear = Object.fromEntries(Object.keys(other ?? {}).filter((k) => want[k] == null).map((k) => [k, ['x', 'y', 'w', 'h', 'z', 'cols', 'gutter', 'margin'].includes(k) ? 0 : k === 'points' ? [] : '']))
+        const clear = Object.fromEntries(Object.keys(other ?? {}).filter((k) => want[k] == null).map((k) => [k, ['x', 'y', 'w', 'h', 'z'].includes(k) ? 0 : k === 'points' ? [] : '']))
         await sendBoard({ op: 'item', id: c.id, ...clear, ...want })
       }
     } finally {

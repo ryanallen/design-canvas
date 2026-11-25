@@ -149,3 +149,11 @@ test('a comment anchor keeps the tag and words of its element, and nothing else'
   const odd = make({ op: 'add', name: 'A', text: 't', frame: null, file: 'a.html', x: 0, y: 0, anchor: { path: 'body > 1', tag: '<img onerror=x>', text: 7 } })
   assert.deepEqual(odd.anchor, { path: 'body > 1', dx: 0, dy: 0 })
 })
+
+test('an empty title size or guide setting is the default again', () => {
+  const t = board({ op: 'item', kind: 'title', x: 0, y: 0, size: 48 })
+  assert.equal(board({ op: 'item', id: t.id, size: '' }).size, '')
+  assert.equal(board({ op: 'item', id: t.id, size: 9999 }).size, 400)
+  assert.equal(board({ op: 'item', id: t.id, cols: '' }).cols, '')
+  assert.throws(() => board({ op: 'item', id: t.id, size: 'big' }), /size is not a number/)
+})

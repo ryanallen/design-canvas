@@ -861,6 +861,13 @@
   // goes into a style, and a style may not fetch (url()) or break out of its declaration.
   const safeColor = (c) => (typeof c === 'string' && /^(#[0-9a-f]{3,8}|[a-z]{3,20}|(?:rgb|hsl)a?\([\d.,%\s/]+\))$/i.test(c.trim()) ? c.trim() : '')
   const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0)
+  /** An SVG path through x, y pairs: straight to the first midpoint, a quadratic curve to each next midpoint with the sample between as its control, straight to the end. */
+  function smooth(pts) {
+    const r = (n) => Math.round(n * 10) / 10
+    let d = `M${pts[0]},${pts[1]} L${r((pts[0] + pts[2]) / 2)},${r((pts[1] + pts[3]) / 2)}`
+    for (let i = 2; i < pts.length - 2; i += 2) d += ` Q${pts[i]},${pts[i + 1]} ${r((pts[i] + pts[i + 2]) / 2)},${r((pts[i + 1] + pts[i + 3]) / 2)}`
+    return `${d} L${pts[pts.length - 2]},${pts[pts.length - 1]}`
+  }
   function itemEl(it) {
     it = geometryOf(it)
     it = { ...it, color: safeColor(it.color), x: num(it.x), y: num(it.y), w: num(it.w), h: num(it.h) }
@@ -884,7 +891,10 @@
     if (['line', 'arrow', 'pencil'].includes(it.kind)) {
       // Built as elements, never as markup: a canvas file's lines are anyone's, so nothing in one is parsed as HTML.
       const pts = (Array.isArray(it.points) ? it.points : []).map(Number).filter(Number.isFinite)
-      const d = pts.reduce((s, v, i) => s + (i % 2 ? `,${v}` : `${i ? ' L' : 'M'}${v}`), '')
+      const straight = pts.reduce((s, v, i) => s + (i % 2 ? `,${v}` : `${i ? ' L' : 'M'}${v}`), '')
+      // A pencil stroke is drawn through the midpoints between its samples, each sample the control
+      // of a curve, so a hand-drawn line comes out smooth instead of a chain of short straight pieces.
+      const d = it.kind === 'pencil' && pts.length >= 6 ? smooth(pts) : straight
       const color = it.color || SHAPE_COLORS[0]
       const W = Math.max(1, Number(it.w) || 0)
       const H = Math.max(1, Number(it.h) || 0)

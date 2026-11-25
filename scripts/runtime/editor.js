@@ -772,8 +772,23 @@
     const vals = [...new Set(sel.els.filter(live).map((el) => cs(el).getPropertyValue(prop)))]
     return vals.length === 1 ? vals[0] : 'Mixed'
   }
+  /** Bold, italic or underline on or off: when the element's CSS alone already gives what is wanted, its own value is removed; otherwise the value is written. */
+  function toggleStyle(prop, on, onValue, offValue, isOn, read = prop) {
+    const el = primary()
+    const own = el.style.getPropertyValue(prop)
+    el.style.removeProperty(prop)
+    const byCss = isOn(cs(el).getPropertyValue(read))
+    if (own) el.style.setProperty(prop, own)
+    setStyle({ [prop]: byCss === on ? '' : on ? onValue : offValue })
+  }
   function colorButton(title, prop, value, onPick) {
     const input = h('input', { type: 'color', value: rgbHex(value), 'aria-label': title })
+    // Seen at once while the picker is open; written once, when it closes.
+    input.addEventListener('input', () => {
+      if (editing) return
+      for (const el of sel?.els.filter(live) ?? []) el.style.setProperty(prop, input.value)
+      input.previousElementSibling.style.background = input.value
+    })
     input.addEventListener('change', () => onPick(input.value))
     return h('label', { class: 'fbtn swatch-btn', title }, h('span', { class: 'chip', style: `background:${value === 'Mixed' ? 'linear-gradient(135deg,#888 50%,#444 50%)' : value}` }), input)
   }
@@ -797,11 +812,11 @@
       parts.push(h('button', { type: 'button', class: 'fbtn wide', title: 'Text style', onclick: (e) => textStyles(e.currentTarget) }, label, h('span', { class: 'caret' }, '▾')))
       parts.push(colorButton('Text colour', 'color', shared('color'), (v) => (styleRun('color', v) || setStyle({ color: v }))))
       const bold = Number(shared('font-weight')) >= 600
-      parts.push(h('button', { type: 'button', class: 'fbtn', title: 'Bold', 'aria-pressed': String(bold), onclick: () => (editing ? editing.frame.doc.execCommand('bold') : setStyle({ 'font-weight': bold ? '400' : '700' })) }, h('b', {}, 'B')))
+      parts.push(h('button', { type: 'button', class: 'fbtn', title: 'Bold', 'aria-pressed': String(bold), onclick: () => (editing ? editing.frame.doc.execCommand('bold') : toggleStyle('font-weight', !bold, '700', '400', (v) => Number(v) >= 600)) }, h('b', {}, 'B')))
       const italic = shared('font-style') === 'italic'
-      parts.push(h('button', { type: 'button', class: 'fbtn', title: 'Italic', 'aria-pressed': String(italic), onclick: () => (editing ? editing.frame.doc.execCommand('italic') : setStyle({ 'font-style': italic ? '' : 'italic' })) }, h('i', {}, 'I')))
+      parts.push(h('button', { type: 'button', class: 'fbtn', title: 'Italic', 'aria-pressed': String(italic), onclick: () => (editing ? editing.frame.doc.execCommand('italic') : toggleStyle('font-style', !italic, 'italic', 'normal', (v) => v === 'italic')) }, h('i', {}, 'I')))
       const under = shared('text-decoration-line').includes('underline')
-      parts.push(h('button', { type: 'button', class: 'fbtn', title: 'Underline', 'aria-pressed': String(under), onclick: () => (editing ? editing.frame.doc.execCommand('underline') : setStyle({ 'text-decoration': under ? 'none' : 'underline' })) }, h('u', {}, 'U')))
+      parts.push(h('button', { type: 'button', class: 'fbtn', title: 'Underline', 'aria-pressed': String(under), onclick: () => (editing ? editing.frame.doc.execCommand('underline') : toggleStyle('text-decoration', !under, 'underline', 'none', (v) => v.includes('underline'), 'text-decoration-line')) }, h('u', {}, 'U')))
       parts.push(h('button', { type: 'button', class: 'fbtn', title: 'Link', onclick: link }, dc.icon('link')))
       parts.push(h('button', { type: 'button', class: 'fbtn', title: 'List', onclick: list }, '☰'))
       const ta = shared('text-align')

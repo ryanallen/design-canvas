@@ -962,12 +962,49 @@
   }
   function placeFloat() {
     if (!floatBar.classList.contains('open') || !sel?.frame.doc || !primary()?.isConnected) return
-    const b = rectOn(sel.frame, primary())
+    const f = sel.frame
+    const b = rectOn(f, primary())
     const w = floatBar.offsetWidth
-    let top = b.y - floatBar.offsetHeight - 30
-    if (top < 56) top = b.y + b.h + 10
-    floatBar.style.left = `${Math.max(8, Math.min(innerWidth - w - 8 - (document.body.classList.contains('panel-open') && innerWidth > 640 ? 320 : 0), b.x))}px`
-    floatBar.style.top = `${Math.min(innerHeight - 100, Math.max(56, top))}px`
+    const hh = floatBar.offsetHeight
+    const maxLeft = innerWidth - w - 8 - (document.body.classList.contains('panel-open') && innerWidth > 640 ? 320 : 0)
+    const clamp = (c) => ({ x: Math.max(8, Math.min(maxLeft, c.x)), y: Math.min(innerHeight - 100, Math.max(56, c.y)) })
+    // Above (clear of the selection's name tag), below, or to the right: whichever covers least of the
+    // prototype's text and pictures, and never the selection itself; above when they tie.
+    const spots = [{ x: b.x, y: b.y - hh - 30 }, { x: b.x, y: b.y + b.h + 10 }, { x: b.x + b.w + 12, y: b.y + b.h / 2 - hh / 2 }].map(clamp)
+    const k = f.s * dc.view.z
+    const o = dc.toScreen(f.x, f.y)
+    const ink = inkOf(f).map((r) => ({ x: o.x + r.x * k, y: o.y + r.y * k, w: r.w * k, h: r.h * k }))
+    const over = (a, c) => Math.max(0, Math.min(a.x + a.w, c.x + w) - Math.max(a.x, c.x)) * Math.max(0, Math.min(a.y + a.h, c.y + hh) - Math.max(a.y, c.y))
+    const cost = (c) => over(b, c) * 20 + ink.reduce((s, r) => s + over(r, c), 0)
+    const costs = spots.map(cost)
+    let at = 0
+    for (let i = 1; i < spots.length; i++) if (costs[i] < costs[at] - 1) at = i
+    // The same selection keeps its spot while typing or panning, unless that spot comes to cover clearly more.
+    if (lastSpot.el === primary() && costs[lastSpot.at] <= costs[at] + 400) at = lastSpot.at
+    lastSpot = { el: primary(), at }
+    const best = spots[at]
+    floatBar.style.left = `${best.x}px`
+    floatBar.style.top = `${best.y}px`
+  }
+  /** The selected frame's text and pictures, outside the selection, in its own pixels; kept until the selection or the page changes. */
+  let inkCache = null
+  let lastSpot = { el: null, at: 0 }
+  function inkOf(f) {
+    const el = primary()
+    const size = f.doc.body.innerHTML.length
+    if (inkCache && inkCache.el === el && inkCache.doc === f.doc && inkCache.size === size) return inkCache.rects
+    const rects = []
+    const chosen = sel.els
+    const walker = f.doc.createTreeWalker(f.doc.body, NodeFilter.SHOW_ELEMENT)
+    for (let n = walker.nextNode(); n && rects.length < 1500; n = walker.nextNode()) {
+      if (chosen.some((c) => c === n || c.contains(n) || n.contains(c))) continue
+      const media = /^(img|svg|video|canvas|input|button|select|textarea|iframe)$/.test(n.localName)
+      if (!media && !ownText(n)) continue
+      const r = n.getBoundingClientRect()
+      if (r.width && r.height) rects.push({ x: r.left, y: r.top, w: r.width, h: r.height })
+    }
+    inkCache = { el, doc: f.doc, size, rects }
+    return rects
   }
   /** The text styles the prototype already uses: each tag and class pairing that holds text, with its font. */
   function textStyles(anchor) {

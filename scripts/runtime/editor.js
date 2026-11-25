@@ -66,9 +66,13 @@
     const pc = (el.parentElement?.getAttribute('class') || '').trim().split(/\s+/).filter(Boolean)[0]
     return `${pc ? `.${esc(pc)} > ` : ''}${el.localName}${classes}`
   }
+  /** The start of what an element says: its text nodes joined with spaces, so two blocks never run together. */
   const excerpt = (el, n = 18) => {
-    const t = (el.textContent || '').replace(/\s+/g, ' ').trim()
-    return t.length > n ? `${t.slice(0, n)}…` : t
+    const walk = el.ownerDocument.createTreeWalker(el, NodeFilter.SHOW_TEXT, { acceptNode: (t) => (t.parentElement?.closest('script, style, template') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) })
+    let t = ''
+    for (let node = walk.nextNode(); node && t.length <= n; node = walk.nextNode()) t += ` ${node.data}`
+    t = t.replace(/\s+/g, ' ').trim()
+    return t.length > n ? `${t.slice(0, n).trim()}…` : t
   }
   /** A layer's name: data-name, aria-label, then what it is and what it says. */
   function nameOf(el) {
@@ -94,7 +98,9 @@
     if (d.includes('flex')) return say(cs(el).flexDirection.startsWith('column') ? 'Column' : 'Row')
     if (d.includes('grid')) return say('Grid')
     if (isText(el)) return say('Text')
-    return { kind: 'group', text: `${el.id ? `group #${el.id}` : el.classList[0] ? `group .${el.classList[0]}` : 'group'}` }
+    // A box is named by its id or class and what it says, so four cards read as four different cards.
+    const said = excerpt(el)
+    return { kind: 'group', text: `${el.id ? `Group #${el.id}` : el.classList[0] ? `.${el.classList[0]}` : 'Group'}${said ? ` "${said}"` : ''}` }
   }
 
   // ── selection ──

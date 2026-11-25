@@ -210,22 +210,32 @@
       ...['top', 'middle', 'bottom'].map((w) => h('button', { type: 'button', class: 'mini', title: `Align ${w}`, onclick: () => alignV(w) }, h('span', { class: 'ag', 'data-a': `v-${w}` })))))
 
     // Size
+    // Sizes are shown as the box is drawn, padding and border included, as the label on the board
+    // shows them; a content-box element's CSS width is that less its padding and border.
+    const n = (v) => parseFloat(v) || 0
+    const extra = (dim) => (c.boxSizing === 'border-box' ? 0 : dim === 'width'
+      ? n(c.paddingLeft) + n(c.paddingRight) + n(c.borderLeftWidth) + n(c.borderRightWidth)
+      : n(c.paddingTop) + n(c.paddingBottom) + n(c.borderTopWidth) + n(c.borderBottomWidth))
+    const drawn = (dim) => Math.round(el.getBoundingClientRect()[dim])
+    const cssSize = (dim, outer) => `${Math.max(0, Math.round(Number(outer) - extra(dim)))}px`
     const sizeMode = (dim) => {
       const own = el.style.getPropertyValue(dim)
-      if (/fit-content|max-content|auto/.test(own)) return 'hug'
-      if (own === '100%' || (dim === 'width' ? parentRow : parentFlex && !parentRow) && Number(c.flexGrow) > 0) return 'fill'
-      if (/px$/.test(own) || (dim === 'width' ? c.display === 'block' && false : false)) return 'fixed'
-      return /px$/.test(own) ? 'fixed' : 'hug'
+      const along = dim === 'width' ? parentRow : parentFlex && !parentRow
+      if (/fit-content|max-content|min-content/.test(own)) return 'hug'
+      if (own === '100%' || (along && Number(c.flexGrow) > 0)) return 'fill'
+      if (/px$/.test(own)) return 'fixed'
+      // No width of its own: a block outside a flex row stretches across its parent.
+      if (dim === 'width' && !own && !parentRow && !c.display.startsWith('inline') && !['absolute', 'fixed'].includes(c.position) && c.float === 'none') return 'fill'
+      return 'hug'
     }
     const setMode = (dim, mode) => {
-      const r = el.getBoundingClientRect()
       const along = dim === 'width' ? parentRow : parentFlex && !parentRow
       if (mode === 'hug') set({ [dim]: 'fit-content', ...(along ? { flex: '' } : {}) })
-      else if (mode === 'fixed') set({ [dim]: `${Math.round(dim === 'width' ? r.width : r.height)}px`, ...(along ? { flex: '' } : {}) })
+      else if (mode === 'fixed') set({ [dim]: cssSize(dim, drawn(dim)), ...(along ? { flex: '' } : {}) })
       else if (along) set({ flex: '1 1 0', [dim]: '' })
       else set({ [dim]: '100%' })
     }
-    const dimRow = (dim, label) => field(label, input(num(c.getPropertyValue(dim)), (v) => set({ [dim]: px(v) }), { class: 'n' }), seg([['hug', 'Hug'], ['fixed', 'Fixed'], ['fill', 'Fill']], sizeMode(dim), (m) => setMode(dim, m)))
+    const dimRow = (dim, label) => field(label, input(String(drawn(dim)), (v) => set({ [dim]: /^\d+(\.\d+)?$/.test(String(v).trim()) ? cssSize(dim, v) : px(v) }), { class: 'n' }), seg([['hug', 'Hug'], ['fixed', 'Fixed'], ['fill', 'Fill']], sizeMode(dim), (m) => setMode(dim, m)))
     host.append(section('Size', ['min-width', 'max-width', 'min-height', 'max-height', 'aspect-ratio', 'overflow', 'margin', 'z-index', 'inset'],
       dimRow('width', 'Width'),
       dimRow('height', 'Height'),

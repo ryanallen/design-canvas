@@ -2409,8 +2409,8 @@
   const SHORTCUTS = [
     ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['R', 'Rectangle'], ['S', 'Section'], ['A', 'Artboard'], ['C', 'Comment']]],
     ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['+ and −', 'Zoom in and out'], ['0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+\\', 'Panel']]],
-    ['Board objects', [['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+V', 'Copy, paste'], ['Ctrl+], Ctrl+[', 'Front, back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Ctrl+drag', 'Move without snapping'], ['Delete', 'Delete']]],
-    ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or go in, go out'], ['Esc', 'Select the parent'], ['Tab', 'Next sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
+    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+V', 'Copy, paste'], ['Ctrl+], Ctrl+[', 'Front, back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Ctrl+drag', 'Move without snapping'], ['Delete', 'Delete']]],
+    ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Enter, Shift+Enter', 'Edit text or go in, go out'], ['Esc', 'Select the parent'], ['Tab', 'Next sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
     ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['Esc', 'Back to the canvas']]],
     ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+?', 'This sheet']]],
   ]
@@ -2652,6 +2652,12 @@
       document.body.classList.add('space')
       e.preventDefault()
       return
+    }
+    // Ctrl+A on the board: every object and frame on the page.
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'a' && serve) {
+      e.preventDefault()
+      const ids = board.items.filter((i) => (i.page ?? firstPage()) === pageId && i.kind !== 'guide').map((i) => i.id)
+      return chooseItems(ids, frames().map((f) => f.key))
     }
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'g' && chosen?.items.size && serve) {
       e.preventDefault()

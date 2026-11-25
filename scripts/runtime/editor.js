@@ -853,7 +853,12 @@
     else if (mod && k === 'g') e.shiftKey ? ops.ungroup() : ops.group()
     else if (mod && k === 'c') ops.copy()
     else if (mod && k === 'v') ops.paste()
-    else if (mod) return false
+    // Everything alongside the selection, as Figma's Ctrl+A: the selected element's siblings.
+    else if (mod && k === 'a' && !e.shiftKey && !e.altKey) {
+      const all = [...(el.parentElement?.children ?? [])].filter((c) => !SKIP.has(c.localName))
+      if (el.localName === 'body' || all.length < 2) return false
+      select(sel.frame, all)
+    } else if (mod) return false
     else if (e.key === 'Delete' || e.key === 'Backspace') ops.remove()
     else if (e.key === 'Escape') {
       const up = el.parentElement

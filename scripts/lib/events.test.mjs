@@ -144,8 +144,8 @@ test('a board colour is a colour, never markup or a style that fetches', () => {
 })
 
 test('a comment anchor keeps the tag and words of its element, and nothing else', () => {
-  const e = make({ op: 'add', name: 'A', text: 't', frame: null, x: 0, y: 0, anchor: { path: 'body > 1', dx: 2, dy: 3, tag: 'p', text: '4.8 mi', extra: 'x' } })
+  const e = make({ op: 'add', name: 'A', text: 't', frame: null, file: 'a.html', x: 0, y: 0, anchor: { path: 'body > 1', dx: 2, dy: 3, tag: 'p', text: '4.8 mi', extra: 'x' } })
   assert.deepEqual(e.anchor, { path: 'body > 1', dx: 2, dy: 3, tag: 'p', text: '4.8 mi' })
-  const odd = make({ op: 'add', name: 'A', text: 't', frame: null, x: 0, y: 0, anchor: { path: 'body > 1', tag: '<img onerror=x>', text: 7 } })
+  const odd = make({ op: 'add', name: 'A', text: 't', frame: null, file: 'a.html', x: 0, y: 0, anchor: { path: 'body > 1', tag: '<img onerror=x>', text: 7 } })
   assert.deepEqual(odd.anchor, { path: 'body > 1', dx: 0, dy: 0 })
 })

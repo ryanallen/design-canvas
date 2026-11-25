@@ -1242,17 +1242,32 @@
   /** The text styles the prototype already uses: each tag and class pairing that holds text, with its font. */
   function textStyles(anchor) {
     const doc = sel.frame.doc
+    // One row a look (font, size, weight, line height, spacing), not a tag: two paragraphs styled by their context
+    // (.hero p, .card p) are two styles. Each is named where it is first used, with how many lines have it.
+    const lookOf = (el) => {
+      const c = cs(el)
+      return { family: c.fontFamily, size: c.fontSize, weight: c.fontWeight, line: c.lineHeight, spacing: c.letterSpacing }
+    }
+    const keyOf = (s) => [s.family, s.size, s.weight, s.line, s.spacing].join('|')
+    const whereOf = (el) => {
+      const own = `${el.localName}${el.classList[0] ? `.${el.classList[0]}` : ''}`
+      if (el.classList[0]) return own
+      for (let p = el.parentElement, i = 0; p && p !== doc.body && i < 3; p = p.parentElement, i++) if (p.classList[0]) return `.${p.classList[0]} ${own}`
+      return own
+    }
     const seen = new Map()
     for (const el of doc.body.querySelectorAll('*')) {
       if (!ownText(el)) continue
-      const key = `${el.localName}${el.classList[0] ? `.${el.classList[0]}` : ''}`
-      if (seen.has(key)) continue
-      const c = cs(el)
-      seen.set(key, { family: c.fontFamily, size: c.fontSize, weight: c.fontWeight, line: c.lineHeight, spacing: c.letterSpacing })
-      if (seen.size > 30) break
+      const s = lookOf(el)
+      const k = keyOf(s)
+      if (seen.has(k)) seen.get(k).count++
+      else if (seen.size < 30) seen.set(k, { s, where: whereOf(el), count: 1 })
     }
-    dc.openMenu(anchor, [...seen].map(([key, s]) => ({
-      label: `${key} · ${s.family.split(',')[0].replace(/["']/g, '')} ${s.size} ${s.weight}`,
+    const mine = keyOf(lookOf(primary()))
+    const lh = (s) => (s.line === 'normal' ? '' : `/${Math.round(parseFloat(s.line) * 10) / 10}px`)
+    dc.openMenu(anchor, [...seen].map(([k, { s, where, count }]) => ({
+      label: `${where} · ${s.family.split(',')[0].replace(/["']/g, '')} ${s.size}${lh(s)} ${s.weight}${count > 1 ? ` · ${count}` : ''}`,
+      tick: k === mine,
       run: () => setStyle({ 'font-family': s.family, 'font-size': s.size, 'font-weight': s.weight, 'line-height': s.line, 'letter-spacing': s.spacing }),
     })))
   }

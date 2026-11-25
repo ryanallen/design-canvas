@@ -349,7 +349,18 @@
         : field('Radius', input(radii[0], (v) => set({ 'border-radius': px(v) }), { class: 'n' }), h('button', { type: 'button', class: 'mini', title: 'Each corner', onclick: () => { radiusCorners = true; renderProps() } }, '⊞')),
       field('Border', seg([['none', 'None'], ['solid', 'Solid'], ['dashed', 'Dash'], ['dotted', 'Dot']], c.borderTopStyle, (v) => set(v === 'none' ? { border: 'none' } : { 'border-style': v, 'border-width': num(c.borderTopWidth) > 0 ? c.borderTopWidth : '1px', 'border-color': c.borderTopStyle === 'none' ? '#d1d5db' : c.borderTopColor }))),
       c.borderTopStyle !== 'none' ? field('Width · Color', input(num(c.borderTopWidth), (v) => set({ 'border-width': px(v) }), { class: 'n' }), color(c.borderTopColor, (v) => set({ 'border-color': v }))) : null,
-      field('Shadow', input(c.boxShadow === 'none' ? '' : c.boxShadow, (v) => set({ 'box-shadow': v || 'none' }), { placeholder: '0 2px 8px rgba(0,0,0,.15)' }))))
+      field('Shadow', input(c.boxShadow === 'none' ? '' : c.boxShadow, (v) => set({ 'box-shadow': v || 'none' }), { placeholder: '0 2px 8px rgba(0,0,0,.15)' })),
+      motionField(el, c)))
+  }
+  /** How fast it changes into a state and back: CSS transition on the element itself, whatever state is shown. */
+  function motionField(el, c) {
+    const ms = Math.max(...c.transitionDuration.split(',').map((d) => parseFloat(d) * (d.trim().endsWith('ms') ? 1 : 1000) || 0))
+    const SPEEDS = [['none', 'None', 0], ['quick', 'Quick', 150], ['smooth', 'Smooth', 250], ['slow', 'Slow', 400]]
+    const now = ms ? SPEEDS.slice(1).reduce((a, b) => (Math.abs(b[2] - ms) < Math.abs(a[2] - ms) ? b : a))[0] : 'none'
+    return field('Motion', seg(SPEEDS.map(([k, label, t]) => [k, label, t ? `${label}: ${t} ms into and out of each state` : 'No motion']), now, (k) => {
+      const t = SPEEDS.find(([key]) => key === k)[2]
+      ed.setStyle({ transition: t ? `all ${t}ms ease-out` : '' })
+    }))
   }
 
   // ── code ──

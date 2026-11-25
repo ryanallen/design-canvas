@@ -54,7 +54,7 @@ Everything people do is a line before `</body>`, one JSON event each, never rewr
 
 ## States
 
-Properties has **Default · Hover · Pressed · Focus** above an element's properties. In a state, the element is shown on the board as it looks in that state (every `:hover`, `:active` or `:focus` rule for it applied, the prototype's own and the canvas's), Properties reads those values, and a change is written as that state's rule for the element's id, or else its tag and classes, so Play shows it for real. An element with neither is asked for one.
+Properties has **Default · Hover · Pressed · Focus** above an element's properties. In a state, the element is shown on the board as it looks in that state (every `:hover`, `:active` or `:focus` rule for it applied, the prototype's own and the canvas's), Properties reads those values, and a change is written as that state's rule for the element's id, or else its tag and classes, so Play shows it for real. An element with neither is asked for one. **Motion** (None, Quick, Smooth, Slow) sets how fast it changes into a state and back: a CSS `transition` on the element itself.
 
 ## Find and replace
 

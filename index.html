@@ -10,10 +10,10 @@
 <meta property="og:title" content="Design canvas">
 <meta property="og:description" content="Every HTML prototype in a folder, on one board you can edit.">
 <meta property="og:url" content="https://ryanallen.com/design-canvas/">
-<meta property="og:image" content="https://ryanallen.com/design-canvas/landing/board-1440.webp">
+<meta property="og:image" content="https://ryanallen.com/design-canvas/landing/hero-1440.webp">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#0e0e10">
-<link rel="preload" as="image" href="landing/board-1440.webp" imagesrcset="landing/board-1440.webp 1440w, landing/board-2880.webp 2880w" imagesizes="(max-width: 1200px) 100vw, 1200px" fetchpriority="high">
+<link rel="preload" as="image" href="landing/hero-1440.webp" imagesrcset="landing/hero-1440.webp 1440w, landing/hero-2880.webp 2880w" imagesizes="(max-width: 1200px) 100vw, 1200px" fetchpriority="high">
 <script>
   // Links made before the canvas moved to /play/ opened it on a page (#page=…): they still do.
   if (/^#page=/.test(location.hash)) location.replace(`play/${location.hash}`)
@@ -60,7 +60,6 @@
   /* The canvas itself, as a screen standing at the bottom of the panel. */
   .shot { width: min(var(--wide), 100%); margin: auto auto 0; padding-top: 56px; }
   .shot img { width: 100%; border-radius: var(--r) var(--r) 0 0; box-shadow: 0 -1px 0 rgb(255 255 255 / 0.08), 0 30px 80px rgb(0 0 0 / 0.45); aspect-ratio: 1440 / 900; background: #121214; }
-  .shot img.wide { aspect-ratio: 1440 / 560; border-radius: var(--r); margin-bottom: 72px; }
   .paper .shot img { box-shadow: 0 30px 80px rgb(0 0 0 / 0.18); }
 
   /* What else it does: short, one line each, in two or three columns. */
@@ -85,7 +84,6 @@
   @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 640px) {
     .grid { grid-template-columns: 1fr; gap: 28px; }
-    .shot img.wide { border-radius: 10px; margin-bottom: 48px; }
     .bar nav a.wide-only { display: none; }
     /* A phone shows the picture small: each part is as tall as what is in it, not a whole screen. */
     .panel { min-height: auto; padding-top: 88px; }
@@ -116,7 +114,7 @@
       <a class="btn calm" href="#get">Get it for your own folder</a>
     </div>
     <div class="shot">
-      <img src="landing/board-1440.webp" srcset="landing/board-1440.webp 1440w, landing/board-2880.webp 2880w" sizes="(max-width: 1200px) 100vw, 1200px" width="1440" height="351" class="wide" alt="The canvas with three prototypes side by side: a surf app's home page, a spot's detail page and its pricing page, and the notes pointing at them" fetchpriority="high">
+      <img src="landing/hero-1440.webp" srcset="landing/hero-1440.webp 1440w, landing/hero-2880.webp 2880w" sizes="(max-width: 1200px) 100vw, 1200px" width="1440" height="900" alt="The canvas at work: a surf app's home page and its detail page on the board, two sticky notes pointing at home, its headline selected with the text toolbar over it, and the Properties panel showing that headline's size and layout" fetchpriority="high">
     </div>
   </section>
 

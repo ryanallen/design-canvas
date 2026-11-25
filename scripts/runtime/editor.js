@@ -425,6 +425,7 @@
       const body = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(body.error || `Saving failed (${res.status})`)
       if (body.same) return
+      dc.noteFileEdit?.()
       if (body.linked) hint(`Made in all ${body.linked + 1} copies of the component`, 1600)
       pendingSelect = { file, key, cv: body.select, copies, then }
       dc.reloadFile(file, body.html)
@@ -454,6 +455,10 @@
     return send({ op: 'style', cv: cvOf(el), props })
   }
   const notEditable = (el) => (!dc.serve ? dc.readOnly : el && fileLocked(fileOf(el)) ? 'This artboard is locked by its owner.' : el && lockedEl(el) ? 'This part is locked by its owner.' : el && cvOf(el) == null ? 'This element is made by the prototype\'s own script, so it can be inspected and not edited.' : 'Nothing editable is selected.')
+  /** Ctrl+Z: the board undoes its own last step; a prototype edit is undone by the server. */
+  async function undoLast(redo) {
+    if (!(await dc.boardUndo?.(redo))) undo(redo)
+  }
   async function undo(redo = false) {
     if (!dc.serve) return
     const res = await fetch(redo ? '/api/redo' : '/api/undo', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: dc.me || 'someone' }) })
@@ -725,12 +730,12 @@
     const k = e.key.toLowerCase()
     if (mod && k === 'z') {
       e.preventDefault()
-      undo(e.shiftKey)
+      undoLast(e.shiftKey)
       return true
     }
     if (mod && k === 'y') {
       e.preventDefault()
-      undo(true)
+      undoLast(true)
       return true
     }
     const el = primary()

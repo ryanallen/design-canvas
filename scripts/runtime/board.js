@@ -240,6 +240,8 @@
     const first = data.pages[0]?.id ?? 'p1'
     for (const f of data.loose ?? []) place(f, first, null, 0, 0, 1)
     for (const key of [...allFrames.keys()]) if (!seen.has(key)) allFrames.delete(key)
+    // Where the layout put each frame, for undoing a frame's first move by hand.
+    for (const f of allFrames.values()) f.home = { x: f.x, y: f.y, page: f.page }
     // Frames moved by hand, onto another spot or another page.
     for (const [key, m] of Object.entries(board.moved)) {
       const f = allFrames.get(key)
@@ -1608,12 +1610,114 @@
     if (!serve) throw new Error(readOnly)
     const refused = lockedReason(input)
     if (refused) throw new Error(refused)
-    const res = await fetch('/api/board', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ event: { name: me || 'someone', ...input } }) })
-    const body = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(body.error || `Saving failed (${res.status})`)
-    boardEvents.push(body.event)
-    board = foldBoard(boardEvents)
-    return body.event
+    // What the line changes, as the lines said before it: the board as drawn may already show the change.
+    const was = replaying ? null : stateOf(foldBoard(boardEvents), input)
+    pending++
+    try {
+      const res = await fetch('/api/board', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ event: { name: me || 'someone', ...input } }) })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.error || `Saving failed (${res.status})`)
+      boardEvents.push(body.event)
+      board = foldBoard(boardEvents)
+      if (was) remember(was, stateOf(board, body.event))
+      return body.event
+    } finally {
+      pending--
+    }
+  }
+
+  // ── undo and redo for the board ──
+  // One history with the prototypes' edits, as in Figma: Ctrl+Z undoes whatever was done last.
+  // A step is everything one action sent (a group dragged, an align, a paste): each board object
+  // and frame it touched, as it was before and after. A file edit is a 'file' entry, undone by the server.
+  const history = []
+  const future = []
+  let openStep = null
+  let replaying = false
+  const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points']
+  /** The one thing a line touches, as a board says it is: an object's fields, a frame's place, or null for nothing there. */
+  function stateOf(b, ev) {
+    if (ev.op === 'item' || ev.op === 'remove') {
+      if (!ev.id) return { id: null, state: null }
+      const it = b.items.find((i) => i.id === ev.id)
+      return { id: ev.id, state: it ? Object.fromEntries(ITEM_KEYS.filter((k) => it[k] != null).map((k) => [k, it[k]])) : null }
+    }
+    if (ev.op === 'move') {
+      const f = allFrames.get(ev.key)
+      const m = b.moved[ev.key] ?? f?.home
+      return { key: ev.key, state: m ? { x: m.x, y: m.y, page: m.page ?? f?.page ?? null } : null }
+    }
+    return null
+  }
+  function remember(before, after) {
+    // A new object's id is only known from its line.
+    if (before.id === null) before.id = after.id
+    if (!openStep) {
+      openStep = { kind: 'board', changes: new Map() }
+      history.push(openStep)
+      future.length = 0
+      if (history.length > 200) history.shift()
+      const step = openStep
+      // The step closes once its action has sent everything: each send starts as the last one ends, before any timer.
+      const close = () => (pending ? setTimeout(close, 0) : openStep === step && (openStep = null))
+      setTimeout(close, 0)
+    }
+    const k = before.id ?? `frame:${before.key}`
+    const c = openStep.changes.get(k)
+    if (c) c.after = after.state
+    else openStep.changes.set(k, { id: before.id, key: before.key, before: before.state, after: after.state })
+  }
+  let pending = 0
+  /** Put every object and frame of a step back as it was (or forward as it became). */
+  async function replay(step, back) {
+    replaying = true
+    try {
+      for (const c of [...step.changes.values()].reverse()) {
+        const want = back ? c.before : c.after
+        const other = back ? c.after : c.before
+        if (c.key) {
+          if (want) await sendBoard({ op: 'move', key: c.key, x: want.x, y: want.y, ...(want.page ? { page: want.page } : {}) })
+          continue
+        }
+        if (!want) {
+          if (board.items.some((i) => i.id === c.id)) await sendBoard({ op: 'remove', id: c.id })
+          continue
+        }
+        // A field the other side had and this one lacks is cleared.
+        const clear = Object.fromEntries(Object.keys(other ?? {}).filter((k) => want[k] == null).map((k) => [k, ['x', 'y', 'w', 'h', 'z', 'cols', 'gutter', 'margin'].includes(k) ? 0 : k === 'points' ? [] : '']))
+        await sendBoard({ op: 'item', id: c.id, ...clear, ...want })
+      }
+    } finally {
+      replaying = false
+      relayout()
+      pickItem(null)
+      renderItems()
+    }
+  }
+  /** Ctrl+Z or Ctrl+Shift+Z: true when the last thing done was on the board and it was undone here. */
+  async function boardUndo(redo) {
+    const from = redo ? future : history
+    const to = redo ? history : future
+    const top = from[from.length - 1]
+    if (!top) return false
+    from.pop()
+    to.push(top)
+    if (top === openStep) openStep = null
+    if (top.kind === 'file') return false
+    try {
+      await replay(top, !redo)
+      hint(redo ? 'Redone' : 'Undone', 900)
+    } catch (err) {
+      hint(err.message, 3000)
+      takeBoardAgain()
+    }
+    return true
+  }
+  /** A prototype edit was made: it takes its place in the one history. */
+  const noteFileEdit = () => {
+    openStep = null
+    history.push({ kind: 'file' })
+    future.length = 0
   }
 
   // ── comments ──
@@ -2406,6 +2510,7 @@
 
   // ── what the editor works through ──
   window.designCanvas = {
+    boardUndo, noteFileEdit,
     get serve() { return serve },
     get local() { return local },
     get owner() { return owner() },

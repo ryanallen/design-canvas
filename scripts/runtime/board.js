@@ -1476,6 +1476,36 @@
       return { dx: dx + (sx?.d ?? 0), dy: dy + (sy?.d ?? 0) }
     }
   }
+  /** The arrow keys move what is selected on the board, as Figma nudges: 1 px, 10 with Shift. A section takes what is
+   *  inside it; a line bound to objects stays with them. One key press is one undo step. */
+  async function nudgeBoard(dx, dy) {
+    const it = picked ? board.items.find((i) => i.id === picked) : null
+    const along = chosen ? { items: [...chosen.items], frames: [...chosen.frames] } : it ? (it.kind === 'section' ? inside(it) : { items: [it.id], frames: [] }) : null
+    if (!along) return false
+    if (it && !along.items.includes(it.id)) along.items.push(it.id)
+    const moving = along.items.map((x) => board.items.find((i) => i.id === x)).filter((i) => i && i.kind !== 'guide' && !isLocked(i.id) && !i.from && !i.to)
+    const frameList = along.frames.map((k) => allFrames.get(k)).filter((f) => f && !isLocked(f.key))
+    if (!moving.length && !frameList.length) {
+      if (along.items.some(isLocked) || along.frames.some(isLocked)) hint('Locked by its owner: it stays where it is', 1800)
+      return true
+    }
+    for (const m of moving) Object.assign(m, { x: m.x + dx, y: m.y + dy })
+    for (const f of frameList) {
+      Object.assign(f, { x: f.x + dx, y: f.y + dy })
+      positionFrame(f)
+    }
+    if (chosen) Object.assign(chosen.box, { x: chosen.box.x + dx, y: chosen.box.y + dy })
+    renderItems()
+    if (frameList.length) renderPins()
+    try {
+      for (const m of moving) await sendBoard({ op: 'item', id: m.id, x: m.x, y: m.y })
+      for (const f of frameList) await sendBoard({ op: 'move', key: f.key, x: f.x, y: f.y, page: pageId })
+    } catch (err) {
+      hint(err.message, 3000)
+      takeBoardAgain()
+    }
+    return true
+  }
   function startItemDrag(e, id) {
     const it = board.items.find((i) => i.id === id)
     if (!it) return
@@ -2560,7 +2590,7 @@
   const SHORTCUTS = [
     ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['R', 'Rectangle'], ['S', 'Section'], ['A', 'Artboard'], ['C', 'Comment']]],
     ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['+ and −', 'Zoom in and out'], ['0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+\\', 'Panel']]],
-    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+V', 'Copy, paste'], ['Ctrl+], Ctrl+[', 'Front, back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Ctrl+drag', 'Move without snapping'], ['Delete', 'Delete']]],
+    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+V', 'Copy, paste'], ['Ctrl+], Ctrl+[', 'Front, back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Delete', 'Delete']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Enter, Shift+Enter', 'Edit text or go in, go out'], ['Esc', 'Select the parent'], ['Tab', 'Next sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
     ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['Esc', 'Back to the canvas']]],
     ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+?', 'This sheet']]],
@@ -2910,6 +2940,10 @@
       else if (thread.classList.contains('open')) closeThread()
       else if (picked || chosen) pickItem(null)
       else setTool('select')
+    } else if (e.key.startsWith('Arrow') && serve && (picked || chosen)) {
+      e.preventDefault()
+      const step = e.shiftKey ? 10 : 1
+      nudgeBoard(e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0, e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0)
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && chosen?.items.size) {
       removeChosen()
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && picked) {

@@ -1133,7 +1133,8 @@
   let boardClip = null // { items, times }
   /** What is selected on the board: a drag box's or Shift's objects, or the one picked with its group. */
   const selectedItems = () => (chosen ? [...chosen.items] : picked ? withGroup(picked) : []).map((id) => board.items.find((i) => i.id === id)).filter((i) => i && i.kind !== 'guide')
-  const COPIED = ['kind', 'x', 'y', 'w', 'h', 'text', 'color', 'points', 'from', 'to', 'group']
+  // Everything an object is, but where it is bound and which group it is in, which a copy is given anew; a guide's frame stays its own.
+  const COPIED = ['kind', 'x', 'y', 'w', 'h', 'text', 'color', 'points', 'from', 'to', 'group', 'size', 'z', 'cols', 'gutter', 'margin', 'frame']
   /** New objects like these, moved by dx, dy: a group copied is a new group, and a line holding an
    * object copied with it holds the copy; one holding something left behind lets go where it is. */
   async function placeCopies(list, dx, dy) {
@@ -2700,6 +2701,7 @@
             if (!title?.trim()) return
             try { await sendBoard({ op: 'page', id: p.id, title: title.trim() }); renderPage() } catch (err) { hint(err.message, 3000) }
           } },
+          { label: 'Duplicate', run: () => duplicatePage(p) },
           { label: 'Move up', disabled: pages()[0]?.id === p.id, run: () => movePage(p.id, -1) },
           { label: 'Move down', disabled: pages().at(-1)?.id === p.id, run: () => movePage(p.id, 1) },
           { label: 'Delete', danger: true, disabled: pages().length < 2, run: async () => {
@@ -2719,6 +2721,26 @@
       } } : null,
     ].filter(Boolean))
   })
+  /** A new page after this one holding a copy of each of its board objects, at the same spots: groups and arrows
+      between copied objects go with them. Frames stay with their files, and a guide with its frame. */
+  async function duplicatePage(p) {
+    const list = board.items.filter((i) => (i.page ?? firstPage()) === p.id && i.kind !== 'guide')
+    try {
+      const ev = await sendBoard({ op: 'page', title: `${p.title} copy` })
+      const all = pages()
+      const at = all.findIndex((x) => x.id === p.id)
+      // Placed right after the page it copies.
+      const order = [...all.filter((x) => x.id !== ev.id)]
+      order.splice(at + 1, 0, all.find((x) => x.id === ev.id))
+      await Promise.all(order.map((x, n) => (x.order === n ? null : sendBoard({ op: 'page', id: x.id, order: n }))))
+      goPage(ev.id)
+      if (list.length) await placeCopies(list, 0, 0)
+      pickItem(null)
+      hint(`${list.length} object${list.length === 1 ? '' : 's'} copied to ${p.title} copy`, 2000)
+    } catch (err) {
+      hint(err.message, 3000)
+    }
+  }
   /** A page one place up or down: every page is given its place in the new order, sent together, so one Ctrl+Z puts it back. */
   async function movePage(id, d) {
     const list = pages()

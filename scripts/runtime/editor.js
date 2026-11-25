@@ -1071,9 +1071,12 @@
     if (!text && canEdit && ['ul', 'ol'].includes(el.localName)) parts.push(h('button', { type: 'button', class: 'fbtn', title: 'List', 'aria-label': el.localName === 'ul' ? 'List: make it numbered' : 'List: make it a paragraph', onclick: list }, el.localName === 'ul' ? '1.' : '¶'))
     if (boxy && canEdit) {
       if (text) parts.push(h('span', { class: 'sep' }))
-      parts.push(colorButton('Fill', 'background-color', shared('background-color'), (v) => setStyle({ 'background-color': v })))
       const d = shared('display')
+      // A group with no box of its own (display: contents) draws no fill, corners or padding: only its layout is offered.
+      const flat = d === 'contents'
+      if (!flat) parts.push(colorButton('Fill', 'background-color', shared('background-color'), (v) => setStyle({ 'background-color': v })))
       parts.push(h('button', { type: 'button', class: 'fbtn', title: `Layout: ${d}`, onclick: (e) => dc.openMenu(e.currentTarget, [
+        ...(flat ? [{ label: 'Group: no box, its parts keep their places', tick: true, run: () => {} }] : []),
         { label: 'Block', tick: d === 'block', run: () => setStyle({ display: 'block' }) },
         { label: 'Flex row', tick: d.includes('flex') && !shared('flex-direction').startsWith('column'), run: () => setStyle({ display: d.startsWith('inline') ? 'inline-flex' : 'flex', 'flex-direction': 'row' }) },
         { label: 'Flex column', tick: d.includes('flex') && shared('flex-direction').startsWith('column'), run: () => setStyle({ display: d.startsWith('inline') ? 'inline-flex' : 'flex', 'flex-direction': 'column' }) },
@@ -1083,8 +1086,10 @@
         { label: 'Wrap in flex column', run: () => ops.wrapIn('column') },
         { label: 'Wrap in grid', run: () => ops.wrapIn('grid') },
       ]) }, '▦'))
-      parts.push(numberButton('Corner radius', '◜', 'border-radius', shared('border-top-left-radius')))
-      parts.push(numberButton('Padding', '⊡', 'padding', shared('padding-top')))
+      if (!flat) {
+        parts.push(numberButton('Corner radius', '◜', 'border-radius', shared('border-top-left-radius')))
+        parts.push(numberButton('Padding', '⊡', 'padding', shared('padding-top')))
+      }
     }
     if (canEdit) parts.push(h('span', { class: 'sep' }))
     // The owner locks a part of the prototype: it and everything in it stay as they are.

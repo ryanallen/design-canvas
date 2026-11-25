@@ -91,7 +91,11 @@ const anchorOf = (a) => {
   if (!a || typeof a !== 'object') return undefined
   const path = typeof a.path === 'string' ? a.path.slice(0, 600) : null
   if (!path) return undefined
-  return { path, dx: coord(a.dx ?? 0, 'anchor.dx'), dy: coord(a.dy ?? 0, 'anchor.dy') }
+  const out = { path, dx: coord(a.dx ?? 0, 'anchor.dx'), dy: coord(a.dy ?? 0, 'anchor.dy') }
+  // What the element is and says, to find it again when something put before it moves its path.
+  if (typeof a.tag === 'string' && /^[a-z][a-z0-9-]{0,30}$/.test(a.tag)) out.tag = a.tag
+  if (typeof a.text === 'string' && a.text.trim()) out.text = a.text.slice(0, 80)
+  return out
 }
 
 const boxOf = (b) => {

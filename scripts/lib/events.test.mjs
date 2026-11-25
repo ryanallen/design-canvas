@@ -142,3 +142,10 @@ test('a board colour is a colour, never markup or a style that fetches', () => {
   for (const c of ['#fde68a', 'tomato', 'rgb(1, 2, 3)', 'hsla(10 50% 50% / 0.5)', '']) assert.equal(board({ op: 'item', kind: 'rect', color: c }).color, c)
   for (const c of ['"><img src=x onerror=alert(1)>', 'red;background:url(//x)', 'url(//x)', 'expression(alert(1))']) assert.throws(() => board({ op: 'item', kind: 'arrow', color: c }), /color is not a colour/)
 })
+
+test('a comment anchor keeps the tag and words of its element, and nothing else', () => {
+  const e = make({ op: 'add', name: 'A', text: 't', frame: null, x: 0, y: 0, anchor: { path: 'body > 1', dx: 2, dy: 3, tag: 'p', text: '4.8 mi', extra: 'x' } })
+  assert.deepEqual(e.anchor, { path: 'body > 1', dx: 2, dy: 3, tag: 'p', text: '4.8 mi' })
+  const odd = make({ op: 'add', name: 'A', text: 't', frame: null, x: 0, y: 0, anchor: { path: 'body > 1', tag: '<img onerror=x>', text: 7 } })
+  assert.deepEqual(odd.anchor, { path: 'body > 1', dx: 0, dy: 0 })
+})

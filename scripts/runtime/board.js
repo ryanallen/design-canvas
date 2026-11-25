@@ -2065,7 +2065,7 @@
               } catch (err) { error.textContent = err.message }
             } }, 'Delete') : null),
           h('p', {}, m.text),
-          m.root && t.file ? h('div', { class: 'on' }, `On ${t.file}${t.anchor ? ` · ${t.anchor.path}` : ''}`) : null))
+          m.root && t.file ? h('div', { class: 'on' }, `On ${t.file}${t.anchor ? ` · ${t.anchor.text ? `“${t.anchor.text.length > 40 ? `${t.anchor.text.slice(0, 40)}…` : t.anchor.text}”` : t.anchor.path}` : ''}`) : null))
       }
     }
     const head = h('div', { class: 'head' },

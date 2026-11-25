@@ -381,9 +381,19 @@
       k = parent
     }
     const root = !k || k.localName === 'body' ? 'body' : k.id ? `#${k.id}` : `[data-name="${k.getAttribute('data-name').replace(/"/g, '\\"')}"]`
-    return { path: [root, ...steps].join(' > '), dx: Math.round(dx), dy: Math.round(dy) }
+    return { path: [root, ...steps].join(' > '), dx: Math.round(dx), dy: Math.round(dy), tag: el.localName, text: said(el) }
   }
-  function resolveAnchor(doc, path) {
+  /** The start of what an element says, as an anchor keeps it. */
+  const said = (el) => (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 80)
+  /** The element a comment is pinned to: by its path, checked against what it is and says; when
+      something put before it has moved it, the element of that tag saying those words. */
+  function resolveAnchor(doc, path, anchor = {}) {
+    const byPath = followPath(doc, path)
+    if (!anchor.text || (byPath && byPath.localName === anchor.tag && said(byPath) === anchor.text)) return byPath
+    const same = [...doc.querySelectorAll(anchor.tag || '*')].filter((el) => said(el) === anchor.text)
+    return same[0] ?? byPath
+  }
+  function followPath(doc, path) {
     const [root, ...steps] = path.split(' > ')
     let el
     try {
@@ -406,7 +416,7 @@
   }
   hooks.anchorPoint = (t, f) => {
     if (!f.doc || !t.anchor || (t.file && t.file !== f.file)) return null
-    const el = resolveAnchor(f.doc, t.anchor.path)
+    const el = resolveAnchor(f.doc, t.anchor.path, t.anchor)
     if (!el) return null
     const r = el.getBoundingClientRect()
     return { x: f.x + (r.left + Math.min(t.anchor.dx, r.width)) * f.s, y: f.y + (r.top + Math.min(t.anchor.dy, r.height)) * f.s }

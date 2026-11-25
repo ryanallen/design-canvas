@@ -843,7 +843,8 @@
     if (e.target.closest('button, .pin, .frame-label')) return
     // A press on an object captures the pointer to the board, so the double-click lands on the
     // board itself: the object is the one under the pointer.
-    const itemEl = e.target.closest('.item') ?? document.elementsFromPoint(e.clientX, e.clientY).find((el) => el.matches('.item:not(.guide)'))
+    // What is under it may be a line's own path: a level line's box is 0 tall, so its object is found from the path.
+    const itemEl = e.target.closest('.item') ?? document.elementsFromPoint(e.clientX, e.clientY).map((el) => el.closest?.('.item:not(.guide)')).find(Boolean)
     if (itemEl && tool === 'select') return editItemText(itemEl.dataset.id)
     call('onDblClick', e, { frame: frameAt(e.clientX, e.clientY), point: toWorld(e.clientX, e.clientY) })
   })
@@ -1040,7 +1041,11 @@
         s('path', { class: 'ink', d, fill: 'none', stroke: color, 'stroke-width': it.kind === 'pencil' ? 5 : 4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'marker-end': it.kind === 'arrow' ? `url(#${markerId})` : null }),
         s('path', { class: 'hit', d, fill: 'none', stroke: 'transparent', 'stroke-width': 24 }),
       )
-      return h('div', { class: `${cls} svg`, 'data-id': it.id, style: box }, svg)
+      // A line or arrow's label, as Figma's connector text: on its middle, over a backing so it reads across the line.
+      const label = it.kind !== 'pencil' && pts.length >= 4 && it.text
+        ? h('div', { class: 'txt line-label', style: `left:${(pts[0] + pts[pts.length - 2]) / 2}px;top:${(pts[1] + pts[pts.length - 1]) / 2}px` }, it.text)
+        : null
+      return h('div', { class: `${cls} svg`, 'data-id': it.id, style: box }, svg, label)
     }
     return null
   }
@@ -1551,10 +1556,16 @@
   }
   function editItemText(id) {
     const it = board.items.find((i) => i.id === id)
-    if (!it || !['note', 'title', 'rect', 'ellipse', 'section'].includes(it.kind)) return
+    if (!it || !['note', 'title', 'rect', 'ellipse', 'section', 'line', 'arrow'].includes(it.kind)) return
     if (!serve) return
     if (isLocked(id)) return hint(LOCKED, 2000)
     const box = (it.kind === 'section' ? sectionLayer : itemLayer).querySelector(`[data-id="${id}"]`)
+    // A line with no label yet gets an empty one on its middle to type into.
+    if (box && (it.kind === 'line' || it.kind === 'arrow') && !box.querySelector('.txt')) {
+      const pts = (geometryOf(it).points ?? []).map(Number)
+      if (pts.length < 4) return
+      box.append(h('div', { class: 'txt line-label', style: `left:${(pts[0] + pts[pts.length - 2]) / 2}px;top:${(pts[1] + pts[pts.length - 1]) / 2}px` }))
+    }
     const el = box?.querySelector('.txt') ?? box
     if (!el) return
     box.querySelector('.grip')?.remove()

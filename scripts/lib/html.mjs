@@ -312,9 +312,12 @@ function withKeyframes(src, frames) {
   const m = /<style data-canvas-keyframes>([\s\S]*?)<\/style>\n?/.exec(src)
   const lines = new Map((m ? m[1] : '').split('\n').map((l) => [/^@keyframes ([\w-]+) /.exec(l)?.[1], l]).filter(([n]) => n))
   for (const [name, css] of Object.entries(frames)) {
-    if (!/^[a-z][\w-]{0,40}$/i.test(name) || /[<>]/.test(String(css))) throw new Error(`bad keyframes ${name}`)
-    lines.set(name, `@keyframes ${name} { ${String(css).replace(/\s*\n\s*/g, ' ').trim()} }`)
+    if (!/^[a-z][\w-]{0,40}$/i.test(name) || /[<>]/.test(String(css ?? ''))) throw new Error(`bad keyframes ${name}`)
+    // null takes a name out, as when the animation that named it is taken off.
+    if (css == null) lines.delete(name)
+    else lines.set(name, `@keyframes ${name} { ${String(css).replace(/\s*\n\s*/g, ' ').trim()} }`)
   }
+  if (!lines.size) return m ? { src: src.slice(0, m.index) + src.slice(m.index + m[0].length), at: m.index, shift: -m[0].length } : { src, at: 0, shift: 0 }
   const block = `<style data-canvas-keyframes>\n${[...lines.values()].join('\n')}\n</style>\n`
   if (m) return { src: src.slice(0, m.index) + block + src.slice(m.index + m[0].length), at: m.index, shift: block.length - m[0].length }
   const at = Math.max(0, src.search(/<\/head>/i))

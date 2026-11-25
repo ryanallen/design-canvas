@@ -435,17 +435,66 @@
     ['dc-slide', 'Slide', 'from { opacity: 0; transform: translateX(-24px) } to { opacity: 1; transform: none }'],
   ]
   const ENTRANCE_SPEEDS = [['250', 'Quick'], ['450', 'Smooth'], ['800', 'Slow']]
+  // Where each preset starts from, for Custom to begin with: opacity %, move x and y px, scale %, rotate deg.
+  const ENTRANCE_FROM = { 'dc-fade': [0, 0, 0, 100, 0], 'dc-rise': [0, 0, 16, 100, 0], 'dc-pop': [0, 0, 0, 92, 0], 'dc-slide': [0, -24, 0, 100, 0] }
+  const OWN_ENTRANCE = /^dc-in-[a-z0-9]+$/
+  /** A custom entrance's first keyframe, read from its @keyframes in the page: [opacity %, x, y, scale %, rotate]. */
+  function ownFrom(doc, name) {
+    for (const sheet of doc.styleSheets) {
+      let rules
+      try { rules = sheet.cssRules } catch { continue }
+      for (const r of rules) {
+        if (r.type !== CSSRule.KEYFRAMES_RULE || r.name !== name) continue
+        const first = [...r.cssRules].find((k) => k.keyText === '0%' || k.keyText === 'from')
+        if (!first) continue
+        const t = first.style.transform
+        const num = (re, d) => Number(re.exec(t)?.[1] ?? d)
+        return [Math.round(Number(first.style.opacity || 1) * 100), num(/translate\((-?[\d.]+)px/, 0), num(/translate\([^,]+,\s*(-?[\d.]+)px/, 0), Math.round(num(/scale\((-?[\d.]+)\)/, 1) * 100), num(/rotate\((-?[\d.]+)deg/, 0)]
+      }
+    }
+    return null
+  }
+  /** Entrance as a list: None, the presets, Custom (your own first keyframe). */
+  function entrancePick(now, onPick) {
+    const s = h('select', { title: 'How it comes in when the page opens' },
+      ...[...ENTRANCES, ['custom', 'Custom…']].map(([k, label]) => h('option', { value: k, selected: k === now }, label)))
+    s.addEventListener('change', () => onPick(s.value))
+    return s
+  }
+  const ownCss = ([o, x, y, s, r]) => `from { opacity: ${o / 100}; transform: translate(${x}px, ${y}px) scale(${s / 100}) rotate(${r}deg) } to { opacity: 1; transform: none }`
   function entranceFields(el, c) {
     const name = c.animationName.split(',')[0].trim()
-    const now = ENTRANCES.some(([k]) => k === name) ? name : 'none'
+    const now = ENTRANCES.some(([k]) => k === name) ? name : OWN_ENTRANCE.test(name) ? 'custom' : 'none'
     const ms = (d) => Math.round(parseFloat(d) * (d.trim().endsWith('ms') ? 1 : 1000) || 0)
     const dur = ms(c.animationDuration.split(',')[0])
     const delay = ms(c.animationDelay.split(',')[0])
     const speed = now === 'none' ? '450' : ENTRANCE_SPEEDS.reduce((a, b) => (Math.abs(b[0] - dur) < Math.abs(a[0] - dur) ? b : a))[0]
-    const write = (k, t = speed, d = delay) => {
+    const from = now === 'custom' ? ownFrom(el.ownerDocument, name) ?? [0, 0, 16, 100, 0] : ENTRANCE_FROM[now] ?? [0, 0, 16, 100, 0]
+    const write = (k, t = speed, d = delay, f = from) => {
+      if (k === 'custom') {
+        const own = now === 'custom' ? name : `dc-in-${Math.random().toString(36).slice(2, 8)}`
+        return ed.send({ op: 'style', cv: ed.cvOf(el), props: { animation: `${own} ${t}ms cubic-bezier(0.2, 0.7, 0.2, 1) ${d}ms both` }, keyframes: { [own]: ownCss(f) } })
+      }
       const css = ENTRANCES.find(([key]) => key === k)[2]
-      ed.send({ op: 'style', cv: ed.cvOf(el), props: { animation: css ? `${k} ${t}ms cubic-bezier(0.2, 0.7, 0.2, 1) ${d}ms both` : '' }, ...(css ? { keyframes: { [k]: css } } : {}) })
+      // Leaving Custom takes its own @keyframes out of the file with it.
+      const frames = { ...(css ? { [k]: css } : {}), ...(now === 'custom' ? { [name]: null } : {}) }
+      ed.send({ op: 'style', cv: ed.cvOf(el), props: { animation: css ? `${k} ${t}ms cubic-bezier(0.2, 0.7, 0.2, 1) ${d}ms both` : '' }, ...(Object.keys(frames).length ? { keyframes: frames } : {}) })
     }
+    // The first keyframe, field by field; the last is always the element's own resting look.
+    const fromField = (i, label, unit) => input(String(from[i]), (v) => {
+      const f = [...from]
+      f[i] = Math.round(Number(v) || 0)
+      write('custom', speed, delay, f)
+    }, { class: 'n s', title: `${label}${unit ? ` (${unit})` : ''}`, placeholder: label })
+    // Scrubbing holds the entrance at a moment of it, on the board; ▷ plays it from the start again.
+    const scrub = h('input', { type: 'range', min: 0, max: 100, value: 100, title: 'Scrub: hold it at a moment of the entrance' })
+    scrub.addEventListener('input', () => {
+      for (const a of el.getAnimations()) {
+        if (a.animationName !== name) continue
+        a.pause()
+        a.currentTime = delay + (dur * Number(scrub.value)) / 100
+      }
+    })
     const replay = () => {
       const a = el.style.animation
       el.style.animation = 'none'
@@ -454,10 +503,17 @@
     }
     if (name !== 'none' && now === 'none') return [field('Entrance', h('span', { class: 'val' }, `${name} (the prototype's own)`))]
     return [
-      field('Entrance', seg(ENTRANCES.map(([k, label]) => [k, label, k === 'none' ? 'Shown at once' : `${label} in when the page opens`]), now, (k) => write(k)),
+      field('Entrance', entrancePick(now, (k) => write(k)),
         now !== 'none' ? h('button', { type: 'button', class: 'mini', title: 'Play it again', onclick: replay }, '▷') : null),
+      ...(now === 'custom' ? [
+        field('Start opacity', fromField(0, 'Opacity', '%'), h('span', { class: 'val' }, '%')),
+        field('Start scale', fromField(3, 'Scale', '%'), h('span', { class: 'val' }, '%')),
+        field('Start turn', fromField(4, 'Rotate', 'deg'), h('span', { class: 'val' }, '°')),
+        field('Start X · Y', fromField(1, 'X', 'px'), fromField(2, 'Y', 'px'), h('span', { class: 'val' }, 'px')),
+      ] : []),
       now !== 'none' ? field('Speed · Delay', seg(ENTRANCE_SPEEDS.map(([t, label]) => [t, label, `${t} ms`]), speed, (t) => write(now, t)),
         input(String(delay), (v) => write(now, speed, Math.max(0, Math.round(Number(v) || 0))), { class: 'n', title: 'Delay in ms, to come in after what is above it' })) : null,
+      now !== 'none' ? field('Scrub', scrub) : null,
     ]
   }
   /** How fast it changes into a state and back: CSS transition on the element itself, whatever state is shown. */

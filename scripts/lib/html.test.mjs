@@ -233,3 +233,16 @@ test('pasted markup keeps its ids unless the page has them', () => {
   const r = applyEdit(src, { op: 'insert', cv: el.start, where: 'inside', html: '<p id="a">y</p><p id="b">z</p>' })
   assert.ok(r.src.includes('<p id="a-2">y</p><p id="b">z</p>'), r.src)
 })
+
+test('a variant takes styles from its own variant only, and parts added from every copy', () => {
+  const src = '<body>\n<a data-component="Btn" class="b"><span>Go</span></a>\n<a data-component="Btn" class="b"><span>Stop</span></a>\n<a data-component="Btn" data-variant="Quiet" class="b"><span>Later</span></a>\n</body>'
+  const first = find(src, (e) => e.tag === 'span')
+  const styled = applyEdit(src, { op: 'style', cv: first.start, props: { color: 'red' } })
+  assert.equal(styled.linked, 1)
+  assert.equal((styled.src.match(/color: red/g) ?? []).length, 2)
+  assert.ok(styled.src.includes('<span>Later</span>'), 'the Quiet variant keeps its look')
+  const quiet = [...parse(src).byStart.values()].filter((e) => e.tag === 'span')[2]
+  assert.equal(applyEdit(src, { op: 'style', cv: quiet.start, props: { opacity: '0.6' } }).linked, 0)
+  const root = find(src, (e) => e.tag === 'a')
+  assert.equal((applyEdit(src, { op: 'insert', cv: root.start, where: 'inside', html: '<i>›</i>' }).src.match(/<i>›<\/i>/g) ?? []).length, 3)
+})

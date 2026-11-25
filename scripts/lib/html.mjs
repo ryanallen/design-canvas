@@ -241,9 +241,14 @@ const rulesText = (rules) => `\n${rules.map((r) => `${r.sel} { ${styleText(r.pro
 // attribute, something put in, removed or duplicated, made anywhere inside one copy, is made at
 // the same place in every other copy of that name in the file. Text typed into a copy (`inner`)
 // and markup replaced whole (`outer`) stay that copy's own, as do `id`, `data-component` and
-// `data-locked`; `only: true` on an edit keeps it to the one copy.
+// `data-locked`; `only: true` on an edit keeps it to the one copy. A copy may also carry
+// `data-variant="Name"` (Figma's variants): a style or attribute then reaches only the copies of
+// that same variant (no variant is a variant of its own), while parts added, duplicated or removed
+// reach every copy, so the variants keep one structure.
 const LINKED = new Set(['style', 'attr', 'insert', 'delete', 'duplicate'])
-const OWN_ATTRS = new Set(['id', 'data-component', 'data-locked', 'data-name'])
+const OWN_ATTRS = new Set(['id', 'data-component', 'data-variant', 'data-locked', 'data-name'])
+const LOOKS = new Set(['style', 'attr'])
+const variantOf = (el) => (el?.attrs ? attr(el, 'data-variant')?.value?.trim() ?? '' : '')
 const componentName = (el) => (el?.attrs ? attr(el, 'data-component')?.value?.trim() || null : null)
 /** The copy an element is in, nearest first: its root and the component's name. */
 export function componentOf(el) {
@@ -286,7 +291,8 @@ export function applyEdit(src, edit) {
   if (!comp || (comp.root === el && ['delete', 'duplicate'].includes(edit.op))) return applyOne(src, edit)
   const path = pathIn(comp.root, el)
   const outside = (r) => r.end <= comp.root.start || r.start >= comp.root.end
-  const targets = [el, ...copiesOfComponent(src, comp.name).filter(outside).map((r) => atPath(r, path)).filter(Boolean)]
+  const sameLook = (r) => !LOOKS.has(edit.op) || variantOf(r) === variantOf(comp.root)
+  const targets = [el, ...copiesOfComponent(src, comp.name).filter(outside).filter(sameLook).map((r) => atPath(r, path)).filter(Boolean)]
   // Last in the file first: an edit changes nothing before its own element, so the offsets of
   // the copies still to do hold.
   targets.sort((a, b) => b.start - a.start)

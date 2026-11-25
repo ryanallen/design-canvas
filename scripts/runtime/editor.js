@@ -55,7 +55,13 @@
   const componentOf = (el) => {
     for (let p = el; p && p.localName !== 'html'; p = p.parentElement) {
       const name = p.getAttribute('data-component')?.trim()
-      if (name) return { root: p, name, copies: [...el.ownerDocument.querySelectorAll('[data-component]')].filter((x) => x.getAttribute('data-component').trim() === name) }
+      if (name) {
+        const copies = [...el.ownerDocument.querySelectorAll('[data-component]')].filter((x) => x.getAttribute('data-component').trim() === name)
+        const variant = p.getAttribute('data-variant')?.trim() ?? ''
+        // The copies a style change reaches: those of the same variant.
+        const alike = copies.filter((x) => (x.getAttribute('data-variant')?.trim() ?? '') === variant)
+        return { root: p, name, copies, variant, alike }
+      }
     }
     return null
   }
@@ -77,7 +83,7 @@
   /** A layer's name: data-name, aria-label, then what it is and what it says. */
   function nameOf(el) {
     const comp = el.getAttribute('data-component')?.trim()
-    if (comp) return { kind: 'component', text: `◇ ${comp}` }
+    if (comp) return { kind: 'component', text: `◇ ${comp}${el.getAttribute('data-variant')?.trim() ? ` / ${el.getAttribute('data-variant').trim()}` : ''}` }
     const own = el.getAttribute('data-name') || el.getAttribute('aria-label')
     if (own) return { kind: 'named', text: own }
     const t = el.localName
@@ -710,6 +716,14 @@
       if (!name?.trim()) return
       send({ op: 'attr', cv: cvOf(el), name: 'data-component', value: name.trim() })
     },
+    /** A variant: this copy keeps the component's parts and takes a look of its own, shared with copies of the same variant. */
+    variant: async () => {
+      const c = componentOf(primary())
+      if (!c || !needEditable()) return
+      const name = await dc.question('Name this variant (empty for the main one). Styles changed on it reach only copies of the same variant; parts added or removed still reach every copy.', c.variant)
+      if (name == null) return
+      send({ op: 'attr', cv: cvOf(c.root), name: 'data-variant', value: name.trim() || null })
+    },
     detach: () => {
       const c = componentOf(primary())
       if (!c || !needEditable()) return
@@ -846,7 +860,7 @@
     const boxy = !text || cs(el).backgroundColor !== 'rgba(0, 0, 0, 0)' || ['a', 'button'].includes(el.localName) && cs(el).display !== 'inline'
     // Inside a component's copy: its name and how many copies a change here reaches; a click selects the copy whole.
     const comp = sel.els.length === 1 ? componentOf(el) : null
-    if (comp) parts.push(h('button', { type: 'button', class: 'fbtn wide comp', title: `A copy of the component ${comp.name}: a style or a part added or removed here is made in all ${comp.copies.length} copies; text typed stays this copy's own. Click to select the copy whole.`, onclick: () => select(sel.frame, [comp.root]) }, h('span', { class: 'comp-mark', 'aria-hidden': 'true' }, '◇'), `${comp.name} · ${comp.copies.length}`))
+    if (comp) parts.push(h('button', { type: 'button', class: 'fbtn wide comp', title: `A copy of the component ${comp.name}${comp.variant ? `, variant ${comp.variant}` : ''}: a style changed here reaches the ${comp.alike.length} ${comp.variant ? `${comp.variant} ` : ''}cop${comp.alike.length === 1 ? 'y' : 'ies'}, a part added or removed all ${comp.copies.length}; text typed stays this copy's own. Click to select the copy whole.`, onclick: () => select(sel.frame, [comp.root]) }, h('span', { class: 'comp-mark', 'aria-hidden': 'true' }, '◇'), `${comp.name}${comp.variant ? ` / ${comp.variant}` : ''} · ${comp.alike.length}`))
     if (text && canEdit) {
       const cls = el.classList[0]
       const label = cls ? `.${cls}` : `${shared('font-family').split(',')[0].replace(/["']/g, '')} · ${shared('font-size')}`
@@ -1039,6 +1053,7 @@
             { label: 'Wrap in flex column', run: () => ops.wrapIn('column') },
             { label: 'Wrap in grid', run: () => ops.wrapIn('grid') },
             sel.els.length === 1 && !componentOf(primary()) && primary().localName !== 'body' ? { label: 'Make component…', key: 'Ctrl+Alt+K', run: ops.makeComponent } : null,
+            sel.els.length === 1 && componentOf(primary())?.root === primary() ? { label: componentOf(primary()).variant ? 'Rename variant…' : 'Make a variant…', run: ops.variant } : null,
             sel.els.length === 1 && componentOf(primary())?.root === primary() ? { label: 'Detach from component', run: ops.detach } : null,
             { label: 'Copy', key: 'Ctrl+C', run: ops.copy },
             clip ? { label: 'Paste after it', key: 'Ctrl+V', run: ops.paste } : null,

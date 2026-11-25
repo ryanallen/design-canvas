@@ -144,12 +144,13 @@
     s.addEventListener('change', () => onPick(s.value))
     return s
   }
-  const color = (value, onPick, onRemove) => {
+  const color = (value, onPick, onRemove, linked = null) => {
     const hex = ed.rgbHex(value)
     // Nothing set shows as an empty swatch, not as black.
     const clear = value === 'rgba(0, 0, 0, 0)' || value === 'transparent'
-    const c = h('input', { type: 'color', value: clear ? '#ffffff' : hex, class: clear ? 'clear' : null, title: clear ? 'None: pick a colour' : null })
-    const t = input(clear ? '' : hex.toUpperCase(), (v) => onPick(v), { placeholder: clear ? 'None' : '' })
+    const c = h('input', { type: 'color', value: clear ? '#ffffff' : hex, class: clear ? 'clear' : null, title: clear ? 'None: pick a colour' : linked ? `${linked}: a colour picked here takes this element off it` : null })
+    // A colour written as a lever (var(--accent)) shows the lever, so a pick is a seen choice to leave it.
+    const t = input(linked ?? (clear ? '' : hex.toUpperCase()), (v) => onPick(v), { placeholder: clear ? 'None' : '' })
     c.addEventListener('change', () => onPick(c.value))
     return h('div', { class: 'colorf' }, c, t, onRemove ? h('button', { type: 'button', class: 'mini', title: 'Remove', onclick: onRemove }, '−') : null)
   }
@@ -400,7 +401,7 @@
         field('Font', fontBox(S('font-family'), fams, (v) => set({ 'font-family': v }))),
         field('Weight', select(['100', '200', '300', '400', '500', '600', '700', '800', '900'], S('font-weight'), (v) => set({ 'font-weight': v })), input(num(S('font-size')), (v) => set({ 'font-size': px(v) }), { class: 'n', title: 'Size' })),
         field('Line · Letter', input(S('line-height') === 'normal' ? 'normal' : num(S('line-height')), (v) => set({ 'line-height': v === 'normal' ? 'normal' : px(v) }), { class: 'n', title: 'Line height' }), input(S('letter-spacing') === 'normal' ? 'normal' : num(S('letter-spacing')), (v) => set({ 'letter-spacing': v === 'normal' ? 'normal' : px(v) }), { class: 'n', title: 'Letter spacing' })),
-        field('Color', color(S('color'), (v) => set({ color: v }))),
+        field('Color', color(S('color'), (v) => set({ color: v }), null, lever(el, 'color'))),
         contrast(el),
         field('Emphasis', seg([['underline', 'U̲', 'Underline'], ['line-through', 'S̶', 'Strikethrough']], deco.includes('underline') ? 'underline' : deco.includes('line-through') ? 'line-through' : '', (v) => set({ 'text-decoration': deco.includes(v) ? 'none' : v }))),
         field('Align', seg([['left', '⇤', 'Left'], ['center', '↔', 'Centre'], ['right', '⇥', 'Right'], ['justify', '☰', 'Justify']], c.textAlign === 'start' ? 'left' : c.textAlign, (v) => set({ 'text-align': v })))))
@@ -415,7 +416,7 @@
     slider.addEventListener('input', () => { el.style.opacity = String(slider.value / 100) })
     slider.addEventListener('change', () => set({ opacity: String(slider.value / 100) }))
     host.append(section('Appearance', ['background', 'box-shadow', 'filter', 'backdrop-filter', 'mix-blend-mode', 'outline', 'cursor', 'overflow'],
-      field('Fill', color(bg, (v) => set({ 'background-color': v }), bg !== 'rgba(0, 0, 0, 0)' ? () => set({ 'background-color': '', background: '' }) : null)),
+      field('Fill', color(bg, (v) => set({ 'background-color': v }), bg !== 'rgba(0, 0, 0, 0)' ? () => set({ 'background-color': '', background: '' }) : null, lever(el, 'background-color') ?? lever(el, 'background'))),
       field('Opacity', slider, h('span', { class: 'val' }, `${op}%`)),
       radiusCorners || !sameR
         ? field('Radius', ...['top-left', 'top-right', 'bottom-right', 'bottom-left'].map((k, i) => input(radii[i], (v) => set({ [`border-${k}-radius`]: px(v) }), { class: 'n s', title: k })), h('button', { type: 'button', class: 'mini', onclick: () => { radiusCorners = false; renderProps() } }, '▢'))

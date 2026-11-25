@@ -433,10 +433,12 @@
     ['dc-rise', 'Rise', 'from { opacity: 0; transform: translateY(16px) } to { opacity: 1; transform: none }'],
     ['dc-pop', 'Pop', 'from { opacity: 0; transform: scale(0.92) } to { opacity: 1; transform: none }'],
     ['dc-slide', 'Slide', 'from { opacity: 0; transform: translateX(-24px) } to { opacity: 1; transform: none }'],
+    // Three keyframes: it rises past its place and settles back.
+    ['dc-bounce', 'Bounce', 'from { opacity: 0; transform: translateY(24px) } 60% { opacity: 1; transform: translateY(-6px) } to { opacity: 1; transform: none }'],
   ]
   const ENTRANCE_SPEEDS = [['250', 'Quick'], ['450', 'Smooth'], ['800', 'Slow']]
   // Where each preset starts from, for Custom to begin with: opacity %, move x and y px, scale %, rotate deg.
-  const ENTRANCE_FROM = { 'dc-fade': [0, 0, 0, 100, 0], 'dc-rise': [0, 0, 16, 100, 0], 'dc-pop': [0, 0, 0, 92, 0], 'dc-slide': [0, -24, 0, 100, 0] }
+  const ENTRANCE_FROM = { 'dc-fade': [0, 0, 0, 100, 0], 'dc-rise': [0, 0, 16, 100, 0], 'dc-pop': [0, 0, 0, 92, 0], 'dc-slide': [0, -24, 0, 100, 0], 'dc-bounce': [0, 0, 24, 100, 0] }
   const OWN_ENTRANCE = /^dc-in-[a-z0-9]+$/
   /** A custom entrance's first keyframe, read from its @keyframes in the page: [opacity %, x, y, scale %, rotate]. */
   function ownFrom(doc, name) {

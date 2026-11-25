@@ -77,6 +77,10 @@ The panel's Layers list the page's board objects and frames, and an open frame's
 
 Ctrl+C in a prototype copies every element selected, in page order, as its file has it; Ctrl+V puts them after the element selected (inside it for the page's body). Pasted into the same prototype they stay plain markup, styled by its classes. Pasted into another prototype, whose stylesheet has none of those rules, each part carries its look on itself (colours, type, spacing, corners, shadows, layout; never its width or height, so it fits where it lands). An `id` already on the page gets a new one.
 
+## Group
+
+Ctrl+G in a prototype wraps the elements selected, side by side in one parent, in a new `div`, and Ctrl+Shift+G takes a wrapper away and keeps what it held. As in Figma, grouping moves nothing: in a grid or a flex row the group is written with `display: contents`, so each part keeps its own cell, and the group is selected and measured by the box around them. **Wrap in flex row**, **flex column** and **grid** under … make a wrapper that lays them out instead.
+
 ## Code tab
 
 The **Code** tab shows the element's own style (editable), then each rule that matches it, strongest first as the cascade ranks them (`!important`, specificity, then order in the file), with every declaration a stronger one overrides struck through, so the value shown unstruck is the one that applies. Then its attributes, what it inherits and from which ancestor, and its source.

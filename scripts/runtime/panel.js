@@ -338,7 +338,7 @@
     const extra = (dim) => (c.boxSizing === 'border-box' ? 0 : dim === 'width'
       ? n(c.paddingLeft) + n(c.paddingRight) + n(c.borderLeftWidth) + n(c.borderRightWidth)
       : n(c.paddingTop) + n(c.paddingBottom) + n(c.borderTopWidth) + n(c.borderBottomWidth))
-    const drawn = (dim) => Math.round(el.getBoundingClientRect()[dim])
+    const drawn = (dim) => Math.round((ed.boxOf?.(el) ?? el.getBoundingClientRect())[dim])
     const cssSize = (dim, outer) => `${Math.max(0, Math.round(Number(outer) - extra(dim)))}px`
     const sizeMode = (dim) => {
       const own = el.style.getPropertyValue(dim)

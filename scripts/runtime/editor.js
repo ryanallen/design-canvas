@@ -24,6 +24,18 @@
   const editable = (el) => dc.serve && cvOf(el) != null && !lockedEl(el)
   const win = (el) => el.ownerDocument.defaultView
   const cs = (el) => win(el).getComputedStyle(el)
+  /** An element's box as drawn. A group in a grid or flex row has none of its own (`display: contents`, so grouping
+   *  moves nothing): its box is the one around what it holds. */
+  function boxOf(el) {
+    if (cs(el).display !== 'contents') return el.getBoundingClientRect()
+    const rs = [...el.children].map(boxOf).filter((r) => r.width || r.height)
+    if (!rs.length) return el.getBoundingClientRect()
+    const left = Math.min(...rs.map((r) => r.left))
+    const top = Math.min(...rs.map((r) => r.top))
+    const right = Math.max(...rs.map((r) => r.right))
+    const bottom = Math.max(...rs.map((r) => r.bottom))
+    return { left, top, right, bottom, width: right - left, height: bottom - top, x: left, y: top }
+  }
   const ownText = (el) => [...el.childNodes].some((n) => n.nodeType === 3 && n.data.trim())
   /** An element that holds text: its own text, or only inline runs. */
   const isText = (el) => {
@@ -175,7 +187,7 @@
 
   // ── drawing the selection on the board ──
   const rectOn = (f, el) => {
-    const r = el.getBoundingClientRect()
+    const r = boxOf(el)
     const a = dc.toScreen(f.x + r.left * f.s, f.y + r.top * f.s)
     const k = f.s * dc.view.z
     return { x: a.x, y: a.y, w: r.width * k, h: r.height * k, r }
@@ -208,8 +220,8 @@
   // ── measure: Alt held over another element shows how far it is from the selection, in the prototype's own pixels ──
   let measuring = false
   function measure(f, a, b) {
-    const A = a.getBoundingClientRect()
-    const B = b.getBoundingClientRect()
+    const A = boxOf(a)
+    const B = boxOf(b)
     const at = (x, y) => dc.toScreen(f.x + x * f.s, f.y + y * f.s)
     const lines = []
     /** A line across (y fixed) or down (x fixed) from p to q, labelled with its length. */
@@ -385,7 +397,7 @@
     const els = sel?.els.filter(live) ?? []
     if (!els.length) return null
     const f = sel.frame
-    const rs = els.map((el) => el.getBoundingClientRect())
+    const rs = els.map((el) => boxOf(el))
     const x = Math.min(...rs.map((r) => r.left))
     const y = Math.min(...rs.map((r) => r.top))
     return { x: f.x + x * f.s, y: f.y + y * f.s, w: (Math.max(...rs.map((r) => r.right)) - x) * f.s, h: (Math.max(...rs.map((r) => r.bottom)) - y) * f.s }
@@ -393,7 +405,7 @@
   hooks.selectionTarget = () => {
     const el = primary()
     if (!el) return null
-    const b = el.getBoundingClientRect()
+    const b = boxOf(el)
     const a = anchorFor(sel.frame, el, 0, 0)
     return { frame: sel.frame, file: sel.frame.file, anchor: a, wx: sel.frame.x + b.left * sel.frame.s, wy: sel.frame.y + b.top * sel.frame.s, label: `${nameOf(el).text} in ${sel.frame.file}` }
   }
@@ -444,14 +456,14 @@
     const el = elementAt(f, p)
     if (!el) return null
     const l = local(f, p)
-    const r = el.getBoundingClientRect()
+    const r = boxOf(el)
     return { file: f.file, anchor: anchorFor(f, el, l.x - r.left, l.y - r.top) }
   }
   hooks.anchorPoint = (t, f) => {
     if (!f.doc || !t.anchor || (t.file && t.file !== f.file)) return null
     const el = resolveAnchor(f.doc, t.anchor.path, t.anchor)
     if (!el) return null
-    const r = el.getBoundingClientRect()
+    const r = boxOf(el)
     return { x: f.x + (r.left + Math.min(t.anchor.dx, r.width)) * f.s, y: f.y + (r.top + Math.min(t.anchor.dy, r.height)) * f.s, top: f.y + r.top * f.s, bottom: f.y + r.bottom * f.s }
   }
 
@@ -744,7 +756,7 @@
     e.preventDefault()
     const el = primary()
     const f = sel.frame
-    const r = el.getBoundingClientRect()
+    const r = boxOf(el)
     // The handles drag the box as drawn; a content-box element's CSS size is that less its padding and border.
     const c = cs(el)
     const n = (v) => parseFloat(v) || 0
@@ -792,7 +804,10 @@
       if (!needEditable()) return
       const parent = primary().parentElement
       if (!sel.els.every((x) => x.parentElement === parent)) return hint('Only elements side by side in one parent group together', 3000)
-      send({ op: 'wrap', cv: sel.els.map(cvOf), tag: 'div', style, name })
+      // As in Figma, grouping moves nothing: in a grid or flex row a plain box would take one cell or item for all
+      // of them, so there the group has no box of its own and its parts keep their places.
+      const laid = /flex|grid/.test(cs(parent).display)
+      send({ op: 'wrap', cv: sel.els.map(cvOf), tag: 'div', style: style ?? (laid ? 'display: contents' : undefined), name })
     },
     ungroup: () => {
       if (!needEditable()) return
@@ -1294,7 +1309,7 @@
   const api = {
     get sel() { return sel },
     get editing() { return editing },
-    primary, select, pick, setStyle, send, refreshFloat: () => renderFloat(), ops, undo, climb, cvOf, editable, nameOf, isText, cs, copiesOf, copiesSelector, rgbHex, shared, notEditable, anchorFor,
+    primary, select, pick, setStyle, send, refreshFloat: () => renderFloat(), ops, undo, climb, cvOf, editable, nameOf, isText, cs, boxOf, copiesOf, copiesSelector, rgbHex, shared, notEditable, anchorFor,
     hover: (frame, el) => {
       hover = el ? { frame, el } : null
       draw()

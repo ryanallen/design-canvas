@@ -17,6 +17,15 @@
 <script>
   // Links made before the canvas moved to /play/ opened it on a page (#page=…): they still do.
   if (/^#page=/.test(location.hash)) location.replace(`play/${location.hash}`)
+  // Copy puts the line for an agent on the clipboard.
+  addEventListener('click', (e) => {
+    const b = e.target.closest('[data-copy]')
+    if (!b) return
+    navigator.clipboard.writeText(document.getElementById(b.dataset.copy).textContent).then(() => {
+      b.textContent = 'Copied'
+      setTimeout(() => { b.textContent = 'Copy' }, 1600)
+    })
+  })
 </script>
 <style>
   :root {
@@ -76,6 +85,14 @@
   .steps b { display: block; color: var(--ink); font-weight: 600; margin-bottom: 6px; }
   pre { margin: 8px 0 0; padding: 14px 16px; border-radius: 10px; background: var(--night); color: var(--night-ink); font: 13.5px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; overflow-x: auto; white-space: pre; }
   .fine { margin: 8px auto 0; max-width: 620px; color: var(--ink-3); font-size: 14px; }
+  /* The one line to give an agent, and its Copy button. */
+  .paste { width: min(820px, 100%); margin: 40px auto 0; display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 20px; border-radius: 12px; background: var(--night); text-align: left; }
+  .paste code { flex: 1; min-width: 0; color: var(--night-ink); font: 14.5px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }
+  .paste .btn.copy { min-width: 96px; flex: none; }
+  .byhand { width: min(760px, 100%); margin: 28px auto 0; text-align: left; color: var(--ink-2); }
+  .byhand summary { cursor: pointer; text-align: center; font-size: 15px; color: var(--ink-2); }
+  .byhand .steps { margin-top: 24px; }
+  @media (max-width: 640px) { .paste { flex-direction: column; align-items: stretch; } }
 
   footer { padding: 40px 20px 48px; text-align: center; font-size: 13px; color: var(--ink-3); background: var(--paper); }
   footer a { margin: 0 10px; text-decoration: none; }
@@ -162,11 +179,19 @@
 
   <section class="panel paper short" id="get" aria-labelledby="get-it">
     <h2 id="get-it">Get it</h2>
-    <p class="say">It needs Node. There is nothing to install, no build step and no account.</p>
-    <ol class="steps">
-      <li><b>Put it in your project</b>As a skill, in the folder your agent reads skills from:<pre>git clone https://github.com/ryanallen/design-canvas .agents/skills/design-canvas</pre></li>
-      <li><b>Open a folder of prototypes</b>Double-click <kbd>Design Canvas.cmd</kbd> on Windows or <kbd>Design Canvas.command</kbd> on a Mac and pick the folder. Or from a terminal:<pre>node .agents/skills/design-canvas/scripts/canvas.mjs serve &lt;folder&gt;</pre></li>
-    </ol>
+    <p class="say">Paste this into your agent. The link tells it everything: it installs the canvas and opens your prototypes, or walks you through it.</p>
+    <div class="paste">
+      <code id="ask-agent">Install the design canvas in this project and open my prototypes on it: https://ryanallen.com/design-canvas/install/</code>
+      <button type="button" class="btn go copy" data-copy="ask-agent">Copy</button>
+    </div>
+    <details class="byhand">
+      <summary>Or do it by hand</summary>
+      <p>It needs Node. There is nothing else to install, no build step and no account.</p>
+      <ol class="steps">
+        <li><b>Put it in your project</b>As a skill, in the folder your agent reads skills from:<pre>git clone https://github.com/ryanallen/design-canvas .agents/skills/design-canvas</pre></li>
+        <li><b>Open a folder of prototypes</b>Double-click <kbd>Design Canvas.cmd</kbd> on Windows or <kbd>Design Canvas.command</kbd> on a Mac and pick the folder. Or from a terminal:<pre>node .agents/skills/design-canvas/scripts/canvas.mjs serve &lt;folder&gt;</pre></li>
+      </ol>
+    </details>
     <div class="acts">
       <a class="btn go" href="https://github.com/ryanallen/design-canvas/archive/refs/heads/main.zip">Download the zip</a>
       <a class="btn calm" href="https://github.com/ryanallen/design-canvas">See the code on GitHub</a>

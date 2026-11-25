@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Install the design canvas: instructions for your agent</title>
+<meta name="description" content="Instructions an AI coding agent follows to install the design canvas in a project and open a folder of HTML prototypes on it, or to walk its person through doing so.">
+<link rel="canonical" href="https://ryanallen.com/design-canvas/install/">
+<style>
+  :root { color-scheme: light; --ink: #16171a; --ink-2: #55575e; --line: #e4e4e7; --code: #f4f4f5; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 17px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: #fff; }
+  main { max-width: 720px; margin: 0 auto; padding: 64px 24px 96px; }
+  h1 { font-size: 34px; line-height: 1.15; font-weight: 600; margin: 0 0 12px; letter-spacing: -0.01em; }
+  h2 { font-size: 21px; margin: 40px 0 8px; font-weight: 600; }
+  p, li { color: var(--ink); }
+  .lead { color: var(--ink-2); font-size: 18px; }
+  code, pre { font: 14px/1.5 ui-monospace, "Cascadia Code", Consolas, monospace; }
+  code { background: var(--code); padding: 1px 6px; border-radius: 5px; }
+  pre { background: #111214; color: #f2f2f3; padding: 14px 18px; border-radius: 10px; overflow-x: auto; }
+  pre code { background: none; padding: 0; color: inherit; }
+  ol li { margin: 6px 0; }
+  .note { border-left: 3px solid var(--line); padding: 2px 0 2px 16px; color: var(--ink-2); }
+  a { color: #2f5bd3; }
+  footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 15px; color: var(--ink-2); }
+</style>
+</head>
+<body>
+<main>
+<h1>Install the design canvas</h1>
+<p class="lead">These instructions are for an AI coding agent (Claude Code, Codex, Cursor and the like). Someone pasted this link to you because they want the design canvas in their project: one board that lays out every HTML prototype in a folder, so they can look at them side by side, click through them, edit them and comment on them. Every edit is written back into the prototype's own <code>.html</code> file.</p>
+<p>If you can run commands, do each step yourself and tell the person what you did. If you cannot, walk them through it: give them one step at a time, the exact command to paste, and wait for them to say it worked before the next.</p>
+
+<h2>1. Check for Node</h2>
+<p>The canvas needs Node and nothing else: no package install, no build step, no account.</p>
+<pre><code>node --version</code></pre>
+<p>If that fails, ask them to install the LTS version from <a href="https://nodejs.org">nodejs.org</a>, then open a new terminal and try again. Do not go on without it.</p>
+
+<h2>2. Put the skill in the project</h2>
+<p>From the project's root folder, clone it into the folder you read skills from: <code>.claude/skills</code> for Claude Code, or the skills folder your own tool reads (many projects keep one at <code>.agents/skills</code>). The commands on this page use <code>.agents/skills</code>; change the path to the one you use.</p>
+<pre><code>git clone https://github.com/ryanallen/design-canvas .agents/skills/design-canvas</code></pre>
+<p>Without git, download <a href="https://github.com/ryanallen/design-canvas/archive/refs/heads/main.zip">the zip</a> and unpack it so that <code>.agents/skills/design-canvas/SKILL.md</code> exists. If the project is a git repository, ask whether they want the skill committed with it or listed in <code>.gitignore</code>.</p>
+
+<h2>3. Find the prototypes</h2>
+<p>The canvas works on one folder: every <code>.html</code> file in it is a prototype. Ask which folder holds theirs, or look for one. If they have none yet, make an empty folder such as <code>designs</code>; the canvas opens as a whiteboard and they can draw a new screen on it with <kbd>A</kbd>.</p>
+
+<h2>4. Open it</h2>
+<pre><code>node .agents/skills/design-canvas/scripts/canvas.mjs serve designs</code></pre>
+<p>Put their folder in place of <code>designs</code>. It prints the address it serves on: <code>http://127.0.0.1:4410</code>, or the next free port if that one is taken. Open it in their browser and leave the command running while they work; it answers only this computer.</p>
+<p class="note">Laying screens out at their real height needs a Chromium that Playwright can drive. The canvas finds one already on the machine. If it warns that it has none, every screen is drawn 1440 × 1000, which still works; to measure them, run <code>npx playwright install chromium</code> and serve again.</p>
+<p>On Windows or a Mac they can instead double-click <code>Design Canvas.cmd</code> or <code>Design Canvas.command</code> in the skill's folder and pick the folder there.</p>
+
+<h2>5. Show them around</h2>
+<ol>
+  <li>A click on anything in a screen selects it; the toolbar over it changes text, colour, size and spacing, and the panel on the right has the rest.</li>
+  <li><kbd>N</kbd> makes a sticky note, <kbd>C</kbd> pins a comment, <kbd>A</kbd> draws a new screen.</li>
+  <li><b>▷ Play</b> clicks through a prototype at full size.</li>
+  <li><kbd>Shift</kbd>+<kbd>?</kbd> lists every key.</li>
+</ol>
+
+<h2>6. Then, for you</h2>
+<p>Read <code>.agents/skills/design-canvas/SKILL.md</code>. It says how to build a canvas file to send to someone, how to read the comments and requests they leave for you on the board, and how to make edits through the canvas so they show up there at once. To update the skill later:</p>
+<pre><code>git -C .agents/skills/design-canvas pull</code></pre>
+
+<footer>The design canvas: <a href="../">what it is</a> · <a href="../play/">try it in the browser</a> · <a href="https://github.com/ryanallen/design-canvas">the code</a></footer>
+</main>
+</body>
+</html>

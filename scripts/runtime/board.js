@@ -1909,7 +1909,7 @@
     const f = t.frame ? findFrame(t.frame) : null
     if (t.anchor && f && f.page === pageId) {
       const at = call('anchorPoint', t, f)
-      if (at) return { x: at.x, y: at.y, frame: f, page: f.page }
+      if (at) return { x: at.x, y: at.y, top: at.top, bottom: at.bottom, frame: f, page: f.page }
       return { x: f.x + t.x * (f.s ?? 1), y: f.y + t.y * (f.s ?? 1), frame: f, page: f.page, detached: !!f.doc }
     }
     return f ? { x: f.x + t.x * (f.s ?? 1), y: f.y + t.y * (f.s ?? 1), frame: f, page: f.page } : { x: t.x, y: t.y, frame: null, page: t.page ?? firstPage() }
@@ -2138,8 +2138,11 @@
     const p = threadAt.thread ? anchorOf(threadAt.thread) : { x: threadAt.draft.wx, y: threadAt.draft.wy }
     const s = toScreen(p.x, p.y)
     const w = thread.offsetWidth || 300
-    let left = s.x + 24
-    if (left + w > innerWidth - 12) left = s.x - w - 12
+    // On a line short enough on screen, the thread opens under it (or over it), so what it is about stays in sight.
+    const line = p.bottom != null ? { top: toScreen(p.x, p.top).y, bottom: toScreen(p.x, p.bottom).y } : null
+    const onLine = line && line.bottom - line.top <= 160 && innerWidth > 640
+    let left = onLine ? Math.min(s.x - 24, innerWidth - w - 12) : s.x + 24
+    if (!onLine && left + w > innerWidth - 12) left = s.x - w - 12
     left = Math.max(12, left)
     // It ends above the toolbar when it would cross it, shortening (its messages scroll) on a short window.
     // A phone's sheet is placed by the stylesheet.
@@ -2150,7 +2153,12 @@
       thread.style.maxHeight = `${Math.max(180, Math.min(460, floor - 56))}px`
     } else thread.style.maxHeight = ''
     const hgt = thread.offsetHeight || 200
-    const top = Math.max(56, Math.min(Math.max(56, s.y - 30), floor - hgt))
+    let top = Math.max(56, Math.min(Math.max(56, s.y - 30), floor - hgt))
+    if (onLine && line.bottom + 10 + hgt <= floor) top = line.bottom + 10
+    else if (onLine && line.top - 10 - hgt >= 56) top = line.top - 10 - hgt
+    else if (onLine) {
+      left = s.x + 24 + w > innerWidth - 12 ? Math.max(12, s.x - w - 12) : s.x + 24
+    }
     thread.style.left = `${left}px`
     thread.style.top = `${top}px`
   }

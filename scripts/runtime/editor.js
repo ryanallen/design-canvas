@@ -425,7 +425,7 @@
     const el = resolveAnchor(f.doc, t.anchor.path, t.anchor)
     if (!el) return null
     const r = el.getBoundingClientRect()
-    return { x: f.x + (r.left + Math.min(t.anchor.dx, r.width)) * f.s, y: f.y + (r.top + Math.min(t.anchor.dy, r.height)) * f.s }
+    return { x: f.x + (r.left + Math.min(t.anchor.dx, r.width)) * f.s, y: f.y + (r.top + Math.min(t.anchor.dy, r.height)) * f.s, top: f.y + r.top * f.s, bottom: f.y + r.bottom * f.s }
   }
 
   // ── writing ──

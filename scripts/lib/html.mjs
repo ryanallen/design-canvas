@@ -300,6 +300,28 @@ export function copiesOfComponent(src, name) {
  * afterwards, and `linked`, how many other copies took it.
  */
 export function applyEdit(src, edit) {
+  const r = applyLinked(src, edit)
+  if (!edit.keyframes) return r
+  // An edit may carry the @keyframes its animation names: written into the file's own keyframes sheet.
+  const k = withKeyframes(r.src, edit.keyframes)
+  return { ...r, src: k.src, select: r.select != null && r.select >= k.at ? r.select + k.shift : r.select }
+}
+
+/** `@keyframes` by name, one per line, in one `<style data-canvas-keyframes>` at the end of <head>; a name already there is replaced. */
+function withKeyframes(src, frames) {
+  const m = /<style data-canvas-keyframes>([\s\S]*?)<\/style>\n?/.exec(src)
+  const lines = new Map((m ? m[1] : '').split('\n').map((l) => [/^@keyframes ([\w-]+) /.exec(l)?.[1], l]).filter(([n]) => n))
+  for (const [name, css] of Object.entries(frames)) {
+    if (!/^[a-z][\w-]{0,40}$/i.test(name) || /[<>]/.test(String(css))) throw new Error(`bad keyframes ${name}`)
+    lines.set(name, `@keyframes ${name} { ${String(css).replace(/\s*\n\s*/g, ' ').trim()} }`)
+  }
+  const block = `<style data-canvas-keyframes>\n${[...lines.values()].join('\n')}\n</style>\n`
+  if (m) return { src: src.slice(0, m.index) + block + src.slice(m.index + m[0].length), at: m.index, shift: block.length - m[0].length }
+  const at = Math.max(0, src.search(/<\/head>/i))
+  return { src: src.slice(0, at) + block + src.slice(at), at, shift: block.length }
+}
+
+function applyLinked(src, edit) {
   const cvs = [edit.cv].flat()
   const skip = !LINKED.has(edit.op) || edit.only || cvs.length !== 1 || (edit.op === 'attr' && OWN_ATTRS.has(String(edit.name).toLowerCase()))
   const el = skip ? null : parse(src).byStart.get(Number(cvs[0]))

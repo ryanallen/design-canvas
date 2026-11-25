@@ -145,6 +145,19 @@ test('a lever declared in the prototype\'s :root changes where it is declared; a
   assert.equal(canvasRules(over.src).length, 0, 'the old override is dropped so the declared value shows')
 })
 
+test('a style edit carrying keyframes writes them once, by name, in the head; the selection still lands on the element', () => {
+  const src = '<html><head><title>t</title></head><body><p class="a">x</p><p>y</p></body></html>'
+  const p = parse(src)
+  const el = [...p.byStart.values()].find((e) => e.tag === 'p')
+  const r = applyEdit(src, { op: 'style', cv: el.start, props: { animation: 'dc-rise 400ms ease-out both' }, keyframes: { 'dc-rise': 'from { opacity: 0; transform: translateY(16px) } to { opacity: 1; transform: none }' } })
+  assert.match(r.src, /<style data-canvas-keyframes>\n@keyframes dc-rise \{ from \{ opacity: 0; transform: translateY\(16px\) \} to \{ opacity: 1; transform: none \} \}\n<\/style>\n<\/head>/)
+  assert.equal(parse(r.src).byStart.get(r.select)?.tag, 'p')
+  assert.match(r.src.slice(r.select), /^<p [^>]*style="animation: dc-rise 400ms ease-out both"/)
+  const again = applyEdit(r.src, { op: 'style', cv: r.select, props: { animation: 'dc-rise 250ms ease-out both' }, keyframes: { 'dc-rise': 'from { opacity: 0 } to { opacity: 1 }' } })
+  assert.equal(again.src.match(/@keyframes dc-rise/g).length, 1, 'replaced, not repeated')
+  assert.throws(() => applyEdit(src, { op: 'style', cv: el.start, props: {}, keyframes: { x: '</style><script>' } }))
+})
+
 test('fixture: implied closings and raw text', () => {
   const ps = [...parse(fixture).byStart.values()].filter((e) => e.tag === 'p')
   assert.equal(ps.length, 2, 'the <p> inside the script is text')

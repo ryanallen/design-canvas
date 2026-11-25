@@ -215,6 +215,11 @@
       return host.append(h('div', { class: 'empty' }, 'Nothing selected. Click any element in the design to edit it here.'))
     }
     showState(el)
+    // An entrance still playing would be read mid-way (opacity 0 at its start): it is run to its end, the
+    // element's resting look. One that repeats for ever is left alone.
+    for (const a of el.getAnimations?.() ?? []) {
+      try { if (a.effect?.getComputedTiming().iterations !== Infinity) a.finish() } catch {}
+    }
     const c = cs(el)
     const S = (p) => ed.shared(p)
     const stateRule = state === 'default' ? null : stateSelector(el)
@@ -354,7 +359,42 @@
       field('Border', seg([['none', 'None'], ['solid', 'Solid'], ['dashed', 'Dash'], ['dotted', 'Dot']], c.borderTopStyle, (v) => set(v === 'none' ? { border: 'none' } : { 'border-style': v, 'border-width': num(c.borderTopWidth) > 0 ? c.borderTopWidth : '1px', 'border-color': c.borderTopStyle === 'none' ? '#d1d5db' : c.borderTopColor }))),
       c.borderTopStyle !== 'none' ? field('Width · Color', input(num(c.borderTopWidth), (v) => set({ 'border-width': px(v) }), { class: 'n' }), color(c.borderTopColor, (v) => set({ 'border-color': v }))) : null,
       field('Shadow', input(c.boxShadow === 'none' ? '' : c.boxShadow, (v) => set({ 'box-shadow': v || 'none' }), { placeholder: '0 2px 8px rgba(0,0,0,.15)' })),
-      motionField(el, c)))
+      motionField(el, c),
+      ...entranceFields(el, c)))
+  }
+  /** How the element comes in when the page opens: a named @keyframes (written into the file with it), a speed and a delay. */
+  const ENTRANCES = [
+    ['none', 'None', ''],
+    ['dc-fade', 'Fade', 'from { opacity: 0 } to { opacity: 1 }'],
+    ['dc-rise', 'Rise', 'from { opacity: 0; transform: translateY(16px) } to { opacity: 1; transform: none }'],
+    ['dc-pop', 'Pop', 'from { opacity: 0; transform: scale(0.92) } to { opacity: 1; transform: none }'],
+    ['dc-slide', 'Slide', 'from { opacity: 0; transform: translateX(-24px) } to { opacity: 1; transform: none }'],
+  ]
+  const ENTRANCE_SPEEDS = [['250', 'Quick'], ['450', 'Smooth'], ['800', 'Slow']]
+  function entranceFields(el, c) {
+    const name = c.animationName.split(',')[0].trim()
+    const now = ENTRANCES.some(([k]) => k === name) ? name : 'none'
+    const ms = (d) => Math.round(parseFloat(d) * (d.trim().endsWith('ms') ? 1 : 1000) || 0)
+    const dur = ms(c.animationDuration.split(',')[0])
+    const delay = ms(c.animationDelay.split(',')[0])
+    const speed = now === 'none' ? '450' : ENTRANCE_SPEEDS.reduce((a, b) => (Math.abs(b[0] - dur) < Math.abs(a[0] - dur) ? b : a))[0]
+    const write = (k, t = speed, d = delay) => {
+      const css = ENTRANCES.find(([key]) => key === k)[2]
+      ed.send({ op: 'style', cv: ed.cvOf(el), props: { animation: css ? `${k} ${t}ms cubic-bezier(0.2, 0.7, 0.2, 1) ${d}ms both` : '' }, ...(css ? { keyframes: { [k]: css } } : {}) })
+    }
+    const replay = () => {
+      const a = el.style.animation
+      el.style.animation = 'none'
+      void el.offsetWidth
+      el.style.animation = a
+    }
+    if (name !== 'none' && now === 'none') return [field('Entrance', h('span', { class: 'val' }, `${name} (the prototype's own)`))]
+    return [
+      field('Entrance', seg(ENTRANCES.map(([k, label]) => [k, label, k === 'none' ? 'Shown at once' : `${label} in when the page opens`]), now, (k) => write(k)),
+        now !== 'none' ? h('button', { type: 'button', class: 'mini', title: 'Play it again', onclick: replay }, '▷') : null),
+      now !== 'none' ? field('Speed · Delay', seg(ENTRANCE_SPEEDS.map(([t, label]) => [t, label, `${t} ms`]), speed, (t) => write(now, t)),
+        input(String(delay), (v) => write(now, speed, Math.max(0, Math.round(Number(v) || 0))), { class: 'n', title: 'Delay in ms, to come in after what is above it' })) : null,
+    ]
   }
   /** How fast it changes into a state and back: CSS transition on the element itself, whatever state is shown. */
   function motionField(el, c) {

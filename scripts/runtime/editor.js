@@ -796,24 +796,32 @@
     wrapIn: (kind) => ops.group({ row: 'display: flex; flex-direction: row; gap: 8px', column: 'display: flex; flex-direction: column; gap: 8px', grid: 'display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px' }[kind], { row: 'Row', column: 'Column', grid: 'Grid' }[kind]),
     copy: async () => {
       if (!sel) return
-      const el = primary()
-      let html = el.outerHTML.replace(/\s+data-cv="\d+"/g, '')
-      if (dc.serve && cvOf(el) != null) {
-        try {
-          const res = await fetch(`/api/source?f=${encodeURIComponent(sel.frame.file)}&cv=${cvOf(el)}`)
-          const body = await res.json()
-          if (body.html) html = body.html
-        } catch {}
+      // Every element selected, in the order the page has them; nested ones go with what holds them.
+      const els = sel.els.filter(live).filter((e, _, all) => !all.some((o) => o !== e && o.contains(e)))
+        .sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
+      const parts = []
+      for (const el of els) {
+        let html = el.outerHTML.replace(/\s+data-cv="\d+"/g, '')
+        if (dc.serve && cvOf(el) != null) {
+          try {
+            const res = await fetch(`/api/source?f=${encodeURIComponent(sel.frame.file)}&cv=${cvOf(el)}`)
+            const body = await res.json()
+            if (body.html) html = body.html
+          } catch {}
+        }
+        parts.push(html)
       }
-      clip = html
-      try { await navigator.clipboard.writeText(html) } catch {}
-      hint('Copied', 900)
+      // Another prototype has none of this one's rules: what goes there carries its look on itself.
+      clip = { html: parts.join('\n'), file: sel.frame.file, styled: els.map(standalone).join('\n') }
+      try { await navigator.clipboard.writeText(clip.html) } catch {}
+      hint(els.length > 1 ? `Copied ${els.length}` : 'Copied', 900)
     },
     paste: () => {
       if (!clip) return hint('Nothing copied yet', 1200)
       if (!needEditable()) return
       const el = primary()
-      send({ op: 'insert', cv: cvOf(el), where: el.localName === 'body' ? 'inside' : 'after', html: clip })
+      const html = clip.file === sel.frame.file ? clip.html : clip.styled
+      send({ op: 'insert', cv: cvOf(el), where: el.localName === 'body' ? 'inside' : 'after', html })
     },
     nudge: (dx, dy, alt) => {
       if (!needEditable()) return
@@ -831,6 +839,58 @@
     },
   }
   let clip = null
+  /** The properties that make an element look as it does, carried onto it when it goes to another prototype. Sizes
+      that come from its place (width, height) stay out, so it fits where it lands. */
+  const LOOK = ['display', 'flex-direction', 'flex-wrap', 'flex-grow', 'flex-shrink', 'flex-basis', 'align-items', 'justify-content', 'gap', 'grid-template-columns', 'grid-template-rows',
+    'margin-top', 'margin-right', 'margin-bottom', 'margin-left', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left', 'max-width', 'min-height',
+    'background-color', 'background-image', 'border-top', 'border-right', 'border-bottom', 'border-left', 'border-radius', 'box-shadow', 'opacity', 'object-fit',
+    'color', 'font-family', 'font-size', 'font-weight', 'font-style', 'line-height', 'letter-spacing', 'text-align', 'text-transform', 'text-decoration-line', 'white-space', 'list-style-type']
+  const INHERITS = new Set(['color', 'font-family', 'font-size', 'font-weight', 'font-style', 'line-height', 'letter-spacing', 'text-align', 'text-transform', 'white-space', 'list-style-type'])
+  let blankDoc = null
+  /** A tag's look with no stylesheet but the browser's own, from a blank page kept for it. */
+  function defaultLook(tag) {
+    if (!blankDoc) {
+      const f = h('iframe', { 'aria-hidden': 'true', tabindex: '-1', style: 'position:fixed;left:-9999px;top:0;width:800px;height:200px;border:0;visibility:hidden' })
+      document.body.append(f)
+      blankDoc = f.contentDocument
+      blankDoc.open()
+      blankDoc.write('<!doctype html><html><body></body></html>')
+      blankDoc.close()
+    }
+    const el = blankDoc.createElement(tag)
+    blankDoc.body.append(el)
+    const c = blankDoc.defaultView.getComputedStyle(el)
+    const out = Object.fromEntries(LOOK.map((p) => [p, c.getPropertyValue(p)]))
+    out['@body'] = Object.fromEntries([...INHERITS].map((p) => [p, blankDoc.defaultView.getComputedStyle(blankDoc.body).getPropertyValue(p)]))
+    el.remove()
+    return out
+  }
+  /** The element's markup with each part's look written on it wherever it differs from the browser's plain one:
+      inherited text properties only where they differ from the part that holds it (on the outermost, from a plain body). */
+  function standalone(root) {
+    const clone = root.cloneNode(true)
+    const src = [root, ...root.querySelectorAll('*')]
+    const dst = [clone, ...clone.querySelectorAll('*')]
+    src.forEach((s, i) => {
+      const d = dst[i]
+      if (['script', 'style', 'template'].includes(s.localName)) return
+      const c = cs(s)
+      const plain = defaultLook(s.localName)
+      const up = i ? cs(s.parentElement) : null
+      for (const p of LOOK) {
+        const v = c.getPropertyValue(p)
+        if (INHERITS.has(p)) {
+          // A heading or a <b> sets its own size or weight; anything else takes it from what holds it.
+          const tagSets = plain[p] !== plain['@body'][p]
+          if (!tagSets && v === (up ? up.getPropertyValue(p) : plain['@body'][p])) continue
+          if (tagSets && v === plain[p] && !up) continue
+        } else if (v === plain[p]) continue
+        if (!d.style.getPropertyValue(p)) d.style.setProperty(p, v)
+      }
+      for (const a of ['contenteditable', 'spellcheck', 'data-dc-state', 'data-cv']) d.removeAttribute(a)
+    })
+    return clone.outerHTML
+  }
 
   // ── keys ──
   hooks.onKey = (e) => {

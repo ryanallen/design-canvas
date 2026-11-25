@@ -68,7 +68,8 @@
 
   /* The canvas itself, as a screen standing at the bottom of the panel. */
   .shot { width: min(var(--wide), 100%); margin: auto auto 0; padding-top: 56px; }
-  .shot img { width: 100%; border-radius: var(--r) var(--r) 0 0; box-shadow: 0 -1px 0 rgb(255 255 255 / 0.08), 0 30px 80px rgb(0 0 0 / 0.45); aspect-ratio: 1440 / 900; background: #121214; }
+  .shot.first { margin-top: 0; padding-top: 48px; }
+  .shot img, .shot video { display: block; height: auto; width: 100%; border-radius: var(--r) var(--r) 0 0; box-shadow: 0 -1px 0 rgb(255 255 255 / 0.08), 0 30px 80px rgb(0 0 0 / 0.45); aspect-ratio: 1440 / 900; background: #121214; }
   .paper .shot img { box-shadow: 0 30px 80px rgb(0 0 0 / 0.18); }
 
   /* What else it does: short, one line each, in two or three columns. */
@@ -107,7 +108,7 @@
     .panel.short { padding-bottom: 72px; }
     .btn { min-width: 0; flex: 1 1 100%; max-width: 360px; }
     .shot { padding-top: 40px; width: calc(100% + 40px); margin-left: -20px; margin-right: -20px; }
-    .shot img { border-radius: 10px 10px 0 0; }
+    .shot img, .shot video { border-radius: 10px 10px 0 0; }
   }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn { transition: none; } }
 </style>
@@ -130,8 +131,9 @@
       <a class="btn go" href="play/">Open it in your browser</a>
       <a class="btn calm" href="#get">Get it for your own folder</a>
     </div>
-    <div class="shot">
-      <img src="landing/hero-1440.webp" srcset="landing/hero-1440.webp 1440w, landing/hero-2880.webp 2880w" sizes="(max-width: 1200px) 100vw, 1200px" width="1440" height="900" alt="The canvas at work: a surf app's home page and its detail page on the board, two sticky notes pointing at home, its headline selected with the text toolbar over it, and the Properties panel showing that headline's size and layout" fetchpriority="high">
+    <div class="shot first">
+      <video autoplay muted loop playsinline preload="auto" width="1440" height="900" poster="landing/hero-1440.webp" aria-label="The canvas at work: a pointer selects a surf app's headline on the board and retypes it, adds a sticky note, leaves a comment on its download button, then plays the app at full size and clicks through to the next screen"><source src="landing/hero.webm" type="video/webm"></video>
+      <script>if (matchMedia('(prefers-reduced-motion: reduce)').matches) { const v = document.currentScript.previousElementSibling; v.removeAttribute('autoplay'); v.pause(); v.controls = true }</script>
     </div>
   </section>
 

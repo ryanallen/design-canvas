@@ -415,12 +415,12 @@
     apply()
   }
   const panelWidth = () => (document.body.classList.contains('panel-open') && viewport.clientWidth > 640 ? 320 : 0)
-  function fitTo(box, pad = 60) {
+  function fitTo(box, pad = 60, most = 1) {
     const vw = viewport.clientWidth - panelWidth()
     pad = Math.min(pad, Math.round(vw / 24))
     const top = 48
     const vh = viewport.clientHeight - top - 64
-    const z = Math.min(1, MAX_Z, Math.max(MIN_Z, Math.min((vw - pad * 2) / box.w, (vh - pad * 2) / box.h)))
+    const z = Math.min(most, MAX_Z, Math.max(MIN_Z, Math.min((vw - pad * 2) / box.w, (vh - pad * 2) / box.h)))
     view.z = z
     view.x = (vw - box.w * z) / 2 - box.x * z
     view.y = top + (vh - box.h * z) / 2 - box.y * z
@@ -768,7 +768,8 @@
     }
     drawingItems = true
     try {
-      const all = items()
+      // Drawn in stack order: `z` first, then the order they were made.
+      const all = items().map((it, n) => [it, n]).sort((a, b) => (a[0].z ?? 0) - (b[0].z ?? 0) || a[1] - b[1]).map(([it]) => it)
       sectionLayer.replaceChildren(...all.filter((i) => i.kind === 'section').map(itemEl).filter(Boolean))
       itemLayer.replaceChildren(...all.filter((i) => i.kind !== 'section').map(itemEl).filter(Boolean))
       if (chosen) {
@@ -1028,6 +1029,31 @@
     boardClip.times++
     placeCopies(boardClip.items, 24 * boardClip.times, 24 * boardClip.times)
     return true
+  }
+  /** Shift+2: the board objects or the prototype elements selected fill the window, never past 400%. */
+  function zoomToSelection() {
+    const ids = chosen ? [...chosen.items] : picked ? withGroup(picked) : []
+    const b = ids.length || chosen?.frames.size ? boxAround(ids, chosen ? [...chosen.frames] : []) : call('selectionBox')
+    if (!b) return hint('Select something to zoom to it', 1400)
+    fitTo(b, 60, 4)
+  }
+  // ── front and back: a board object's place in the stack is its `z`, objects without one in the order drawn ──
+  async function restack(front) {
+    const ids = chosen ? [...chosen.items] : picked ? withGroup(picked) : []
+    const list = ids.map((id) => board.items.find((i) => i.id === id)).filter((i) => i && !isLocked(i.id) && i.kind !== 'section' && i.kind !== 'guide')
+    if (!list.length) return
+    const order = (i) => [i.z ?? 0, board.items.indexOf(i)]
+    list.sort((a, b) => order(a)[0] - order(b)[0] || order(a)[1] - order(b)[1])
+    const zs = items().map((i) => i.z ?? 0)
+    let at = front ? Math.max(0, ...zs) + 1 : Math.min(0, ...zs) - list.length
+    for (const it of list) it.z = at++
+    renderItems()
+    try {
+      for (const it of list) await sendBoard({ op: 'item', id: it.id, z: it.z })
+    } catch (err) {
+      hint(err.message, 3000)
+      takeBoardAgain()
+    }
   }
   // ── align and distribute: a group in the selection moves as one ──
   function selectedUnits() {
@@ -2275,6 +2301,10 @@
     }
     if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && serve) {
       const k = e.key.toLowerCase()
+      if ((k === ']' || k === '[') && selectedItems().length) {
+        e.preventDefault()
+        return restack(k === ']')
+      }
       const done = k === 'd' ? (selectedItems().length ? (duplicateItems(), true) : false) : k === 'c' ? copyItems() : k === 'v' ? pasteItems() : false
       if (done) return e.preventDefault()
     }
@@ -2303,6 +2333,7 @@
     } else if (k === 'r' && serve) setShape(SHAPES.includes(tool) && tool !== 'section' ? tool : shapeKind === 'section' ? 'rect' : shapeKind)
     else if (k === 's' && serve) setShape('section')
     else if (k === 'f' || (e.key === '!' && e.shiftKey)) fitAll()
+    else if (e.shiftKey && e.code === 'Digit2') zoomToSelection()
     else if (e.key === '=' || e.key === '+') zoomAt(view.z * 1.25, centre().x, centre().y)
     else if (e.key === '-') zoomAt(view.z / 1.25, centre().x, centre().y)
     else if (e.key === '0') zoomAt(1, centre().x, centre().y)

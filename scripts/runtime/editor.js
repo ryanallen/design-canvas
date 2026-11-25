@@ -294,6 +294,16 @@
     draw()
   }
   hooks.selectedFile = () => sel?.frame.file ?? null
+  /** The box round the selected elements on the board, for zoom to selection. */
+  hooks.selectionBox = () => {
+    const els = sel?.els.filter(live) ?? []
+    if (!els.length) return null
+    const f = sel.frame
+    const rs = els.map((el) => el.getBoundingClientRect())
+    const x = Math.min(...rs.map((r) => r.left))
+    const y = Math.min(...rs.map((r) => r.top))
+    return { x: f.x + x * f.s, y: f.y + y * f.s, w: (Math.max(...rs.map((r) => r.right)) - x) * f.s, h: (Math.max(...rs.map((r) => r.bottom)) - y) * f.s }
+  }
   hooks.selectionTarget = () => {
     const el = primary()
     if (!el) return null

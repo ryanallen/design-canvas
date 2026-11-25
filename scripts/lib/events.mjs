@@ -218,7 +218,7 @@ export function makeBoardEvent(input, { now = new Date(), newId = randomId } = {
         event.kind = input.kind
       }
       if (input.page != null) event.page = pageId(input.page)
-      for (const k of ['x', 'y', 'w', 'h']) if (input[k] != null) event[k] = coord(input[k], k)
+      for (const k of ['x', 'y', 'w', 'h', 'z']) if (input[k] != null) event[k] = coord(input[k], k)
       if (input.text != null) event.text = String(input.text).slice(0, LIMITS.text)
       if (input.color != null) event.color = colorOf(input.color)
       if (input.frame != null) event.frame = text(input.frame, LIMITS.frame, 'frame')

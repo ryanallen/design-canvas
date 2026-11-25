@@ -52,7 +52,9 @@
             onpointerenter: () => ed.hover(f, c), onpointerleave: () => ed.hover(null, null) },
             h('span', { class: 'tw', onclick: (e) => { e.stopPropagation(); open.has(c) ? open.delete(c) : open.add(c); renderLayers() } }, kids.length ? (open.has(c) ? '▾' : '▸') : ''),
             h('span', { class: 'lk' }, c.localName === 'a' ? dc.icon('link') : kindGlyph(n.kind)),
-            h('span', { class: 'ln' }, n.text))
+            h('span', { class: 'ln' }, n.text),
+            dc.serve && ed.cvOf(c) != null ? eyeOf(f, c) : null)
+          if (cs(c).display === 'none') row.classList.add('hidden-layer')
           if (dc.serve && ed.cvOf(c) != null) layerDrag(row, f, c, kids.length > 0 || CONTAINS.test(c.localName))
           rows.push(row)
           if (kids.length && open.has(c)) walk(c, d + 1)
@@ -62,6 +64,22 @@
     }
     host.append(h('div', { class: 'lhead' }, 'Layers'), h('div', { class: 'lbody' }, rows.length ? rows : h('div', { class: 'empty' }, 'Nothing on this page.')))
     host.querySelector('.lrow.on:not(.lframe)')?.scrollIntoView({ block: 'nearest' })
+  }
+  /** Hide or show a layer, as Figma's eye: hidden is `display: none` on the element, so Play hides it too; shown
+      takes that off, or, when its class hides it, puts back the display its tag would have. */
+  function eyeOf(f, el) {
+    const hidden = cs(el).display === 'none'
+    return h('span', { class: 'eye', role: 'button', title: hidden ? 'Show' : 'Hide', onclick: (e) => {
+      e.stopPropagation()
+      let display = 'none'
+      if (hidden) {
+        const own = el.style.getPropertyValue('display')
+        el.style.removeProperty('display')
+        display = cs(el).display === 'none' ? 'revert' : ''
+        if (own) el.style.setProperty('display', own)
+      }
+      ed.send({ op: 'style', cv: ed.cvOf(el), props: { display } }, { file: f.file, key: f.key })
+    } }, dc.icon(hidden ? 'eyeOff' : 'eye'))
   }
   // A layer dragged onto another goes before it, after it, or (on the middle of one that holds others) inside it,
   // as one move in the file; double-click names it (data-name), as Figma renames a layer.

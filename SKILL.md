@@ -59,7 +59,7 @@ Enter (or double-click) on a selected text element types in it. Enter while typi
 
 ## Layers
 
-The panel's Layers list the page's board objects and frames, and an open frame's elements, each named by its `data-name` or `aria-label`, else what it is and what it says. Served, a layer dragged onto another goes before it or after it (by the half it is dropped on), or inside it on the middle of one that holds others: one move in the file. Double-click names a layer, written as `data-name` (empty takes it off).
+The panel's Layers list the page's board objects and frames, and an open frame's elements, each named by its `data-name` or `aria-label`, else what it is and what it says. Served, a layer dragged onto another goes before it or after it (by the half it is dropped on), or inside it on the middle of one that holds others: one move in the file. Double-click names a layer, written as `data-name` (empty takes it off). The eye on a layer hides it, as `display: none` on the element so Play hides it too, and shows it again; a hidden layer's row is dimmed.
 
 ## Copy and paste
 

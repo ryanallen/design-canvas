@@ -69,6 +69,11 @@ body:has(#thread.open) #float.open, body:has(#thread.open) #itembar.open { displ
 .lrow:hover { background: var(--panel-2); color: var(--ink); }
 .lrow.on { background: color-mix(in srgb, var(--accent) 28%, transparent); color: var(--ink); }
 .lrow.dragging { opacity: 0.4; }
+.lrow .eye { margin-left: auto; flex: none; display: inline-flex; padding: 2px 4px; border-radius: 4px; color: var(--ink-2); visibility: hidden; }
+.lrow .eye .ico { width: 14px; height: 14px; display: inline-flex; }
+.lrow .eye:hover { color: var(--ink); background: var(--panel-2); }
+.lrow:hover .eye, .lrow.hidden-layer .eye { visibility: visible; }
+.lrow.hidden-layer .ln, .lrow.hidden-layer .lk { opacity: 0.45; }
 .lrow.drop-before { box-shadow: inset 0 2px 0 var(--accent); }
 .lrow.drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
 .lrow.drop-inside { outline: 2px solid var(--accent); outline-offset: -2px; }

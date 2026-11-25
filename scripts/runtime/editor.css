@@ -132,6 +132,7 @@ body:has(#thread.open) #float.open, body:has(#thread.open) #itembar.open { displ
 .decl { display: grid; grid-template-columns: minmax(80px, 40%) 1fr auto; gap: 4px; padding: 1px 12px; align-items: center; font: 12px/1.4 ui-monospace, 'Cascadia Code', Consolas, monospace; }
 .decl .p { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .decl.ro .v { color: var(--ink-2); overflow-wrap: anywhere; }
+.decl.lost .p, .decl.lost .v { text-decoration: line-through; opacity: 0.5; }
 .decl input { font: inherit; height: 24px !important; }
 .decl.add input.p { color: var(--ink); }
 .decl.add { grid-template-columns: minmax(80px, 40%) 1fr; }

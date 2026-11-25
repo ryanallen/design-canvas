@@ -52,6 +52,10 @@ Everything people do is a line before `</body>`, one JSON event each, never rewr
 - `<!-- edit {…} -->`: who, when, the file, the change in words, and a fingerprint of the file after it. The exact change is the file's own diff.
 - `<!-- board {…} -->`: notes, titles, rectangles and ellipses (each with its own text), sections, lines, arrows, pencil strokes, guides, groups (objects sharing a `group` id), stacking order (`z`), pages, frames moved by hand, the canvas's own name. A line or arrow with `from` and `to` (a board object's id or a frame's key) is drawn between those two wherever they move; an empty `from` or `to` lets go.
 
+## Code tab
+
+The **Code** tab shows the element's own style (editable), then each rule that matches it, strongest first as the cascade ranks them (`!important`, specificity, then order in the file), with every declaration a stronger one overrides struck through, so the value shown unstruck is the one that applies. Then its attributes, what it inherits and from which ancestor, and its source.
+
 ## States
 
 Properties has **Default · Hover · Pressed · Focus** above an element's properties. In a state, the element is shown on the board as it looks in that state (every `:hover`, `:active` or `:focus` rule for it applied, the prototype's own and the canvas's), Properties reads those values, and a change is written as that state's rule for the element's id, or else its tag and classes, so Play shows it for real. An element with neither is asked for one. **Motion** (None, Quick, Smooth, Slow) sets how fast it changes into a state and back: a CSS `transition` on the element itself.

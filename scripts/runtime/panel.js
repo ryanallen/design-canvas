@@ -406,12 +406,59 @@
           }
           if (!r.selectorText || !r.style) continue
           try { if (!el.matches(r.selectorText)) continue } catch { continue }
-          out.push({ selector: r.selectorText, decls: declsOf(r.style) })
+          const spec = splitList(r.selectorText).filter((s) => { try { return el.matches(s) } catch { return false } }).map(specificity).sort(bySpec).pop() ?? [0, 0, 0]
+          out.push({ selector: r.selectorText, decls: declsOf(r.style), spec, order: out.length })
         }
       }
       walk(rules)
     }
+    // Weakest first, as the cascade applies them (the panel shows them strongest first).
+    return out.sort((a, b) => bySpec(a.spec, b.spec) || a.order - b.order)
+  }
+  /** A selector list split at its top-level commas. */
+  function splitList(sel) {
+    const out = []
+    let depth = 0
+    let at = 0
+    for (let i = 0; i < sel.length; i++) {
+      if (sel[i] === '(' || sel[i] === '[') depth++
+      else if (sel[i] === ')' || sel[i] === ']') depth--
+      else if (sel[i] === ',' && !depth) { out.push(sel.slice(at, i).trim()); at = i + 1 }
+    }
+    out.push(sel.slice(at).trim())
     return out
+  }
+  const bySpec = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]
+  /** Ids, classes (with attributes and pseudo-classes), types (with pseudo-elements). :where() counts nothing;
+      :is(), :not() and :has() count their strongest argument. */
+  function specificity(sel) {
+    const n = [0, 0, 0]
+    let s = sel.replace(/:where\((?:[^()]|\([^()]*\))*\)/g, '')
+    s = s.replace(/:(is|not|has|matches)\(((?:[^()]|\([^()]*\))*)\)/g, (m, k, inner) => {
+      const best = splitList(inner).map(specificity).sort(bySpec).pop() ?? [0, 0, 0]
+      for (let i = 0; i < 3; i++) n[i] += best[i]
+      return ''
+    })
+    s = s.replace(/\[[^\]]*\]/g, () => { n[1]++; return '' })
+    s = s.replace(/::[\w-]+(\([^)]*\))?/g, () => { n[2]++; return '' })
+    s = s.replace(/#[\w-]+/g, () => { n[0]++; return '' })
+    s = s.replace(/\.[\w-]+/g, () => { n[1]++; return '' })
+    s = s.replace(/:[\w-]+(\([^)]*\))?/g, () => { n[1]++; return '' })
+    for (const t of s.split(/[\s>+~]+/)) if (/^[a-z][\w-]*$/i.test(t)) n[2]++
+    return n
+  }
+  /** For rules listed strongest first, after the element's own style: which declarations a stronger one overrides. */
+  function overridden(el, rules) {
+    // The winner for each property: !important first, then the element's own style, then the strongest rule.
+    const win = new Map()
+    const offer = (p, imp, rank) => {
+      const w = win.get(p)
+      if (!w || imp > w.imp || (imp === w.imp && rank < w.rank)) win.set(p, { imp, rank })
+    }
+    for (const p of el.style) offer(p, el.style.getPropertyPriority(p) === 'important' ? 1 : 0, 0)
+    const imp = (v) => (/!important\s*$/.test(v) ? 1 : 0)
+    rules.forEach((r, i) => r.decls.forEach(([p, v]) => offer(p, imp(v), i + 1)))
+    return rules.map((r, i) => r.decls.map(([p, v]) => { const w = win.get(p); return w.imp !== imp(v) || w.rank !== i + 1 }))
   }
   const win = (el) => el.ownerDocument.defaultView
   const INHERITED = ['font-family', 'font-size', 'font-weight', 'line-height', 'letter-spacing', 'color', 'text-align', 'text-transform', 'font-style', 'white-space', 'cursor']
@@ -428,7 +475,9 @@
     if (!can) {
       const own = [...el.style]
       if (own.length) host.append(h('div', { class: 'chead' }, 'Its own'), ...own.map((p) => h('div', { class: 'decl ro' }, h('span', { class: 'p' }, p), h('span', { class: 'v' }, el.style.getPropertyValue(p)))))
-      for (const r of rulesFor(el).reverse()) host.append(h('div', { class: 'chead' }, `From ${r.selector}`), ...r.decls.map(([p, v]) => h('div', { class: 'decl ro' }, h('span', { class: 'p' }, p), h('span', { class: 'v' }, v))))
+      const rules = rulesFor(el).reverse()
+      const lost = overridden(el, rules)
+      rules.forEach((r, i) => host.append(h('div', { class: 'chead' }, `From ${r.selector}`), ...r.decls.map(([p, v], j) => h('div', { class: `decl ro${lost[i][j] ? ' lost' : ''}`, title: lost[i][j] ? 'Overridden by a stronger rule above' : null }, h('span', { class: 'p' }, p), h('span', { class: 'v' }, v)))))
       const attrs = [...el.attributes].filter((a) => !['data-cv', 'style'].includes(a.name))
       if (attrs.length) host.append(h('div', { class: 'chead' }, 'Attributes'), ...attrs.map((a) => h('div', { class: 'decl ro' }, h('span', { class: 'p' }, `@${a.name}`), h('span', { class: 'v' }, a.value))))
       host.append(h('div', { class: 'chead' }, 'Source HTML'), h('pre', { class: 'source' }, el.outerHTML.replace(/\s+data-cv="\d+"/g, '')))
@@ -440,9 +489,11 @@
     host.append(h('div', { class: 'chead' }, 'Its own'),
       ...own.map((p) => decl(p, el.style.getPropertyValue(p), (v) => ed.setStyle({ [p]: v.trim() }))),
       newDecl((p, v) => ed.setStyle({ [p]: v })))
-    for (const r of rulesFor(el).reverse()) {
+    const rules = rulesFor(el).reverse()
+    const lost = overridden(el, rules)
+    for (const [i, r] of rules.entries()) {
       host.append(h('div', { class: 'chead' }, `From ${r.selector}`),
-        ...r.decls.map(([p, v]) => h('div', { class: 'decl ro' }, h('span', { class: 'p' }, p), h('span', { class: 'v' }, v), h('button', { type: 'button', class: 'mini', title: 'Set it on the element itself', onclick: () => ed.setStyle({ [p]: v.replace(/\s*!important$/, '') }) }, '+'))))
+        ...r.decls.map(([p, v], j) => h('div', { class: `decl ro${lost[i][j] ? ' lost' : ''}`, title: lost[i][j] ? 'Overridden by a stronger rule above' : null }, h('span', { class: 'p' }, p), h('span', { class: 'v' }, v), h('button', { type: 'button', class: 'mini', title: 'Set it on the element itself', onclick: () => ed.setStyle({ [p]: v.replace(/\s*!important$/, '') }) }, '+'))))
     }
     // Attributes
     const attrs = [...el.attributes].filter((a) => !['data-cv', 'style', 'contenteditable', 'spellcheck'].includes(a.name))

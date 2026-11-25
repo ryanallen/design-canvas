@@ -2229,8 +2229,34 @@
     playFrame.srcdoc = docFor(f)
     play.classList.add('open')
     setPlayWidth(width ?? (f.meta.fluid ? 'fill' : store.get('playWidth') || 'fill'))
+    const list = playList()
+    const at = list.indexOf(f)
+    $('#play-count').textContent = list.length > 1 ? `${at + 1} of ${list.length}` : ''
+    $('#play-prev').disabled = at <= 0
+    $('#play-next').disabled = at < 0 || at >= list.length - 1
+    $('#play-prev').hidden = $('#play-next').hidden = list.length < 2
     closeMenu()
   }
+  /** The screens of the page being played, in board order: ← and → step through them. */
+  const playList = () => [...allFrames.values()].filter((f) => f.page === playing?.page)
+  function stepPlay(d) {
+    const list = playList()
+    const to = list[list.indexOf(playing) + d]
+    if (to) openPlay(to, playWidth)
+  }
+  /** Keys in the parent page or the prototype: Esc leaves, ← → step, unless the prototype took the key or a field has it. */
+  function playKey(e) {
+    if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
+    if (e.target.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return
+    if (e.key === 'Escape') closePlay()
+    else if (e.key === 'ArrowRight') stepPlay(1)
+    else if (e.key === 'ArrowLeft') stepPlay(-1)
+    else return
+    e.preventDefault()
+  }
+  playFrame.addEventListener('load', () => playFrame.contentDocument?.addEventListener('keydown', playKey))
+  $('#play-prev').addEventListener('click', () => stepPlay(-1))
+  $('#play-next').addEventListener('click', () => stepPlay(1))
   /** On a touch screen a fixed width as wide as the screen or wider does nothing a finger can use. */
   const widthFits = (n) => !matchMedia('(pointer: coarse)').matches || n < innerWidth - 24
   function showPlayWidths() {
@@ -2377,6 +2403,7 @@
     ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['+ and −', 'Zoom in and out'], ['0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+\\', 'Panel']]],
     ['Board objects', [['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+V', 'Copy, paste'], ['Ctrl+], Ctrl+[', 'Front, back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Ctrl+drag', 'Move without snapping'], ['Delete', 'Delete']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or go in, go out'], ['Esc', 'Select the parent'], ['Tab', 'Next sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
+    ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['Esc', 'Back to the canvas']]],
     ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+?', 'This sheet']]],
   ]
   const keysSheet = h('dialog', { id: 'keys-sheet', 'aria-label': 'Keyboard shortcuts' })
@@ -2597,10 +2624,7 @@
   const TOOL_KEYS = { v: 'select', h: 'hand', t: 'text', a: 'artboard', n: 'note', p: 'pencil', c: 'comment' }
   addEventListener('keydown', (e) => {
     if (e.target.closest?.('input, textarea, select, [contenteditable="true"], [contenteditable="plaintext-only"]')) return
-    if (play.classList.contains('open')) {
-      if (e.key === 'Escape') closePlay()
-      return
-    }
+    if (play.classList.contains('open')) return playKey(e)
     // An open menu takes Escape first, opened by mouse or keyboard: it closes, and nothing under it moves.
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'f') {
       e.preventDefault()

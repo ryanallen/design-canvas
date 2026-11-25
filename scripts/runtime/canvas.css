@@ -377,6 +377,9 @@ body.panel-open #panel { display: flex; }
 #play .head .tool { color: #d8d8e2; }
 #play .head .tool:hover { background: rgb(255 255 255 / 0.12); color: #fff; }
 #play .head .tool[aria-pressed='true'] { background: #fff; color: #111; }
+#play-count { color: #a8a8b4; font-size: 12px; font-variant-numeric: tabular-nums; min-width: 40px; text-align: center; white-space: nowrap; }
+#play-next { margin-right: 12px; }
+#play .head .tool:disabled { opacity: 0.35; background: none; }
 #play #play-close { font-size: 20px; }
 #play .stage { flex: 1; overflow: auto; display: flex; padding: 12px; min-height: 0; }
 #play iframe { border: 0; background: #fff; height: 100%; width: 100%; margin: 0 auto; flex: none; transform-origin: 0 0; }

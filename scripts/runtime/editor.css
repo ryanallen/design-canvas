@@ -134,13 +134,19 @@ body:has(#thread.open) #float.open, body:has(#thread.open) #itembar.open { displ
 .nine { display: grid; grid-template-columns: repeat(3, 14px); gap: 3px; background: var(--panel-2); padding: 4px; border-radius: 6px; }
 .nine button { width: 14px; height: 14px; border: 0; border-radius: 3px; background: var(--panel-3); padding: 0; }
 .nine button[aria-pressed='true'] { background: var(--accent); }
-.colorf { display: flex; gap: 4px; align-items: center; flex: 1; min-width: 0; }
+.colorf { display: flex; gap: 4px; align-items: center; flex: 1; position: relative; }
+.colorf .swatches { position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; width: 208px; padding: 8px; display: grid; gap: 6px; background: var(--panel, #1c1c22); border-radius: 10px; box-shadow: 0 8px 24px rgb(0 0 0 / 0.35), 0 0 0 1px rgb(255 255 255 / 0.08); }
+.colorf .swatches.up { top: auto; bottom: calc(100% + 4px); }
+.colorf .swatches small { font-size: 11px; color: var(--ink-3); }
+.colorf .swatches .swrow { display: flex; flex-wrap: wrap; gap: 4px; }
+.colorf .swatches .sw { width: 20px; height: 20px; padding: 0; border-radius: 4px; border: 1px solid rgb(128 128 128 / 0.45); cursor: pointer; }
+.colorf .swatches .sw:hover { outline: 2px solid var(--accent, #3b82f6); outline-offset: 1px; }
 /* Every colour field is a round swatch of its colour, not the browser's grey box. */
 #panel input[type='color'] { width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: none; flex: none; cursor: pointer; box-shadow: 0 0 0 1px var(--line); }
 #panel input[type='color']::-webkit-color-swatch-wrapper { padding: 0; }
 #panel input[type='color']::-webkit-color-swatch { border: 0; border-radius: 50%; }
 #panel input[type='color']::-moz-color-swatch { border: 0; border-radius: 50%; }
-.colorf input:not([type]) { flex: 1; width: 0; }
+#panel .colorf input:not([type]) { flex: 1; width: 0; min-width: 64px; }
 .colorf .alpha { font-size: 11px; color: var(--ink-3); flex: none; }
 /* No colour set: an empty swatch crossed by a line, as Figma shows none. */
 #panel input[type='color'].clear::-webkit-color-swatch { background: linear-gradient(135deg, transparent 46%, #e5484d 46% 54%, transparent 54%) !important; }

@@ -166,7 +166,46 @@
     s.addEventListener('change', () => onPick(s.value))
     return s
   }
-  const color = (value, onPick0, onRemove, linked = null) => {
+  // Figma's document colours: the colours the screen already uses, most used first, and its colour levers (custom
+  // properties on :root or html holding a colour), named. Read once a screen; a lever picked is written as var().
+  const screenColours = (() => {
+    let at = null
+    let found = null
+    return () => {
+      const doc = ed.sel?.frame?.doc
+      if (!doc) return { levers: [], colours: [] }
+      if (at === doc && found) return found
+      const levers = []
+      const seen = new Set()
+      const walk = (rules) => {
+        for (const r of rules) {
+          if (r.cssRules && !r.selectorText) { try { walk(r.cssRules) } catch {} continue }
+          if (!/^(:root|html)$/.test(String(r.selectorText ?? '').trim())) continue
+          for (const name of r.style ?? []) {
+            const v = r.style.getPropertyValue(name).trim()
+            if (name.startsWith('--') && !seen.has(name) && CSS.supports('color', v)) { seen.add(name); levers.push({ name, value: getComputedStyle(doc.documentElement).getPropertyValue(name).trim() || v }) }
+          }
+        }
+      }
+      for (const sh of doc.styleSheets) { try { walk(sh.cssRules) } catch {} }
+      const count = new Map()
+      const add = (v) => { if (v && v !== 'rgba(0, 0, 0, 0)' && v !== 'transparent') count.set(v, (count.get(v) ?? 0) + 1) }
+      for (const x of [...doc.querySelectorAll('body, body *')].slice(0, 800)) {
+        if (ed.SKIP?.has?.(x.localName)) continue
+        const k = cs(x)
+        add(k.color)
+        add(k.backgroundColor)
+        if (k.borderTopStyle !== 'none' && parseFloat(k.borderTopWidth) > 0) add(k.borderTopColor)
+      }
+      const colours = [...count.entries()].sort((a, b) => b[1] - a[1]).map(([v]) => v).slice(0, 24)
+      at = doc
+      found = { levers, colours }
+      return found
+    }
+  })()
+  const color = (value, onPick0, onRemove, linked) => {
+    // A field given a lever argument (Fill, text Color) can be set to a lever; the others take its colour.
+    const takesLever = linked !== undefined
     const hex = ed.rgbHex(value)
     // Nothing set shows as an empty swatch, not as black.
     const clear = value === 'rgba(0, 0, 0, 0)' || value === 'transparent'
@@ -181,7 +220,27 @@
     // A colour written as a lever (var(--accent)) shows the lever, so a pick is a seen choice to leave it.
     const t = input(linked ?? (clear ? '' : hex.toUpperCase()), (v) => onPick(v), { placeholder: clear ? 'None' : '' })
     c.addEventListener('change', () => onPick(c.value))
-    return h('div', { class: 'colorf' }, c, t, alpha && Number(alpha) < 1 ? h('span', { class: 'alpha', title: 'How see-through it is, kept when another colour is picked' }, `${Math.round(Number(alpha) * 100)}%`) : null, onRemove ? h('button', { type: 'button', class: 'mini', title: 'Remove', onclick: onRemove }, '−') : null)
+    // ▦ opens the screen's own colours under the field; one picked is written, as a colour typed is.
+    const more = h('button', { type: 'button', class: 'mini', title: 'Colours on this screen', 'aria-label': 'Colours on this screen', 'aria-expanded': 'false' }, '▦')
+    more.addEventListener('click', () => {
+      const wrap = more.parentElement
+      const open = wrap.querySelector('.swatches')
+      if (open) { open.remove(); more.setAttribute('aria-expanded', 'false'); return }
+      const { levers, colours } = screenColours()
+      const chip = (bg, title, pick) => h('button', { type: 'button', class: 'sw', style: `background:${bg}`, title, 'aria-label': title, onclick: () => { pop.remove(); pick() } })
+      const pop = h('div', { class: 'swatches', role: 'group', 'aria-label': 'Colours on this screen' },
+        levers.length ? h('small', {}, 'Levers') : null,
+        levers.length ? h('div', { class: 'swrow' }, ...levers.map((l) => chip(l.value, `${l.name} ${ed.rgbHex(l.value).toUpperCase()}`, () => (takesLever ? onPick0(`var(${l.name})`) : onPick(ed.rgbHex(l.value)))))) : null,
+        h('small', {}, 'On this screen'),
+        h('div', { class: 'swrow' }, ...colours.map((v) => chip(v, ed.rgbHex(v).toUpperCase() + (/rgba/.test(v) ? ` ${Math.round(Number(/,\s*([\d.]+)\)$/.exec(v)?.[1] ?? 1) * 100)}%` : ''), () => onPick0(/rgba/.test(v) ? v : ed.rgbHex(v))))))
+      wrap.append(pop)
+      // Above the field where the panel has no room under it.
+      if (pop.getBoundingClientRect().bottom > innerHeight - 8) pop.classList.add('up')
+      more.setAttribute('aria-expanded', 'true')
+      const away = (e) => { if (!wrap.contains(e.target)) { pop.remove(); more.setAttribute('aria-expanded', 'false'); removeEventListener('pointerdown', away, true) } }
+      addEventListener('pointerdown', away, true)
+    })
+    return h('div', { class: 'colorf' }, c, t, more, alpha && Number(alpha) < 1 ? h('span', { class: 'alpha', title: 'How see-through it is, kept when another colour is picked' }, `${Math.round(Number(alpha) * 100)}%`) : null, onRemove ? h('button', { type: 'button', class: 'mini', title: 'Remove', onclick: onRemove }, '−') : null)
   }
   // What a computed background-image says of a gradient: null where there is none; { kind, angle, from, to } for one of
   // two colours end to end, as Figma's linear, radial and angular fills (an angular one turning from its angle); { rich:

@@ -1039,9 +1039,11 @@
     e.preventDefault()
     const el = primary()
     const f = sel.frame
-    const r = boxOf(el)
+    // Its own size, not the box drawn round it when it is turned; a drag is read along its turned sides.
+    const r = sizeOf(el)
     // The handles drag the box as drawn; a content-box element's CSS size is that less its padding and border.
     const c = cs(el)
+    const turn = ((/^(-?[\d.]+)deg$/.exec(c.rotate)?.[1] ?? 0) * Math.PI) / 180
     const n = (v) => parseFloat(v) || 0
     const inner = c.boxSizing === 'border-box' ? { w: 0, h: 0 } : {
       w: n(c.paddingLeft) + n(c.paddingRight) + n(c.borderLeftWidth) + n(c.borderRightWidth),
@@ -1049,8 +1051,10 @@
     }
     const start = { x: e.clientX, y: e.clientY }
     const move = (ev) => {
-      const dx = (ev.clientX - start.x) / dc.view.z / f.s
-      const dy = (ev.clientY - start.y) / dc.view.z / f.s
+      const mx = (ev.clientX - start.x) / dc.view.z / f.s
+      const my = (ev.clientY - start.y) / dc.view.z / f.s
+      const dx = mx * Math.cos(turn) + my * Math.sin(turn)
+      const dy = -mx * Math.sin(turn) + my * Math.cos(turn)
       const sx = hd.includes('w') ? -1 : hd.includes('e') ? 1 : 0
       const sy = hd.includes('n') ? -1 : hd.includes('s') ? 1 : 0
       if (sx) el.style.width = `${Math.max(0, Math.round(r.width + sx * dx - inner.w))}px`

@@ -557,6 +557,23 @@
       busy = false
     }
   }
+  /** Hide or show elements, as Figma's eye: hidden is `display: none` on the element, so Play hides it too, with a
+   *  display of its own kept in data-display to come back when it is shown; shown without one, ours comes off, or,
+   *  when its class hides it, it takes the display its tag would have. One edit, one undo. */
+  function setHidden(frame, els, hide) {
+    const items = els.filter((x) => editable(x) && cvOf(x) != null && x.localName !== 'body').map((x) => {
+      const own = x.style.getPropertyValue('display')
+      if (hide) return { cv: cvOf(x), props: { display: 'none' }, attrs: own && own !== 'none' ? { 'data-display': own } : {} }
+      const kept = x.getAttribute('data-display')
+      if (kept) return { cv: cvOf(x), props: { display: kept }, attrs: { 'data-display': null } }
+      x.style.removeProperty('display')
+      const still = cs(x).display === 'none'
+      if (own) x.style.setProperty('display', own)
+      return { cv: cvOf(x), props: { display: still ? 'revert' : '' } }
+    })
+    if (!items.length) return
+    send({ op: 'styles', items }, { file: frame.file, key: frame.key, then: sel?.frame === frame ? reselect() : undefined })
+  }
   /** What brings the selection as it is now back after its frame redraws: each element found again by its place,
    *  for an edit that moves nothing (a style). */
   function reselect() {
@@ -1199,6 +1216,8 @@
     // By the key's place, so a layout where Ctrl+Alt types a character still reaches them.
     else if (mod && e.altKey && e.code === 'KeyC') ops.copyProps()
     else if (mod && e.altKey && e.code === 'KeyV') ops.pasteProps()
+    // Figma's Show/Hide: hides what is selected, or shows it when all of it is hidden.
+    else if (mod && e.shiftKey && k === 'h') setHidden(sel.frame, sel.els, sel.els.some((x) => cs(x).display !== 'none'))
     // The whole screen selected (its label clicked): Ctrl+D copies the screen, as Figma duplicates a frame.
     else if (mod && k === 'd') el.localName === 'body' ? dc.duplicateScreens([sel.frame]) : ops.duplicate()
     else if (mod && k === 'g') e.shiftKey ? ops.ungroup() : ops.group()
@@ -1579,7 +1598,7 @@
   const api = {
     get sel() { return sel },
     get editing() { return editing },
-    primary, select, pick, setStyle, send, sendSheet, everyCopy, reselect, refreshFloat: () => renderFloat(), ops, undo, climb, cvOf, editable, nameOf, isText, cs, boxOf, copiesOf, copiesSelector, rgbHex, shared, notEditable, anchorFor,
+    primary, select, pick, setStyle, send, sendSheet, everyCopy, reselect, setHidden, refreshFloat: () => renderFloat(), ops, undo, climb, cvOf, editable, nameOf, isText, cs, boxOf, copiesOf, copiesSelector, rgbHex, shared, notEditable, anchorFor,
     hover: (frame, el) => {
       hover = el ? { frame, el } : null
       draw()

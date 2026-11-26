@@ -65,20 +65,13 @@
     host.append(h('div', { class: 'lhead' }, 'Layers'), h('div', { class: 'lbody' }, rows.length ? rows : h('div', { class: 'empty' }, 'Nothing on this page.')))
     host.querySelector('.lrow.on:not(.lframe)')?.scrollIntoView({ block: 'nearest' })
   }
-  /** Hide or show a layer, as Figma's eye: hidden is `display: none` on the element, so Play hides it too; shown
-      takes that off, or, when its class hides it, puts back the display its tag would have. */
+  /** Hide or show a layer, as Figma's eye (the editor's setHidden); on a layer in the selection, the whole selection. */
   function eyeOf(f, el) {
     const hidden = cs(el).display === 'none'
-    return h('span', { class: 'eye', role: 'button', title: hidden ? 'Show' : 'Hide', onclick: (e) => {
+    return h('span', { class: 'eye', role: 'button', title: hidden ? 'Show (Ctrl+Shift+H)' : 'Hide (Ctrl+Shift+H)', onclick: (e) => {
       e.stopPropagation()
-      let display = 'none'
-      if (hidden) {
-        const own = el.style.getPropertyValue('display')
-        el.style.removeProperty('display')
-        display = cs(el).display === 'none' ? 'revert' : ''
-        if (own) el.style.setProperty('display', own)
-      }
-      ed.send({ op: 'style', cv: ed.cvOf(el), props: { display } }, { file: f.file, key: f.key })
+      const els = ed.sel?.frame === f && ed.sel.els.includes(el) ? ed.sel.els : [el]
+      ed.setHidden(f, els, !hidden)
     } }, dc.icon(hidden ? 'eyeOff' : 'eye'))
   }
   // A layer dragged onto another goes before it, after it, or (on the middle of one that holds others) inside it,

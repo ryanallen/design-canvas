@@ -1141,10 +1141,16 @@
     nudge: (dx, dy, alt) => {
       if (!needEditable()) return
       const el = primary()
-      if (['absolute', 'fixed', 'relative', 'sticky'].includes(cs(el).position) && !alt) {
-        const left = (parseFloat(cs(el).left) || 0) + dx
-        const top = (parseFloat(cs(el).top) || 0) + dy
-        return setStyle({ left: `${Math.round(left)}px`, top: `${Math.round(top)}px` })
+      const placed = (x) => ['absolute', 'fixed', 'relative', 'sticky'].includes(cs(x).position)
+      if (placed(el) && !alt) {
+        // Each element selected moves from its own place, in one edit, as Figma nudges a selection: never all of them
+        // to the first one's place.
+        const items = sel.els.filter((x) => placed(x) && editable(x) && cvOf(x) != null).map((x) => ({
+          cv: cvOf(x),
+          props: { left: `${Math.round((parseFloat(cs(x).left) || 0) + dx)}px`, top: `${Math.round((parseFloat(cs(x).top) || 0) + dy)}px` },
+        }))
+        for (const it of items) Object.assign(sel.els.find((x) => cvOf(x) === it.cv).style, it.props)
+        return send({ op: 'styles', items }, { then: reselect() })
       }
       if (!alt) return hint('In flow it moves by its order: hold Alt to move it one place', 2000)
       const prev = dx < 0 || dy < 0

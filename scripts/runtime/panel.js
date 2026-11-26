@@ -121,8 +121,10 @@
 
   // ── properties ──
   const field = (label, ...control) => h('div', { class: 'pf' }, h('label', {}, label), h('div', { class: 'pc' }, ...control))
+  /** A field's value where the elements selected differ: shown empty, reading Mixed, as Figma shows it. */
+  const MIXED = Symbol('mixed')
   const input = (value, onCommit, attrs = {}) => {
-    const el = h('input', { value: value ?? '', ...attrs })
+    const el = value === MIXED ? h('input', { value: '', ...attrs, placeholder: 'Mixed' }) : h('input', { value: value ?? '', ...attrs })
     el.addEventListener('change', () => onCommit(el.value))
     el.addEventListener('keydown', (e) => {
       e.stopPropagation()
@@ -322,6 +324,12 @@
     }
     const c = cs(el)
     const S = (p) => ed.shared(p)
+    // What a field shows for the whole selection: `get(element, its style)` when every element selected gives the
+    // same, else Mixed; one element's value is never shown as if all had it.
+    const across = (get) => {
+      const vals = new Set(ed.sel.els.filter((x) => x.isConnected).map((x) => String(get(x, cs(x)))))
+      return vals.size > 1 ? MIXED : String(get(el, c))
+    }
     const stateRule = state === 'default' ? null : stateSelector(el)
     const set = (props) => (state === 'default' || stateRule ? ed.setStyle(props) : dc.hint('Give it an id or a class (Code tab) to style its states', 3000))
     const parent = el.parentElement
@@ -402,7 +410,7 @@
       else if (along) set({ flex: '1 1 0', [dim]: '' })
       else set({ [dim]: '100%' })
     }
-    const dimRow = (dim, label) => field(label, input(String(drawn(dim)), (v) => set({ [dim]: /^\d+(\.\d+)?$/.test(String(v).trim()) ? cssSize(dim, v) : px(v) }), { class: 'n' }), seg([['hug', 'Hug'], ['fixed', 'Fixed'], ['fill', 'Fill']], sizeMode(dim), (m) => setMode(dim, m)))
+    const dimRow = (dim, label) => field(label, input(across((x) => Math.round((ed.boxOf?.(x) ?? x.getBoundingClientRect())[dim])),(v) => set({ [dim]: /^\d+(\.\d+)?$/.test(String(v).trim()) ? cssSize(dim, v) : px(v) }), { class: 'n' }), seg([['hug', 'Hug'], ['fixed', 'Fixed'], ['fill', 'Fill']], sizeMode(dim), (m) => setMode(dim, m)))
     // The whole screen selected: its width is the screen's own (its canvas-width), as a Figma frame's is; its height
     // is measured from what it holds.
     const screen = el.localName === 'body' ? ed.sel.frame : null
@@ -418,8 +426,8 @@
       screen ? null : dimRow('width', 'Width'),
       screen ? null : dimRow('height', 'Height'),
       field('Position', select(['static', 'relative', 'absolute', 'fixed', 'sticky'], c.position, (v) => set({ position: v }))),
-      ['absolute', 'fixed', 'relative', 'sticky'].includes(c.position) ? field('Left · Top', input(num(c.left), (v) => set({ left: px(v) }), { class: 'n' }), input(num(c.top), (v) => set({ top: px(v) }), { class: 'n' })) : null,
-      parentFlex ? field('Grow', input(c.flexGrow, (v) => set({ 'flex-grow': v }), { class: 'n' })) : null))
+      ['absolute', 'fixed', 'relative', 'sticky'].includes(c.position) ? field('Left · Top', input(across((x, k) => num(k.left)), (v) => set({ left: px(v) }), { class: 'n' }), input(across((x, k) => num(k.top)),(v) => set({ top: px(v) }), { class: 'n' })) : null,
+      parentFlex ? field('Grow', input(across((x, k) => k.flexGrow),(v) => set({ 'flex-grow': v }), { class: 'n' })) : null))
 
     // Layout
     const flex = c.display.includes('flex')
@@ -439,12 +447,12 @@
       layout.push(field('Align', nine, seg([['space-between', '↔', 'Space between']], c.justifyContent, () => set({ 'justify-content': c.justifyContent === 'space-between' ? 'flex-start' : 'space-between' }))))
     }
     if (grid) layout.push(field('Columns', input(authored(el, 'grid-template-columns') ?? String(c.gridTemplateColumns.split(' ').length), (v) => set({ 'grid-template-columns': /^\d+$/.test(v.trim()) ? `repeat(${v.trim()}, 1fr)` : v }), { title: 'A number for that many equal columns, or any grid-template-columns' })))
-    if (flex || grid) layout.push(field('Gap', input(lever(el, 'gap') ?? (num(c.rowGap) === num(c.columnGap) ? num(c.rowGap) : `${c.rowGap} ${c.columnGap}`), (v) => set({ gap: /var\(/.test(v) ? v.trim() : v.split(/\s+/).map(px).join(' ') }), { class: 'n' })))
+    if (flex || grid) layout.push(field('Gap', input(across((x, k) => lever(x, 'gap') ?? (num(k.rowGap) === num(k.columnGap) ? num(k.rowGap) : `${k.rowGap} ${k.columnGap}`)),(v) => set({ gap: /var\(/.test(v) ? v.trim() : v.split(/\s+/).map(px).join(' ') }), { class: 'n' })))
     const pads = ['top', 'right', 'bottom', 'left'].map((s) => num(c.getPropertyValue(`padding-${s}`)))
     const uniform = pads.every((p) => p === pads[0])
     layout.push(paddingSides || !uniform
-      ? field('Padding', ...['top', 'right', 'bottom', 'left'].map((s, i) => input(pads[i], (v) => set({ [`padding-${s}`]: px(v) }), { class: 'n s', title: s })), h('button', { type: 'button', class: 'mini', title: 'One value', onclick: () => { paddingSides = false; renderProps() } }, '▢'))
-      : field('Padding', input(lever(el, 'padding') ?? pads[0], (v) => set({ padding: px(v) }), { class: 'n' }), h('button', { type: 'button', class: 'mini', title: 'Each side', onclick: () => { paddingSides = true; renderProps() } }, '⊞')))
+      ? field('Padding', ...['top', 'right', 'bottom', 'left'].map((s) => input(across((x, k) => num(k.getPropertyValue(`padding-${s}`))), (v) =>set({ [`padding-${s}`]: px(v) }), { class: 'n s', title: s })), h('button', { type: 'button', class: 'mini', title: 'One value', onclick: () => { paddingSides = false; renderProps() } }, '▢'))
+      : field('Padding', input(across((x, k) => lever(x, 'padding') ?? num(k.paddingTop)),(v) => set({ padding: px(v) }), { class: 'n' }), h('button', { type: 'button', class: 'mini', title: 'Each side', onclick: () => { paddingSides = true; renderProps() } }, '⊞')))
     if (!flex) layout.push(h('div', { class: 'wraps' }, ...[['row', 'Wrap in flex row'], ['column', 'Wrap in flex column'], ['grid', 'Wrap in grid']].map(([k, l]) => h('button', { type: 'button', class: 'chipbtn', onclick: () => ed.ops.wrapIn(k) }, l))))
     host.append(section('Layout', ['margin', 'flex-basis', 'order', 'justify-items', 'align-content', 'grid-template-rows', 'grid-column', 'grid-row'], ...layout))
 
@@ -455,8 +463,8 @@
       host.append(section('Text', ['font-style', 'text-transform', 'white-space', 'text-shadow', 'word-spacing', 'text-indent', 'font-variant'],
         field('Style', h('span', { class: 'val' }, el.classList[0] ? `.${el.classList[0]}` : el.localName)),
         field('Font', fontBox(S('font-family'), fams, (v) => set({ 'font-family': v }))),
-        field('Weight', select(['100', '200', '300', '400', '500', '600', '700', '800', '900'], S('font-weight'), (v) => set({ 'font-weight': v })), input(num(S('font-size')), (v) => set({ 'font-size': px(v) }), { class: 'n', title: 'Size' })),
-        field('Line · Letter', input(S('line-height') === 'normal' ? 'normal' : num(S('line-height')), (v) => set({ 'line-height': v === 'normal' ? 'normal' : px(v) }), { class: 'n', title: 'Line height' }), input(S('letter-spacing') === 'normal' ? 'normal' : num(S('letter-spacing')), (v) => set({ 'letter-spacing': v === 'normal' ? 'normal' : px(v) }), { class: 'n', title: 'Letter spacing' })),
+        field('Weight', select(['100', '200', '300', '400', '500', '600', '700', '800', '900'], S('font-weight'), (v) => set({ 'font-weight': v })), input(across((x, k) => num(k.fontSize)),(v) => set({ 'font-size': px(v) }), { class: 'n', title: 'Size' })),
+        field('Line · Letter', input(across((x, k) => (k.lineHeight === 'normal' ? 'normal' : num(k.lineHeight))),(v) => set({ 'line-height': v === 'normal' ? 'normal' : px(v) }), { class: 'n', title: 'Line height' }), input(across((x, k) => (k.letterSpacing === 'normal' ? 'normal' : num(k.letterSpacing))),(v) => set({ 'letter-spacing': v === 'normal' ? 'normal' : px(v) }), { class: 'n', title: 'Letter spacing' })),
         field('Color', color(S('color'), (v) => set({ color: v }), null, lever(el, 'color'))),
         contrast(el),
         field('Emphasis', seg([['underline', 'U̲', 'Underline'], ['line-through', 'S̶', 'Strikethrough']], deco.includes('underline') ? 'underline' : deco.includes('line-through') ? 'line-through' : '', (v) => set({ 'text-decoration': deco.includes(v) ? 'none' : v }))),
@@ -473,13 +481,13 @@
     slider.addEventListener('change', () => set({ opacity: String(slider.value / 100) }))
     host.append(section('Appearance', ['background', 'box-shadow', 'filter', 'backdrop-filter', 'mix-blend-mode', 'outline', 'cursor', 'overflow'],
       field('Fill', color(bg, (v) => set({ 'background-color': v }), bg !== 'rgba(0, 0, 0, 0)' ? () => set({ 'background-color': '', background: '' }) : null, lever(el, 'background-color') ?? lever(el, 'background'))),
-      field('Opacity', slider, h('span', { class: 'val' }, `${op}%`)),
+      field('Opacity', slider, h('span', { class: 'val' }, across((x, k) => Math.round(Number(k.opacity) * 100)) === MIXED ? 'Mixed' : `${op}%`)),
       radiusCorners || !sameR
-        ? field('Radius', ...['top-left', 'top-right', 'bottom-right', 'bottom-left'].map((k, i) => input(radii[i], (v) => set({ [`border-${k}-radius`]: px(v) }), { class: 'n s', title: k })), h('button', { type: 'button', class: 'mini', onclick: () => { radiusCorners = false; renderProps() } }, '▢'))
-        : field('Radius', input(lever(el, 'border-radius') ?? radii[0], (v) => set({ 'border-radius': px(v) }), { class: 'n' }), h('button', { type: 'button', class: 'mini', title: 'Each corner', onclick: () => { radiusCorners = true; renderProps() } }, '⊞')),
+        ? field('Radius', ...['top-left', 'top-right', 'bottom-right', 'bottom-left'].map((k) => input(across((x, s) => num(s.getPropertyValue(`border-${k}-radius`))), (v) =>set({ [`border-${k}-radius`]: px(v) }), { class: 'n s', title: k })), h('button', { type: 'button', class: 'mini', onclick: () => { radiusCorners = false; renderProps() } }, '▢'))
+        : field('Radius', input(across((x, s) => lever(x, 'border-radius') ?? num(s.borderTopLeftRadius)),(v) => set({ 'border-radius': px(v) }), { class: 'n' }), h('button', { type: 'button', class: 'mini', title: 'Each corner', onclick: () => { radiusCorners = true; renderProps() } }, '⊞')),
       field('Border', seg([['none', 'None'], ['solid', 'Solid'], ['dashed', 'Dash'], ['dotted', 'Dot']], c.borderTopStyle, (v) => set(v === 'none' ? { border: 'none' } : { 'border-style': v, 'border-width': num(c.borderTopWidth) > 0 ? c.borderTopWidth : '1px', 'border-color': c.borderTopStyle === 'none' ? '#d1d5db' : c.borderTopColor }))),
-      c.borderTopStyle !== 'none' ? field('Width · Color', input(num(c.borderTopWidth), (v) => set({ 'border-width': px(v) }), { class: 'n' }), color(c.borderTopColor, (v) => set({ 'border-color': v }))) : null,
-      field('Shadow', input(c.boxShadow === 'none' ? '' : c.boxShadow, (v) => set({ 'box-shadow': v || 'none' }), { placeholder: '0 2px 8px rgba(0,0,0,.15)' })),
+      c.borderTopStyle !== 'none' ? field('Width · Color', input(across((x, k) => num(k.borderTopWidth)),(v) => set({ 'border-width': px(v) }), { class: 'n' }), color(c.borderTopColor, (v) => set({ 'border-color': v }))) : null,
+      field('Shadow', input(across((x, k) => (k.boxShadow === 'none' ? '' : k.boxShadow)),(v) => set({ 'box-shadow': v || 'none' }), { placeholder: '0 2px 8px rgba(0,0,0,.15)' })),
       motionField(el, c),
       ...entranceFields(el, c)))
   }

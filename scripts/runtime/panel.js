@@ -166,15 +166,22 @@
     s.addEventListener('change', () => onPick(s.value))
     return s
   }
-  const color = (value, onPick, onRemove, linked = null) => {
+  const color = (value, onPick0, onRemove, linked = null) => {
     const hex = ed.rgbHex(value)
     // Nothing set shows as an empty swatch, not as black.
     const clear = value === 'rgba(0, 0, 0, 0)' || value === 'transparent'
+    // A see-through colour keeps its see-through when another colour is picked (the picker has none), as a Figma
+    // fill keeps its opacity; it is shown beside the colour.
+    const alpha = clear ? null : /rgba\([^)]*,\s*([\d.]+)\)/.exec(value ?? '')?.[1] ?? null
+    const onPick = (v) => {
+      const m = alpha && Number(alpha) < 1 ? /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(v).trim()) : null
+      onPick0(m ? `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${alpha})` : v)
+    }
     const c = h('input', { type: 'color', value: clear ? '#ffffff' : hex, class: clear ? 'clear' : null, title: clear ? 'None: pick a colour' : linked ? `${linked}: a colour picked here takes this element off it` : null })
     // A colour written as a lever (var(--accent)) shows the lever, so a pick is a seen choice to leave it.
     const t = input(linked ?? (clear ? '' : hex.toUpperCase()), (v) => onPick(v), { placeholder: clear ? 'None' : '' })
     c.addEventListener('change', () => onPick(c.value))
-    return h('div', { class: 'colorf' }, c, t, onRemove ? h('button', { type: 'button', class: 'mini', title: 'Remove', onclick: onRemove }, '−') : null)
+    return h('div', { class: 'colorf' }, c, t, alpha && Number(alpha) < 1 ? h('span', { class: 'alpha', title: 'How see-through it is, kept when another colour is picked' }, `${Math.round(Number(alpha) * 100)}%`) : null, onRemove ? h('button', { type: 'button', class: 'mini', title: 'Remove', onclick: onRemove }, '−') : null)
   }
   const section = (title, adds, ...body) => h('section', { class: 'psec' }, h('header', {}, h('b', {}, title), adds ? h('button', { type: 'button', class: 'mini', title: `Add a property to ${title}`, onclick: (e) => addProp(e.currentTarget, adds) }, '+') : null), ...body)
   function addProp(anchor, props) {

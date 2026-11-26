@@ -537,6 +537,30 @@
       busy = false
     }
   }
+  /** What brings the selection as it is now back after its frame redraws: each element found again by its place,
+   *  for an edit that moves nothing (a style). */
+  function reselect() {
+    const doc = sel.frame.doc
+    const paths = sel.els.map((x) => {
+      const p = []
+      for (let n = x; n && n !== doc.body; n = n.parentElement) p.unshift([...n.parentElement.children].indexOf(n))
+      return p
+    })
+    return (f) => {
+      const back = paths.map((p) => p.reduce((n, i) => n?.children[i], f.doc.body)).filter(Boolean)
+      if (back.length) select(f, back)
+    }
+  }
+  /** The lines of text in the selection, each that holds words of its own (a group's headline and paragraph). */
+  const textsIn = () => [...new Set(sel.els.flatMap((x) => [x, ...x.querySelectorAll('*')]))].filter((x) => ownText(x) && editable(x) && cvOf(x) != null && !['script', 'style'].includes(x.localName))
+  /** A text colour for a selection that is not itself text (a group, a card): every line in it takes it, over any
+   *  colour of its own, in one edit, as a text colour on a Figma group colours every text in it. */
+  function colourTexts(value) {
+    const texts = textsIn()
+    if (!texts.length) return
+    for (const x of texts) x.style.setProperty('color', value)
+    send({ op: 'styles', items: texts.map((x) => ({ cv: cvOf(x), props: { color: value } })) }, { then: reselect() })
+  }
   /** Whether the selection is every copy of one kind (Alt + click, Select every copy), whose style is one rule. */
   function everyCopy() {
     if (!sel || sel.els.length < 2) return false
@@ -561,21 +585,9 @@
     // Several picked by hand (Shift + click), alike or not: each takes the style itself, in one edit, and the same
     // ones stay selected, found again by their places since a style moves nothing.
     if (sel.els.length > 1) {
-      const frame = sel.frame
-      const doc = frame.doc
-      const paths = sel.els.map((x) => {
-        const p = []
-        for (let n = x; n && n !== doc.body; n = n.parentElement) p.unshift([...n.parentElement.children].indexOf(n))
-        return p
-      })
       for (const x of sel.els) for (const [k, v] of Object.entries(props)) x.style.setProperty(k, v || '')
       draw()
-      return send({ op: 'styles', items: sel.els.map((x) => ({ cv: cvOf(x), props })) }, {
-        then: (f) => {
-          const back = paths.map((p) => p.reduce((n, i) => n?.children[i], f.doc.body)).filter(Boolean)
-          if (back.length) select(f, back)
-        },
-      })
+      return send({ op: 'styles', items: sel.els.map((x) => ({ cv: cvOf(x), props })) }, { then: reselect() })
     }
     for (const [k, v] of Object.entries(props)) el.style.setProperty(k, v || '')
     draw()
@@ -1178,12 +1190,12 @@
     if (own) el.style.setProperty(prop, own)
     setStyle({ [prop]: byCss === on ? '' : on ? onValue : offValue })
   }
-  function colorButton(title, prop, value, onPick) {
+  function colorButton(title, prop, value, onPick, targets = () => sel?.els.filter(live) ?? []) {
     const input = h('input', { type: 'color', value: rgbHex(value), 'aria-label': title })
     // Seen at once while the picker is open; written once, when it closes.
     input.addEventListener('input', () => {
       if (editing) return
-      for (const el of sel?.els.filter(live) ?? []) el.style.setProperty(prop, input.value)
+      for (const el of targets()) el.style.setProperty(prop, input.value)
       input.previousElementSibling.style.background = input.value
     })
     input.addEventListener('change', () => onPick(input.value))
@@ -1222,6 +1234,14 @@
       parts.push(h('button', { type: 'button', class: 'fbtn', title: 'List', onclick: list }, '☰'))
       const ta = shared('text-align')
       parts.push(h('button', { type: 'button', class: 'fbtn', title: `Align: ${ta}`, onclick: (e) => dc.openMenu(e.currentTarget, ['left', 'center', 'right', 'justify'].map((a) => ({ label: a[0].toUpperCase() + a.slice(1), tick: ta === a || (a === 'left' && ta === 'start'), run: () => setStyle({ 'text-align': a }) }))) }, alignGlyph(['center', 'right', 'justify'].includes(ta) ? ta : 'left')))
+    }
+    // A group or a card is not text, but holds lines of it: a text colour for all of them.
+    if (!text && canEdit) {
+      const texts = textsIn()
+      if (texts.length) {
+        const seen = new Set(texts.map((x) => cs(x).color))
+        parts.push(colorButton('Text colour', 'color', seen.size === 1 ? [...seen][0] : 'Mixed', colourTexts, textsIn))
+      }
     }
     // A list selected whole is not text, but the List button is how it becomes numbers or a paragraph again.
     if (!text && canEdit && ['ul', 'ol'].includes(el.localName)) parts.push(h('button', { type: 'button', class: 'fbtn', title: 'List', 'aria-label': el.localName === 'ul' ? 'List: make it numbered' : 'List: make it a paragraph', onclick: list }, el.localName === 'ul' ? '1.' : '¶'))

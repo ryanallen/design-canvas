@@ -1437,7 +1437,7 @@
         ] : []),
       ].filter(Boolean))
       const top = toScreen(chosen.box.x, chosen.box.y)
-      itemBar.style.left = `${Math.max(8, Math.min(innerWidth - 300, top.x))}px`
+      itemBar.style.left = `${Math.max(8, Math.min(innerWidth - (itemBar.offsetWidth || 300) - 8, top.x))}px`
       itemBar.style.top = `${Math.max(56, top.y - 46)}px`
       itemBar.classList.add('open')
       return
@@ -1474,7 +1474,7 @@
     }
     const f = it.kind === 'guide' ? findFrame(it.frame) : null
     const top = toScreen(f ? f.x : it.x, f ? f.y : it.y)
-    itemBar.style.left = `${Math.max(8, Math.min(innerWidth - 300, top.x))}px`
+    itemBar.style.left = `${Math.max(8, Math.min(innerWidth - (itemBar.offsetWidth || 300) - 8, top.x))}px`
     itemBar.style.top = `${Math.max(56, top.y - 46)}px`
     itemBar.classList.add('open')
   }
@@ -3011,8 +3011,19 @@
     const list = selectedItems().filter((i) => !isLocked(i.id))
     const keys = chosen ? [...chosen.frames].filter((k) => !isLocked(k)) : []
     const title = pages().find((p) => p.id === page)?.title ?? 'that page'
+    // A line or arrow joining what goes goes with it; one holding only one end of it lets go there, where it is drawn.
+    const going = new Set([...list.map((i) => i.id), ...keys])
+    // A locked line stays as it is.
+    const bound = items().filter((i) => ['line', 'arrow'].includes(i.kind) && !going.has(i.id) && !isLocked(i.id) && ((i.from && going.has(i.from)) || (i.to && going.has(i.to))))
+    const along = bound.filter((i) => (!i.from || going.has(i.from)) && (!i.to || going.has(i.to)))
+    const letGo = bound.filter((i) => !along.includes(i))
     try {
-      for (const it of list) await sendBoard({ op: 'item', id: it.id, page })
+      for (const it of letGo) {
+        const g = geometryOf(it)
+        // Only the end that went is let go; the other still holds what stays.
+        await sendBoard({ op: 'item', id: it.id, x: g.x, y: g.y, w: g.w, h: g.h, points: g.points, from: it.from && going.has(it.from) ? '' : it.from ?? '', to: it.to && going.has(it.to) ? '' : it.to ?? '' })
+      }
+      for (const it of [...list, ...along]) await sendBoard({ op: 'item', id: it.id, page })
       for (const k of keys) {
         const f = allFrames.get(k)
         if (f) await sendBoard({ op: 'move', key: k, x: f.x, y: f.y, page })

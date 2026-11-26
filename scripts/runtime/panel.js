@@ -315,7 +315,7 @@
     const parentRow = parentFlex && !pc.flexDirection.startsWith('column')
     const can = ed.sel.els.every(ed.editable)
     if (!can) host.append(h('div', { class: 'note' }, ed.notEditable(el), !dc.serve && dc.startLocal ? h('button', { type: 'button', class: 'btn start-edit', onclick: () => dc.startLocal() }, 'Edit here') : null))
-    host.append(h('div', { class: 'ptitle' }, ed.nameOf(el).text, ed.sel.els.length > 1 ? h('small', {}, ` · ${ed.sel.els.length} copies${can ? `: changes go to ${ed.copiesSelector(el)}` : ''}`) : null))
+    host.append(h('div', { class: 'ptitle' }, ed.nameOf(el).text, ed.sel.els.length > 1 ? h('small', {}, ed.everyCopy() ? ` · ${ed.sel.els.length} copies${can ? `: changes go to ${ed.copiesSelector(el)}` : ''}` : ` · ${ed.sel.els.length} selected${can ? ': changes go on each' : ''}`) : null))
     // Where it cannot be changed, its CSS is read out as text: nothing to click that does nothing.
     if (!can) {
       const r = el.getBoundingClientRect()

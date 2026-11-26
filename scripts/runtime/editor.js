@@ -207,7 +207,7 @@
         const one = h('div', { class: `ov sel${i ? ' copy' : ''}`, style: box(b) })
         if (i === 0) {
           const n = nameOf(el)
-          one.append(h('div', { class: 'ov-tag' }, `${n.text}${sel.els.length > 1 ? ` · ${sel.els.length} copies` : ''}`, h('span', {}, `${Math.round(b.r.width)} × ${Math.round(b.r.height)}`)))
+          one.append(h('div', { class: 'ov-tag' }, `${n.text}${sel.els.length > 1 ? ` · ${sel.els.length} ${everyCopy() ? 'copies' : 'selected'}` : ''}`, h('span', {}, `${Math.round(b.r.width)} × ${Math.round(b.r.height)}`)))
           if (sel.els.length === 1 && editable(el) && !editing) {
             for (const hd of ['nw', 'ne', 'sw', 'se', 'e', 's']) one.append(h('div', { class: `handle ${hd}`, 'data-h': hd, onpointerdown: (e) => startResize(e, hd) }))
           }
@@ -535,7 +535,15 @@
       busy = false
     }
   }
-  /** A style change to the selection: inline on one element, a rule for several copies. */
+  /** Whether the selection is every copy of one kind (Alt + click, Select every copy), whose style is one rule. */
+  function everyCopy() {
+    if (!sel || sel.els.length < 2) return false
+    const el = primary()
+    if (!sel.els.every((x) => sameKind(x, el))) return false
+    const all = copiesOf(el)
+    return all.length === sel.els.length && all.every((x) => sel.els.includes(x))
+  }
+  /** A style change to the selection: inline on one element, a rule for every copy, or on each element picked. */
   function setStyle(props) {
     if (!sel) return
     const el = primary()
@@ -544,8 +552,7 @@
     const state = sel.els.length === 1 ? dc.stateRuleFor?.(el) : null
     if (state) return send({ op: 'rule', selector: state, props, cv: cvOf(el) })
     // Every copy selected (Alt + click, or Select every copy): one rule they all follow.
-    const all = sel.els.length > 1 && sel.els.every((x) => sameKind(x, el)) ? copiesOf(el) : null
-    if (all && all.length === sel.els.length && all.every((x) => sel.els.includes(x))) {
+    if (everyCopy()) {
       for (const x of sel.els) for (const [k, v] of Object.entries(props)) x.style.setProperty(k, v || '')
       return send({ op: 'rule', selector: copiesSelector(el), props, cv: cvOf(el) }, { copies: true })
     }
@@ -1442,7 +1449,7 @@
   const api = {
     get sel() { return sel },
     get editing() { return editing },
-    primary, select, pick, setStyle, send, sendSheet, refreshFloat: () => renderFloat(), ops, undo, climb, cvOf, editable, nameOf, isText, cs, boxOf, copiesOf, copiesSelector, rgbHex, shared, notEditable, anchorFor,
+    primary, select, pick, setStyle, send, sendSheet, everyCopy, refreshFloat: () => renderFloat(), ops, undo, climb, cvOf, editable, nameOf, isText, cs, boxOf, copiesOf, copiesSelector, rgbHex, shared, notEditable, anchorFor,
     hover: (frame, el) => {
       hover = el ? { frame, el } : null
       draw()

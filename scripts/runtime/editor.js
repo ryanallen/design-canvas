@@ -543,11 +543,31 @@
     // While Properties shows a state (hover, pressed, focus), the toolbar changes that state too.
     const state = sel.els.length === 1 ? dc.stateRuleFor?.(el) : null
     if (state) return send({ op: 'rule', selector: state, props, cv: cvOf(el) })
-    if (sel.els.length > 1 && sel.els.every((x) => sameKind(x, el))) {
+    // Every copy selected (Alt + click, or Select every copy): one rule they all follow.
+    const all = sel.els.length > 1 && sel.els.every((x) => sameKind(x, el)) ? copiesOf(el) : null
+    if (all && all.length === sel.els.length && all.every((x) => sel.els.includes(x))) {
       for (const x of sel.els) for (const [k, v] of Object.entries(props)) x.style.setProperty(k, v || '')
       return send({ op: 'rule', selector: copiesSelector(el), props, cv: cvOf(el) }, { copies: true })
     }
-    if (sel.els.length > 1) return hint('Several different elements: select copies of one kind, or one element, to style', 3000)
+    // Several picked by hand (Shift + click), alike or not: each takes the style itself, in one edit, and the same
+    // ones stay selected, found again by their places since a style moves nothing.
+    if (sel.els.length > 1) {
+      const frame = sel.frame
+      const doc = frame.doc
+      const paths = sel.els.map((x) => {
+        const p = []
+        for (let n = x; n && n !== doc.body; n = n.parentElement) p.unshift([...n.parentElement.children].indexOf(n))
+        return p
+      })
+      for (const x of sel.els) for (const [k, v] of Object.entries(props)) x.style.setProperty(k, v || '')
+      draw()
+      return send({ op: 'styles', items: sel.els.map((x) => ({ cv: cvOf(x), props })) }, {
+        then: (f) => {
+          const back = paths.map((p) => p.reduce((n, i) => n?.children[i], f.doc.body)).filter(Boolean)
+          if (back.length) select(f, back)
+        },
+      })
+    }
     for (const [k, v] of Object.entries(props)) el.style.setProperty(k, v || '')
     draw()
     return send({ op: 'style', cv: cvOf(el), props })

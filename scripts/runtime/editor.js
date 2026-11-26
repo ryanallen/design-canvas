@@ -1438,13 +1438,19 @@
   }
   function colorButton(title, prop, value, onPick, targets = () => sel?.els.filter(live) ?? []) {
     const input = h('input', { type: 'color', value: rgbHex(value), 'aria-label': title })
+    // A see-through colour keeps its see-through when another is picked, as Properties' colours do.
+    const alpha = value && value !== 'Mixed' && value !== 'rgba(0, 0, 0, 0)' ? /rgba\([^)]*,\s*([\d.]+)\)/.exec(value)?.[1] : null
+    const keep = (hex) => {
+      const m = alpha && Number(alpha) < 1 ? /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex) : null
+      return m ? `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${alpha})` : hex
+    }
     // Seen at once while the picker is open; written once, when it closes.
     input.addEventListener('input', () => {
       if (editing) return
-      for (const el of targets()) el.style.setProperty(prop, input.value)
-      input.previousElementSibling.style.background = input.value
+      for (const el of targets()) el.style.setProperty(prop, keep(input.value))
+      input.previousElementSibling.style.background = keep(input.value)
     })
-    input.addEventListener('change', () => onPick(input.value))
+    input.addEventListener('change', () => onPick(keep(input.value)))
     return h('label', { class: 'fbtn swatch-btn', title }, h('span', { class: 'chip', style: `background:${value === 'Mixed' ? 'linear-gradient(135deg,#888 50%,#444 50%)' : value}` }), input)
   }
   function renderFloat() {

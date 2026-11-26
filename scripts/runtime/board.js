@@ -2410,6 +2410,14 @@
     return { x: t.x, y: t.y, frame: null, page: t.page ?? firstPage() }
   }
   const number = (t) => threads.indexOf(t) + 1 || '…'
+  /** Everyone who has written a comment or reply here, for @mentions. */
+  const people = () => [...new Set(threads.flatMap((t) => [t.name, ...t.replies.map((r) => r.name)]).filter(Boolean))].sort((a, b) => a.localeCompare(b))
+  /** A message's words, each @Name of someone here shown as a mention. */
+  const withMentions = (text) => {
+    const names = people().sort((a, b) => b.length - a.length).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    if (!names.length) return [text]
+    return text.split(new RegExp(`(@(?:${names.join('|')}))(?![\\w])`)).map((part, i) => (i % 2 ? h('b', { class: 'mention' }, part) : part))
+  }
   const when = (iso) => {
     const d = new Date(iso)
     return Number.isNaN(d.getTime()) ? '' : d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -2558,6 +2566,47 @@
     const error = h('div', { class: 'error' })
     const textarea = h('textarea', { placeholder: t ? 'Reply' : 'Leave a comment', maxlength: LIMITS.text, rows: '3' })
     if (typed) textarea.value = typed
+    // @mentions, as in Figma: an @ and the start of a name offers everyone who has written here; ↑ ↓ choose, Enter or
+    // Tab (or a click) puts in @Name.
+    const mentionList = h('div', { class: 'mentions', role: 'listbox', hidden: true })
+    let mentionAt = -1
+    let mentionPick = 0
+    const mentionWord = () => /(^|\s)@([\w.-]*)$/.exec(textarea.value.slice(0, textarea.selectionStart))
+    const mentionNames = (start) => people().filter((n) => n.toLowerCase().startsWith(start.toLowerCase()) && n !== me).slice(0, 6)
+    const drawMentions = () => {
+      const m = mentionWord()
+      const names = m ? mentionNames(m[2]) : []
+      mentionList.hidden = !names.length
+      if (!names.length) return
+      mentionAt = textarea.selectionStart - m[2].length - 1
+      mentionPick = Math.min(mentionPick, names.length - 1)
+      mentionList.replaceChildren(...names.map((n, i) => h('button', { type: 'button', role: 'option', class: i === mentionPick ? 'on' : '', 'aria-selected': String(i === mentionPick), onmousedown: (e) => { e.preventDefault(); putMention(n) } }, `@${n}`)))
+    }
+    const putMention = (n) => {
+      const end = textarea.selectionStart
+      textarea.value = `${textarea.value.slice(0, mentionAt)}@${n} ${textarea.value.slice(end)}`
+      const at = mentionAt + n.length + 2
+      textarea.setSelectionRange(at, at)
+      mentionList.hidden = true
+      textarea.focus()
+    }
+    textarea.addEventListener('input', () => { mentionPick = 0; drawMentions() })
+    textarea.addEventListener('keydown', (e) => {
+      if (mentionList.hidden) return
+      const names = [...mentionList.children].map((b) => b.textContent.slice(1))
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault()
+        mentionPick = (mentionPick + (e.key === 'ArrowDown' ? 1 : -1) + names.length) % names.length
+        drawMentions()
+      } else if ((e.key === 'Enter' && !e.ctrlKey && !e.metaKey) || e.key === 'Tab') {
+        e.preventDefault()
+        e.stopImmediatePropagation()
+        putMention(names[mentionPick])
+      } else if (e.key === 'Escape') {
+        e.stopImmediatePropagation()
+        mentionList.hidden = true
+      }
+    })
     const nameIn = h('input', { class: 'name-in', placeholder: 'Your name', maxlength: LIMITS.name, value: me, 'aria-label': 'Your name' })
     const forAgent = h('input', { type: 'checkbox' })
     if (what.draft?.agent) forAgent.checked = true
@@ -2591,6 +2640,7 @@
     } },
       me ? null : nameIn,
       textarea,
+      mentionList,
       error,
       h('div', { class: 'row' }, t ? h('span', {}, me ? `as ${me}` : '') : h('label', { title: 'Mark it as work for an agent' }, forAgent, 'For the agent'), h('button', { type: 'button', class: 'btn quiet', onclick: closeThread }, 'Cancel'), submit),
     )
@@ -2621,7 +2671,7 @@
         return h('div', { class: 'reacts' }, ...chips, api ? h('button', { type: 'button', class: 'react add', title: 'React', 'aria-label': 'React', onclick: () => { picker.hidden = !picker.hidden } }, '☺+') : null, picker)
       }
       for (const m of [{ ...t, root: true }, ...t.replies]) {
-        const words = h('p', {}, m.text)
+        const words = h('p', {}, ...withMentions(m.text))
         // As in Figma, what someone wrote they can edit: its words become a field, kept with Save or Ctrl+Enter.
         const edit = () => {
           const field = h('textarea', { class: 'edit-msg', 'aria-label': 'Edit the comment' })

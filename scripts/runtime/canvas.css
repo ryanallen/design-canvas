@@ -387,6 +387,11 @@ body.panel-open #panel { display: flex; }
 .msg .react.add { color: var(--ink-3); }
 .msg .react-pick { display: flex; gap: 4px; flex-basis: 100%; }
 .msg .react-pick[hidden] { display: none; }
+.msg .mention, #thread .mention { color: var(--accent); font-weight: 600; }
+.mentions { display: grid; gap: 2px; padding: 4px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--panel); }
+.mentions[hidden] { display: none; }
+.mentions button { text-align: left; border: 0; background: none; color: var(--ink); padding: 4px 8px; border-radius: 4px; font: inherit; }
+.mentions button.on, .mentions button:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
 .composer { border-top: 1px solid var(--line); padding: 8px; display: grid; gap: 6px; }
 .composer input, .composer textarea {
   width: 100%; border: 1px solid transparent; border-radius: var(--r-sm); background: var(--panel-2); padding: 7px 10px; resize: none;

@@ -50,6 +50,8 @@
     pencil: '<path d="M10.5 2.5l3 3-8 8H2.5v-3z M9 4l3 3" stroke-linejoin="round"/>',
     rect: '<rect x="2.5" y="3.5" width="11" height="9" rx="1"/>',
     ellipse: '<ellipse cx="8" cy="8" rx="5.8" ry="4.8"/>',
+    diamond: '<path d="M8 2l6 6-6 6-6-6z" stroke-linejoin="round"/>',
+    triangle: '<path d="M8 2.5l6 10.5H2z" stroke-linejoin="round"/>',
     line: '<path d="M3 13L13 3" stroke-linecap="round"/>',
     arrow: '<path d="M3 13L13 3M7 3h6v6" stroke-linecap="round" stroke-linejoin="round"/>',
     guide: '<path d="M2.5 2.5h11v11h-11z M6 2.5v11 M10 2.5v11" stroke-linejoin="round"/>',
@@ -678,8 +680,8 @@
   let tool = 'select'
   let shapeKind = store.get('shape') || 'rect'
   let spaceHeld = false
-  const DRAW = ['note', 'rect', 'ellipse', 'section', 'line', 'arrow', 'pencil', 'artboard']
-  const SHAPES = ['rect', 'ellipse', 'section', 'line', 'arrow', 'guide']
+  const DRAW = ['note', 'rect', 'ellipse', 'diamond', 'triangle', 'section', 'line', 'arrow', 'pencil', 'artboard']
+  const SHAPES = ['rect', 'ellipse', 'diamond', 'triangle', 'section', 'line', 'arrow', 'guide']
   function setTool(t) {
     tool = t
     document.body.className = document.body.className.replace(/\btool-\S+/g, '').trim()
@@ -705,7 +707,7 @@
   }
   renderSizes()
   document.body.append(sizesBar)
-  const SHAPE_NAMES = { rect: 'Rectangle (R)', ellipse: 'Ellipse', section: 'Section (S)', line: 'Line', arrow: 'Arrow', guide: 'Layout guide' }
+  const SHAPE_NAMES = { rect: 'Rectangle (R)', ellipse: 'Ellipse', diamond: 'Diamond', triangle: 'Triangle', section: 'Section (S)', line: 'Line', arrow: 'Arrow', guide: 'Layout guide' }
   function setShape(kind) {
     shapeKind = kind
     store.set('shape', kind)
@@ -1124,12 +1126,14 @@
           : h('span', {}, 'Nothing has been put on this page yet.'))
   }
   // ── arrows that hold on: an end bound to an object or a frame is drawn at that one's edge ──
-  const BINDS = ['note', 'rect', 'ellipse', 'section']
-  /** The box a `from` or `to` names on this page: a board object's, or a frame's. */
+  const BINDS = ['note', 'rect', 'ellipse', 'diamond', 'triangle', 'section']
+  // A diamond's and a triangle's corners, in hundredths of its box.
+  const FORMS = { diamond: [[50, 0], [100, 50], [50, 100], [0, 50]], triangle: [[50, 0], [100, 100], [0, 100]] }
+  /** The box a `from` or `to` names on this page: a board object's (with its kind, for its outline), or a frame's. */
   function boxOfRef(ref) {
     if (!ref) return null
     const it = board.items.find((i) => i.id === ref)
-    if (it) return BINDS.includes(it.kind) && (it.page ?? firstPage()) === pageId ? { x: it.x, y: it.y, w: it.w ?? 0, h: it.h ?? 0 } : null
+    if (it) return BINDS.includes(it.kind) && (it.page ?? firstPage()) === pageId ? { x: it.x, y: it.y, w: it.w ?? 0, h: it.h ?? 0, kind: it.kind } : null
     const f = allFrames.get(ref)
     return f && f.page === pageId ? { x: f.x, y: f.y, w: f.W, h: f.H } : null
   }
@@ -1140,7 +1144,25 @@
     const dx = p.x - cx
     const dy = p.y - cy
     if (!dx && !dy) return { x: cx, y: cy }
-    const t = Math.min(dx ? b.w / 2 / Math.abs(dx) : Infinity, dy ? b.h / 2 / Math.abs(dy) : Infinity)
+    let t = Math.min(dx ? b.w / 2 / Math.abs(dx) : Infinity, dy ? b.h / 2 / Math.abs(dy) : Infinity)
+    // An ellipse is met on its curve; a diamond or triangle on the side the line crosses, as FigJam's connectors meet
+    // a shape's outline.
+    if (b.kind === 'ellipse' && b.w && b.h) t = 1 / Math.hypot(dx / (b.w / 2), dy / (b.h / 2))
+    else if (FORMS[b.kind]) {
+      const c = FORMS[b.kind].map(([u, v]) => [b.x + (u / 100) * b.w, b.y + (v / 100) * b.h])
+      let best = Infinity
+      c.forEach(([x1, y1], i) => {
+        const [x2, y2] = c[(i + 1) % c.length]
+        const ex = x2 - x1
+        const ey = y2 - y1
+        const den = dx * ey - dy * ex
+        if (!den) return
+        const s1 = ((x1 - cx) * ey - (y1 - cy) * ex) / den
+        const s2 = ((x1 - cx) * dy - (y1 - cy) * dx) / den
+        if (s1 > 0 && s2 >= 0 && s2 <= 1) best = Math.min(best, s1)
+      })
+      if (best < Infinity) t = best
+    }
     return { x: cx + dx * Math.min(1, t), y: cy + dy * Math.min(1, t) }
   }
   /** A line or arrow as it is drawn now: its own points, or, for a bound end, the edge it holds. */
@@ -1191,12 +1213,17 @@
     const cls = `item ${it.kind}${picked === it.id || chosen?.items.has(it.id) ? ' on' : ''}${isLocked(it.id) ? ' locked' : ''}`
     const box = `left:${it.x}px;top:${it.y}px;width:${it.w ?? 0}px;height:${it.h ?? 0}px`
     // The one object picked shows where it resizes from: its bottom-right corner.
-    const grip = serve && picked === it.id && !chosen && !isLocked(it.id) && ['note', 'rect', 'ellipse', 'section', 'image'].includes(it.kind) ? h('span', { class: 'grip', 'aria-hidden': 'true' }) : null
+    const grip = serve && picked === it.id && !chosen && !isLocked(it.id) && ['note', 'rect', 'ellipse', 'diamond', 'triangle', 'section', 'image'].includes(it.kind) ? h('span', { class: 'grip', 'aria-hidden': 'true' }) : null
     // A picture from the canvas's folder, by its path there (the server serves it; a canvas.html beside it finds it).
     if (it.kind === 'image') return h('div', { class: cls, 'data-id': it.id, style: box }, /^(?:[\w-]+\/)*[\w-][\w.-]*\.(?:png|jpe?g|gif|webp|avif|svg)$/i.test(String(it.src ?? '')) ? h('img', { src: (data.pictures && /^data:image\//.test(data.pictures[it.src] ?? '') ? data.pictures[it.src] : null) ?? it.src, alt: '', draggable: 'false' }) : null, grip)
     if (it.kind === 'note') return h('div', { class: cls, 'data-id': it.id, style: `${box};background:${it.color || NOTE_COLORS[0]}` }, it.text ?? '', grip)
     if (it.kind === 'title') return h('div', { class: cls, 'data-id': it.id, style: `left:${it.x}px;top:${it.y}px;${it.color ? `color:${it.color};` : ''}${it.size ? `font-size:${num(it.size)}px` : ''}` }, it.text || 'Title')
     if (it.kind === 'rect' || it.kind === 'ellipse') return h('div', { class: cls, 'data-id': it.id, style: `${box};--c:${it.color || SHAPE_COLORS[0]}` }, h('span', { class: 'txt' }, it.text ?? ''), grip)
+    if (FORMS[it.kind]) {
+      const form = s('svg', { class: 'form', viewBox: '0 0 100 100', preserveAspectRatio: 'none', 'aria-hidden': 'true' })
+      form.append(s('polygon', { points: FORMS[it.kind].map((q) => q.join(',')).join(' ') }))
+      return h('div', { class: cls, 'data-id': it.id, style: `${box};--c:${it.color || SHAPE_COLORS[0]}` }, form, h('span', { class: 'txt' }, it.text ?? ''), grip)
+    }
     if (it.kind === 'section') return h('div', { class: cls, 'data-id': it.id, style: `${box};--c:${it.color || SECTION_COLORS[0]}` }, h('span', { class: 'txt' }, it.text ?? ''), grip)
     if (it.kind === 'guide') {
       const f = findFrame(it.frame)
@@ -1620,9 +1647,10 @@
         ] : []),
       ].filter(Boolean))
       const top = toScreen(chosen.box.x, chosen.box.y)
-      itemBar.style.left = `${Math.max(8, Math.min(innerWidth - (itemBar.offsetWidth || 300) - 8, top.x))}px`
-      itemBar.style.top = `${Math.max(56, top.y - 46)}px`
+      // Shown first, so its own width keeps it on the screen (hidden, it measures nothing).
       itemBar.classList.add('open')
+      itemBar.style.left = `${Math.max(8, Math.min(innerWidth - itemBar.offsetWidth - 8, top.x))}px`
+      itemBar.style.top = `${Math.max(56, top.y - 46)}px`
       return
     }
     const it = picked && board.items.find((i) => i.id === picked)
@@ -1642,6 +1670,8 @@
       ...colors.map((c) => h('button', { type: 'button', class: `swatch${(it.color || colors[0]) === c ? ' on' : ''}`, style: `background:${c}`, title: COLOR_NAMES[c] ?? c, 'aria-label': COLOR_NAMES[c] ?? c, 'aria-pressed': String((it.color || colors[0]) === c), onclick: () => updateItem(it.id, { color: c }) })),
       // A title's size: four steps, the middle one where a title starts.
       ...(it.kind === 'title' ? [h('span', { class: 'sep' }), ...[['S', 48], ['M', 96], ['L', 160], ['XL', 240]].map(([label, px]) => h('button', { type: 'button', class: `tool${(it.size || 96) === px ? ' on' : ''}`, title: `${px} px`, 'aria-pressed': String((it.size || 96) === px), onclick: () => updateItem(it.id, { size: px }) }, label))] : []),
+      // A shape's kind, changed in place as FigJam's shape menu does: its box, words and the lines bound to it kept.
+      ...(['rect', 'ellipse', 'diamond', 'triangle'].includes(it.kind) ? [h('span', { class: 'sep' }), ...['rect', 'ellipse', 'diamond', 'triangle'].map((k) => h('button', { type: 'button', class: `tool${it.kind === k ? ' on' : ''}`, title: SHAPE_NAMES[k].replace(/ \(.\)$/, ''), 'aria-label': SHAPE_NAMES[k].replace(/ \(.\)$/, ''), 'aria-pressed': String(it.kind === k), onclick: () => updateItem(it.id, { kind: k }) }, icon(k)))] : []),
       // A line or arrow's way: Straight, Elbow or Curve.
       ...((it.kind === 'line' || it.kind === 'arrow') && (it.points?.length ?? 0) === 4 ? [h('span', { class: 'sep' }), ...[['', 'Straight'], ['elbow', 'Elbow'], ['curve', 'Curve']].map(([route, label]) => h('button', { type: 'button', class: `tool${(it.route || '') === route ? ' on' : ''}`, title: `${label} line`, 'aria-pressed': String((it.route || '') === route), onclick: () => updateItem(it.id, { route }) }, label))] : []),
       ...(it.kind === 'guide'
@@ -1659,9 +1689,9 @@
     }
     const f = it.kind === 'guide' ? findFrame(it.frame) : null
     const top = toScreen(f ? f.x : it.x, f ? f.y : it.y)
-    itemBar.style.left = `${Math.max(8, Math.min(innerWidth - (itemBar.offsetWidth || 300) - 8, top.x))}px`
-    itemBar.style.top = `${Math.max(56, top.y - 46)}px`
     itemBar.classList.add('open')
+    itemBar.style.left = `${Math.max(8, Math.min(innerWidth - itemBar.offsetWidth - 8, top.x))}px`
+    itemBar.style.top = `${Math.max(56, top.y - 46)}px`
   }
   async function updateItem(id, change) {
     const it = board.items.find((i) => i.id === id)
@@ -1783,7 +1813,7 @@
     if (!group && isLocked(id)) return
     // Near the bottom-right corner it resizes; anywhere else it moves.
     const p = toWorld(e.clientX, e.clientY)
-    const resize = !group && ['note', 'rect', 'ellipse', 'section', 'image'].includes(it.kind) && p.x > it.x + it.w - 24 / view.z && p.y > it.y + it.h - 24 / view.z
+    const resize = !group && ['note', 'rect', 'ellipse', 'diamond', 'triangle', 'section', 'image'].includes(it.kind) && p.x > it.x + it.w - 24 / view.z && p.y > it.y + it.h - 24 / view.z
     const w0 = it.w
     const h0 = it.h
     // What moves with it: everything a drag box took in, or everything inside a section.
@@ -1860,7 +1890,7 @@
   }
   function editItemText(id) {
     const it = board.items.find((i) => i.id === id)
-    if (!it || !['note', 'title', 'rect', 'ellipse', 'section', 'line', 'arrow'].includes(it.kind)) return
+    if (!it || !['note', 'title', 'rect', 'ellipse', 'diamond', 'triangle', 'section', 'line', 'arrow'].includes(it.kind)) return
     if (!serve) return
     if (isLocked(id)) return hint(LOCKED, 2000)
     const box = (it.kind === 'section' ? sectionLayer : itemLayer).querySelector(`[data-id="${id}"]`)
@@ -1886,6 +1916,7 @@
       const over = it.kind === 'note' ? box.scrollHeight - box.clientHeight
         : it.kind === 'rect' ? el.scrollHeight - box.clientHeight
         : it.kind === 'ellipse' ? Math.ceil(el.scrollHeight * 1.42) - box.clientHeight
+        : it.kind === 'diamond' || it.kind === 'triangle' ? Math.ceil(el.scrollHeight * 2.1) - box.clientHeight
         : 0
       const grow = over > 1 ? { h: Math.ceil(it.h + over + 8) } : {}
       if (text !== (it.text ?? '') || grow.h) updateItem(id, { text, ...grow })

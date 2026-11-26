@@ -55,7 +55,7 @@ button { cursor: pointer; }
 }
 body.tool-hand #viewport, body.space #viewport { cursor: grab; }
 #viewport.panning { cursor: grabbing !important; }
-body.tool-comment #viewport, body.tool-note #viewport, body.tool-rect #viewport, body.tool-ellipse #viewport,
+body.tool-comment #viewport, body.tool-note #viewport, body.tool-rect #viewport, body.tool-ellipse #viewport, body.tool-diamond #viewport, body.tool-triangle #viewport,
 body.tool-line #viewport, body.tool-arrow #viewport, body.tool-pencil #viewport, body.tool-artboard #viewport,
 body.tool-guide #viewport { cursor: crosshair; }
 body.tool-text #viewport { cursor: text; }
@@ -164,6 +164,11 @@ body.tiny .item.locked::after { display: none; }
 .item.rect { border: 4px solid var(--c, #8a8a96); border-radius: 6px; }
 .item.ellipse { border: 4px solid var(--c, #8a8a96); border-radius: 50%; }
 .item.rect, .item.ellipse { display: grid; place-items: center; padding: 12px; overflow: hidden; }
+/* A diamond or triangle: its outline drawn to its box, its words in the part of it wide enough to hold them. */
+.item.diamond, .item.triangle { display: grid; place-items: center; padding: 25%; }
+.item.triangle { padding: 42% 22% 6%; }
+.item .form { position: absolute; left: 2px; top: 2px; width: calc(100% - 4px); height: calc(100% - 4px); overflow: visible; pointer-events: none; }
+.item .form polygon { fill: none; stroke: var(--c, #8a8a96); stroke-width: 4px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 .item .txt { font-size: 28px; line-height: 1.3; color: var(--ink); text-align: center; white-space: pre-wrap; overflow-wrap: anywhere; min-width: 1ch; outline: none; }
 .item.section {
   border: 3px solid color-mix(in srgb, var(--c, #8a8a96) 70%, transparent); border-radius: 16px;

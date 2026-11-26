@@ -230,7 +230,7 @@ const colorOf = (value) => {
   if (c === '' || /^(#[0-9a-f]{3,8}|[a-z]{3,20}|(?:rgb|hsl)a?\([\d.,%\s/]+\))$/i.test(c)) return c
   throw new Error('color is not a colour')
 }
-const BOARD_KINDS = ['note', 'title', 'rect', 'ellipse', 'section', 'line', 'arrow', 'pencil', 'guide', 'image']
+const BOARD_KINDS = ['note', 'title', 'rect', 'ellipse', 'diamond', 'triangle', 'section', 'line', 'arrow', 'pencil', 'guide', 'image']
 /** An image on the board: a picture file in the canvas's folder, by its path there, never an address elsewhere. */
 const imageSrc = (value) => {
   const s = typeof value === 'string' ? value.trim() : ''

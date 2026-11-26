@@ -187,6 +187,12 @@ test('an empty title size or guide setting is the default again', () => {
   assert.throws(() => board({ op: 'item', id: t.id, size: 'big' }), /size is not a number/)
 })
 
+test('a diamond and a triangle are shapes the board keeps', () => {
+  assert.equal(board({ op: 'item', kind: 'diamond', x: 0, y: 0, w: 200, h: 150 }).kind, 'diamond')
+  assert.equal(board({ op: 'item', kind: 'triangle', x: 0, y: 0, w: 200, h: 150 }).kind, 'triangle')
+  assert.throws(() => board({ op: 'item', kind: 'star', x: 0, y: 0 }), /kind must be one of/)
+})
+
 test("a line's route: elbow, curve, or empty for straight; nothing else", () => {
   const l = board({ op: 'item', kind: 'arrow', x: 0, y: 0, points: [0, 0, 100, 50], route: 'elbow' })
   assert.equal(l.route, 'elbow')

@@ -187,7 +187,10 @@ export function foldBoard(events) {
   const locked = new Set()
   let name = null
   for (const e of events) {
-    if (e.op === 'move' && e.key) moved.set(e.key, { x: e.x, y: e.y, page: e.page ?? moved.get(e.key)?.page ?? null })
+    if (e.op === 'move' && e.key) {
+      const group = e.group != null ? e.group || null : moved.get(e.key)?.group ?? null
+      moved.set(e.key, { x: e.x, y: e.y, page: e.page ?? moved.get(e.key)?.page ?? null, ...(group ? { group } : {}) })
+    }
     else if (e.op === 'item' && e.id) items.set(e.id, { ...(items.get(e.id) ?? {}), ...e })
     else if (e.op === 'remove' && e.id) items.delete(e.id)
     else if (e.op === 'page' && e.id) pages.set(e.id, { ...(pages.get(e.id) ?? { id: e.id }), ...(e.title != null ? { title: e.title } : {}), ...(e.removed != null ? { removed: e.removed } : {}), ...(e.order != null ? { order: e.order } : {}) })
@@ -219,6 +222,8 @@ export function makeBoardEvent(input, { now = new Date(), newId = randomId } = {
     case 'move': {
       const event = { op: 'move', at, name, key: text(input.key, LIMITS.frame, 'key'), x: coord(input.x, 'x'), y: coord(input.y, 'y') }
       if (input.page != null) event.page = pageId(input.page)
+      // A screen grouped with board objects or other screens moves with them; empty takes it out of its group.
+      if (input.group != null) event.group = input.group === '' ? '' : id(input.group, 'group')
       return event
     }
     case 'item': {

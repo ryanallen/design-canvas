@@ -872,23 +872,45 @@
   function startFrameDrag(e, f) {
     if (e.button !== 0 || e.target.closest('button') || !serve) return
     e.stopPropagation()
-    const x0 = f.x
-    const y0 = f.y
+    // A screen in a group: the press takes the group, its objects and screens, and moves them as one; a click that
+    // does not move still picks the screen.
+    const gid = board.moved?.[f.key]?.group
+    const members = gid ? groupMembers(gid) : []
+    if (gid && (members.length || groupFrames(gid).length > 1)) {
+      chooseItems(members, groupFrames(gid))
+      if (members.length) {
+        startItemDrag(e, members[0])
+        const end = drag?.end
+        if (drag) drag.end = (ev, moved) => (moved ? end?.(ev, moved) : call('onFramePick', f))
+        return
+      }
+    }
+    // A group of screens alone moves together.
+    const list = (gid ? groupFrames(gid).map((k) => allFrames.get(k)) : [f]).filter(Boolean)
+    const starts = new Map(list.map((x) => [x.key, { x: x.x, y: x.y }]))
     drag = {
       kind: 'frame', id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false,
       move: (_, dx, dy) => {
         if (isLocked(f.key)) return
-        f.x = Math.round(x0 + dx)
-        f.y = Math.round(y0 + dy)
-        positionFrame(f)
+        for (const x of list) {
+          if (isLocked(x.key)) continue
+          x.x = Math.round(starts.get(x.key).x + dx)
+          x.y = Math.round(starts.get(x.key).y + dy)
+          positionFrame(x)
+        }
         renderItems()
         renderPins()
         call('onView')
       },
-      end: (_, moved) => {
+      end: async (_, moved) => {
         if (!moved) return call('onFramePick', f)
         if (isLocked(f.key)) return hint(LOCKED, 2000)
-        sendBoard({ op: 'move', key: f.key, x: f.x, y: f.y, page: pageId }).catch((err) => { hint(err.message, 3000); takeBoardAgain() })
+        try {
+          for (const x of list) if (!isLocked(x.key)) await sendBoard({ op: 'move', key: x.key, x: x.x, y: x.y, page: pageId })
+        } catch (err) {
+          hint(err.message, 3000)
+          takeBoardAgain()
+        }
       },
     }
     viewport.setPointerCapture(e.pointerId)
@@ -1099,6 +1121,8 @@
   }
   // ── groups: board objects that share a group id are picked, moved, coloured and deleted as one ──
   const groupMembers = (gid) => (gid ? items().filter((i) => i.group === gid).map((i) => i.id) : [])
+  /** The screens on this page in a group. */
+  const groupFrames = (gid) => (gid ? frames().filter((f) => board.moved?.[f.key]?.group === gid).map((f) => f.key) : [])
   /** An object and everything grouped with it. */
   const withGroup = (id) => {
     const g = groupMembers(board.items.find((i) => i.id === id)?.group)
@@ -1134,15 +1158,23 @@
   /** Ctrl+G: every board object selected becomes one group; Ctrl+Shift+G breaks the groups up. */
   async function groupChosen(on) {
     const ids = [...(chosen?.items ?? [])].filter((id) => !isLocked(id))
-    if (on && ids.length < 2) return hint('Select two or more board objects to group them', 2000)
+    // Screens group with board objects and with each other, as Figma groups frames with stickies.
+    const keys = [...(chosen?.frames ?? [])].filter((k) => !isLocked(k))
+    if (on && ids.length + keys.length < 2) return hint('Select two or more things on the board to group them', 2000)
     const gid = on ? newGroupId() : ''
     const change = ids.filter((id) => on || board.items.find((i) => i.id === id)?.group)
-    if (!change.length) return hint('Nothing selected is in a group', 1600)
+    const changeFrames = keys.filter((k) => on || board.moved?.[k]?.group)
+    if (!change.length && !changeFrames.length) return hint('Nothing selected is in a group', 1600)
     for (const id of change) Object.assign(board.items.find((i) => i.id === id), { group: gid })
     renderItems()
     try {
       for (const id of change) await sendBoard({ op: 'item', id, group: gid })
-      hint(on ? `Grouped ${change.length}: they now move, colour and delete as one` : 'Ungrouped', 1600)
+      for (const k of changeFrames) {
+        const f = allFrames.get(k)
+        await sendBoard({ op: 'move', key: k, x: f.x, y: f.y, page: pageId, group: gid })
+      }
+      const n = change.length + changeFrames.length
+      hint(on ? `Grouped ${n}: they now move as one` : 'Ungrouped', 1600)
     } catch (err) {
       hint(err.message, 3000)
       takeBoardAgain()
@@ -1384,10 +1416,13 @@
       const paletteOf = (k) => (k === 'note' ? NOTE_COLORS : k === 'section' ? SECTION_COLORS : SHAPE_COLORS)
       const colors = its.length ? paletteOf(its.filter((i) => i.kind === 'note').length * 2 > its.length ? 'note' : its.every((i) => i.kind === 'section') ? 'section' : 'shape') : []
       const same = its.length && its.every((i) => (i.color || paletteOf(i.kind)[0]) === (its[0].color || paletteOf(its[0].kind)[0])) ? its[0].color || paletteOf(its[0].kind)[0] : null
-      const grouped = its.length > 1 && its.every((i) => i.group && i.group === its[0].group)
-      const anyGroup = its.some((i) => i.group)
+      // A group may hold screens as well as objects.
+      const frameGroups = [...chosen.frames].map((k) => board.moved?.[k]?.group ?? null)
+      const g = its[0]?.group ?? frameGroups[0]
+      const grouped = !!g && its.length + frameGroups.length > 1 && its.every((i) => i.group === g) && frameGroups.every((x) => x === g)
+      const anyGroup = its.some((i) => i.group) || frameGroups.some(Boolean)
       itemBar.replaceChildren(...[
-        h('span', { class: 'count-note' }, grouped ? `Group of ${its.length}` : `${n} selected`),
+        h('span', { class: 'count-note' }, grouped ? `Group of ${n}` : `${n} selected`),
         ...colors.map((c) => h('button', { type: 'button', class: `swatch${same === c ? ' on' : ''}`, style: `background:${c}`, title: COLOR_NAMES[c] ?? c, 'aria-label': COLOR_NAMES[c] ?? c, 'aria-pressed': String(same === c), onclick: () => colorChosen(c) })),
         colors.length ? h('span', { class: 'sep' }) : null,
         selectedUnits().length > 1 ? h('button', { type: 'button', class: 'tool', title: 'Align and space evenly', 'aria-haspopup': 'menu', onclick: (e) => alignMenu(e.currentTarget) }, 'Align', h('span', { class: 'caret' }, '▾')) : null,
@@ -1557,7 +1592,7 @@
     if (!it) return
     if (e.shiftKey) return toggleChosen(id)
     // A press on one object of a group takes the whole group.
-    if (!chosen?.items.has(id) && withGroup(id).length > 1) chooseItems(withGroup(id))
+    if (!chosen?.items.has(id) && (withGroup(id).length > 1 || groupFrames(it.group).length)) chooseItems(withGroup(id), groupFrames(it.group))
     const group = chosen?.items.has(id) ? chosen : null
     if (!group) pickItem(id)
     if (it.kind === 'guide') return
@@ -2008,7 +2043,7 @@
     if (ev.op === 'move') {
       const f = allFrames.get(ev.key)
       const m = b.moved[ev.key] ?? f?.home
-      return { key: ev.key, state: m ? { x: m.x, y: m.y, page: m.page ?? f?.page ?? null } : null }
+      return { key: ev.key, state: m ? { x: m.x, y: m.y, page: m.page ?? f?.page ?? null, group: m.group ?? '' } : null }
     }
     // A page: its name and whether it is removed; a new page's id is known from its line.
     if (ev.op === 'page') {
@@ -2063,7 +2098,7 @@
           continue
         }
         if (c.key) {
-          if (want) await sendBoard({ op: 'move', key: c.key, x: want.x, y: want.y, ...(want.page ? { page: want.page } : {}) })
+          if (want) await sendBoard({ op: 'move', key: c.key, x: want.x, y: want.y, ...(want.page ? { page: want.page } : {}), ...(want.group != null ? { group: want.group } : {}) })
           continue
         }
         if (!want) {

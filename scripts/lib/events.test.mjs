@@ -38,6 +38,15 @@ test('a comment off the prototypes keeps its page, and the board object it is on
   assert.throws(() => makeEvent({ op: 'add', name: 'A', text: 'Hi', x: 1, y: 2, item: 'b-1', dx: 'x' }), /dx is not a number/)
 })
 
+test('a screen joins a group by its move line, keeps it through later moves, and leaves it on an empty one', () => {
+  const at = (e) => makeBoardEvent({ op: 'move', key: 'home.html', ...e })
+  const folded = (events) => foldBoard(events).moved['home.html']
+  assert.equal(folded([at({ x: 1, y: 2, group: 'g-abc1234' })]).group, 'g-abc1234')
+  assert.equal(folded([at({ x: 1, y: 2, group: 'g-abc1234' }), at({ x: 5, y: 6 })]).group, 'g-abc1234')
+  assert.equal(folded([at({ x: 1, y: 2, group: 'g-abc1234' }), at({ x: 5, y: 6, group: '' })]).group, undefined)
+  assert.throws(() => at({ x: 1, y: 2, group: 'not a group' }), /group is not an id/)
+})
+
 test('a bad line is skipped, not fatal', () => {
   const good = eventLine(make({ op: 'add', name: 'A', text: 'ok', frame: null, x: 0, y: 0 }))
   const html = `<!-- comment {not json} -->\n${good}\n<!-- comment {"no":"op"} -->`

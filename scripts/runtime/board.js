@@ -1332,7 +1332,7 @@
   /** What is selected on the board: a drag box's or Shift's objects, or the one picked with its group. */
   const selectedItems = () => (chosen ? [...chosen.items] : picked ? withGroup(picked) : []).map((id) => board.items.find((i) => i.id === id)).filter((i) => i && i.kind !== 'guide')
   // Everything an object is, but where it is bound and which group it is in, which a copy is given anew; a guide's frame stays its own.
-  const COPIED = ['kind', 'x', 'y', 'w', 'h', 'text', 'color', 'points', 'from', 'to', 'group', 'size', 'z', 'cols', 'gutter', 'margin', 'frame']
+  const COPIED = ['kind', 'x', 'y', 'w', 'h', 'text', 'color', 'points', 'from', 'to', 'group', 'size', 'z', 'cols', 'gutter', 'margin', 'frame', 'src']
   /** New objects like these, moved by dx, dy: a group copied is a new group, and a line holding an
    * object copied with it holds the copy; one holding something left behind lets go where it is. */
   async function placeCopies(list, dx, dy) {
@@ -2258,7 +2258,7 @@
   const future = []
   let openStep = null
   let replaying = false
-  const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points', 'size']
+  const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points', 'size', 'src']
   /** The one thing a line touches, as a board says it is: an object's fields, a frame's place, or null for nothing there. */
   function stateOf(b, ev) {
     if (ev.op === 'item' || ev.op === 'remove') {

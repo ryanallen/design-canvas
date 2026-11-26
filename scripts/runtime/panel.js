@@ -905,6 +905,40 @@
       ...blurFields(),
       motionField(el, c),
       ...entranceFields(el, c)))
+    // Figma's Selection colors: every colour in what is selected and inside it (text where it starts, fills, borders),
+    // most used first; a colour changed here is changed on every element of the selection that has it, in one edit.
+    if (state === 'default') {
+      const scope = [...new Set(ed.sel.els.filter((x) => x.isConnected).flatMap((x) => [x, ...x.querySelectorAll('*')]))].filter((x) => !ed.SKIP?.has?.(x.localName) && ed.editable(x) && ed.cvOf(x) != null).slice(0, 400)
+      const uses = new Map()
+      const add = (v, x, prop) => {
+        if (!v || v === 'rgba(0, 0, 0, 0)' || v === 'transparent') return
+        const u = uses.get(v) ?? { v, n: 0, at: [] }
+        u.n++
+        u.at.push([x, prop])
+        uses.set(v, u)
+      }
+      for (const x of scope) {
+        const k = cs(x)
+        // Text colour counts on what holds words of its own (and on what is selected), as Figma recolours each text
+        // layer: a heading whose CSS gives it the same colour as its card changes with it.
+        if (ed.sel.els.includes(x) || [...x.childNodes].some((t) => t.nodeType === 3 && t.textContent.trim())) add(k.color, x, 'color')
+        add(k.backgroundColor, x, 'background-color')
+        if (k.borderTopStyle !== 'none' && parseFloat(k.borderTopWidth) > 0) add(k.borderTopColor, x, 'border-color')
+      }
+      const list = [...uses.values()].sort((a, b) => b.n - a.n)
+      if (list.length > 1 || (list.length && scope.length > 1)) {
+        const swap = (u) => (v) => {
+          const a = /rgba\([^)]*,\s*([\d.]+)\)/.exec(u.v)?.[1]
+          const m = a && Number(a) < 1 ? /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(v).trim()) : null
+          const to = m ? `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${a})` : String(v).trim()
+          const byEl = new Map()
+          for (const [x, prop] of u.at) byEl.set(x, { ...(byEl.get(x) ?? {}), [prop]: to })
+          ed.send({ op: 'styles', items: [...byEl].map(([x, props]) => ({ cv: ed.cvOf(x), props })) }, { then: ed.reselect() })
+        }
+        host.append(section('Selection colours', null,
+          ...list.slice(0, 12).map((u) => field(`${[...new Set(u.at.map(([, prop]) => ({ color: 'Text', 'background-color': 'Fill', 'border-color': 'Border' })[prop]))].join(', ')} · ${u.n}`, color(u.v, swap(u))))))
+      }
+    }
   }
   /** How the element comes in when the page opens: a named @keyframes (written into the file with it), a speed and a delay. */
   const ENTRANCES = [

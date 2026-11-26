@@ -516,14 +516,12 @@
     function turnRow() {
       const deg = (k) => { const m = /^(-?[\d.]+)deg$/.exec(k.rotate); return m ? Math.round(Number(m[1]) * 100) / 100 : 0 }
       const scales = (k) => { const n = k.scale === 'none' ? [1, 1] : k.scale.split(/\s+/).map(Number); return [n[0], n[1] ?? n[0], ...n.slice(2)] }
-      const scaleCss = ([x, y, ...z]) => (x === 1 && y === 1 && !z.length ? '' : [x, y, ...z].join(' '))
       const turn = (n) => (n % 360 === 0 ? '' : `${Math.round((((n % 360) + 540) % 360 - 180) * 100) / 100}deg`)
       const now = across((x, k) => deg(k))
-      const flip = (i) => eachOwn((k) => { const sc = scales(k); sc[i] = -sc[i]; return { scale: scaleCss(sc) } })
       return field('Rotation', input(now, (v) => { const n = Number(String(v).replace(/°|deg$/g, '')); if (Number.isFinite(n)) set({ rotate: turn(n) }) }, { class: 'n', title: 'Turned, in degrees', 'aria-label': 'Rotation' }), h('span', { class: 'val unit' }, '°'),
         h('button', { type: 'button', class: 'mini', title: 'Turn 90° clockwise', onclick: () => eachOwn((k) => ({ rotate: turn(deg(k) + 90) })) }, '↻'),
-        h('button', { type: 'button', class: 'mini', title: 'Flip horizontal', 'aria-pressed': String(scales(c)[0] < 0), onclick: () => flip(0) }, '⇋'),
-        h('button', { type: 'button', class: 'mini', title: 'Flip vertical', 'aria-pressed': String(scales(c)[1] < 0), onclick: () => flip(1) }, '⇵'))
+        h('button', { type: 'button', class: 'mini', title: 'Flip horizontal (Shift+H)', 'aria-pressed': String(scales(c)[0] < 0), onclick: () => ed.ops.flip(0) }, '⇋'),
+        h('button', { type: 'button', class: 'mini', title: 'Flip vertical (Shift+V)', 'aria-pressed': String(scales(c)[1] < 0), onclick: () => ed.ops.flip(1) }, '⇵'))
     }
     host.append(section('Size', ['min-width', 'max-width', 'min-height', 'max-height', 'aspect-ratio', 'overflow', 'margin', 'z-index', 'inset'],
       screen ? null : dimRow('width', 'Width'),

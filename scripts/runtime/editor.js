@@ -1163,6 +1163,19 @@
       setTimeout(() => URL.revokeObjectURL(a.href), 4000)
       hint(`Saved ${name}.png`, 1600)
     },
+    // Figma's Shift+H and Shift+V: each selected element mirrored across (0) or up and down (1), by the CSS scale
+    // property, apart from any transform; mirrored back, the property goes.
+    flip: (i) => {
+      if (!needEditable()) return
+      const items = sel.els.filter(live).filter((x) => editable(x) && cvOf(x) != null).map((x) => {
+        const k = cs(x)
+        const n = k.scale === 'none' ? [1, 1] : k.scale.split(/\s+/).map(Number)
+        const sc = [n[0], n[1] ?? n[0], ...n.slice(2)]
+        sc[i] = -sc[i]
+        return { cv: cvOf(x), props: { scale: sc.length === 2 && sc[0] === 1 && sc[1] === 1 ? '' : sc.join(' ') } }
+      })
+      if (items.length) send({ op: 'styles', items }, { then: reselect() })
+    },
     // Figma's Shift+A: one element holding others becomes a flex box itself; anything else selected is wrapped in a new
     // one. A row when they sit side by side, else a column, with the space already between them as its gap, so the
     // look stays as it was.
@@ -1418,6 +1431,7 @@
     } else if (mod) return false
     else if (e.key === 'Delete' || e.key === 'Backspace') ops.remove()
     else if (e.shiftKey && !e.altKey && k === 'a') ops.autoLayout()
+    else if (e.shiftKey && !e.altKey && (k === 'h' || k === 'v') && el.localName !== 'body') ops.flip(k === 'h' ? 0 : 1)
     else if (e.key === 'Escape') {
       const up = el.parentElement
       if (!up || el.localName === 'body' || up.localName === 'html') select(null, [])

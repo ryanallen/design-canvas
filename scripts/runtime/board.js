@@ -2605,6 +2605,21 @@
       if (e.key === 'Escape') closeThread()
     })
     if (t) {
+      // Reactions, as Figma's: each emoji with how many, who on hover, the viewer's own pressed; ☺+ shows the five to
+      // pick from under the message, and a click puts the viewer's on or takes it off.
+      const reactionsOf = (m) => {
+        const mine = (e) => (m.reactions?.[e] ?? []).includes(me || 'someone')
+        const toggle = async (e) => {
+          try {
+            await send({ op: 'react', to: m.id, emoji: e, on: !mine(e), name: me || 'someone' })
+            renderPins()
+            showThread({ id: t.id })
+          } catch (err) { error.textContent = err.message }
+        }
+        const picker = h('div', { class: 'react-pick', hidden: true }, ...REACTIONS.map((e) => h('button', { type: 'button', class: `react${mine(e) ? ' on' : ''}`, 'aria-label': `React ${e}`, onclick: () => toggle(e) }, e)))
+        const chips = Object.entries(m.reactions ?? {}).map(([e, who]) => h('button', { type: 'button', class: `react${mine(e) ? ' on' : ''}`, title: who.join(', '), 'aria-pressed': String(mine(e)), disabled: !api, onclick: () => toggle(e) }, `${e} ${who.length}`))
+        return h('div', { class: 'reacts' }, ...chips, api ? h('button', { type: 'button', class: 'react add', title: 'React', 'aria-label': 'React', onclick: () => { picker.hidden = !picker.hidden } }, '☺+') : null, picker)
+      }
       for (const m of [{ ...t, root: true }, ...t.replies]) {
         const words = h('p', {}, m.text)
         // As in Figma, what someone wrote they can edit: its words become a field, kept with Save or Ctrl+Enter.
@@ -2641,6 +2656,7 @@
               } catch (err) { error.textContent = err.message }
             } }, 'Delete') : null),
           words,
+          reactionsOf(m),
           m.root && t.file ? h('div', { class: 'on' }, `On ${t.file}${t.anchor ? ` · ${t.anchor.text ? `“${t.anchor.text.length > 40 ? `${t.anchor.text.slice(0, 40)}…` : t.anchor.text}”` : t.anchor.path}` : ''}`) : null))
       }
     }

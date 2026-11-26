@@ -381,6 +381,12 @@ body.panel-open #panel { display: flex; }
 .msg .editing-msg { display: grid; gap: 6px; margin-top: 4px; }
 .msg .edit-msg { width: 100%; min-height: 56px; border: 1px solid var(--accent); border-radius: var(--r-sm); background: var(--panel-2); padding: 7px 10px; resize: vertical; font: inherit; color: inherit; }
 .msg .editing-msg .row { display: flex; justify-content: flex-end; gap: 6px; }
+.msg .reacts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.msg .react { border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); border-radius: 999px; padding: 1px 7px; font-size: 12px; line-height: 18px; }
+.msg .react.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.msg .react.add { color: var(--ink-3); }
+.msg .react-pick { display: flex; gap: 4px; flex-basis: 100%; }
+.msg .react-pick[hidden] { display: none; }
 .composer { border-top: 1px solid var(--line); padding: 8px; display: grid; gap: 6px; }
 .composer input, .composer textarea {
   width: 100%; border: 1px solid transparent; border-radius: var(--r-sm); background: var(--panel-2); padding: 7px 10px; resize: none;

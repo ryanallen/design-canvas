@@ -33,6 +33,8 @@ export const EVENT_PREFIX = 'comment '
 export const LIMITS = { name: 80, text: 4000, frame: 240, events: 5000 }
 const OPS = ['add', 'reply', 'resolve', 'delete', 'agent']
 const KINDS = ['comment', 'edit', 'board']
+/** The emoji a comment can be reacted to with. */
+export const REACTIONS = ['👍', '❤️', '🎉', '👀', '✅']
 
 /** One event as the line that stores it. `--` only ever occurs inside a JSON string, so writing
  * the second dash as `-` keeps the JSON identical and the HTML comment unbroken. */
@@ -141,11 +143,16 @@ export function makeEvent(input, { now = new Date(), newId = randomId } = {}) {
       return { op: 'delete', to: id(input.to, 'to'), at, name }
     case 'agent':
       return { op: 'agent', to: id(input.to, 'to'), at, name, agent: input.agent !== false }
+    // A reaction to a comment or reply, as Figma's: one of a few emoji, on or off for whoever sends it.
+    case 'react': {
+      if (!REACTIONS.includes(input.emoji)) throw new Error(`emoji must be one of ${REACTIONS.join(' ')}`)
+      return { op: 'react', to: id(input.to, 'to'), at, name, emoji: input.emoji, on: input.on !== false }
+    }
     // New words for a comment or reply; the fold takes them only from whoever wrote it.
     case 'edit':
       return { op: 'edit', to: id(input.to, 'to'), at, name, text: text(input.text, LIMITS.text, 'text') }
     default:
-      throw new Error('op must be add, reply, resolve, delete, agent or edit')
+      throw new Error('op must be add, reply, resolve, delete, agent, edit or react')
   }
 }
 
@@ -171,6 +178,15 @@ export function foldEvents(events) {
       t.resolvedBy = t.resolved ? e.name : null
     } else if (e.op === 'agent' && threads.has(e.to)) {
       threads.get(e.to).agent = e.agent !== false
+    } else if (e.op === 'react') {
+      // Who reacted with what: each name once per emoji, taken off when they send it off.
+      const m = threads.get(e.to) ?? threads.get(owner.get(e.to))?.replies.find((r) => r.id === e.to)
+      if (m) {
+        const who = new Set(m.reactions?.[e.emoji] ?? [])
+        e.on === false ? who.delete(e.name) : who.add(e.name)
+        m.reactions = { ...(m.reactions ?? {}), [e.emoji]: [...who] }
+        if (!who.size) delete m.reactions[e.emoji]
+      }
     } else if (e.op === 'edit') {
       // As in Figma, a comment is edited only by the one who wrote it; anyone else's edit line changes nothing.
       const m = threads.get(e.to) ?? threads.get(owner.get(e.to))?.replies.find((r) => r.id === e.to)

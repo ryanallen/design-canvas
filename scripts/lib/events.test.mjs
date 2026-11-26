@@ -212,3 +212,11 @@ test('a comment or reply is edited only by the one who wrote it, and says it was
   assert.ok(t.replies[0].edited)
   assert.throws(() => makeEvent({ op: 'edit', to: add.id, name: 'Ana', text: '' }), /text/)
 })
+
+test('reactions: each name once per emoji, on and off, only the known emoji', () => {
+  const add = makeEvent({ op: 'add', name: 'Ana', text: 'Brighter?', frame: 'home.html', x: 1, y: 2 }, { newId: () => 'c-bbbbbb1' })
+  const react = (name, emoji, on = true) => makeEvent({ op: 'react', to: add.id, name, emoji, on })
+  const [t] = foldEvents([add, react('Ben', '👍'), react('Cy', '👍'), react('Ben', '👍'), react('Ana', '🎉'), react('Cy', '👍', false), react('Ana', '🎉', false)])
+  assert.deepEqual(t.reactions, { '👍': ['Ben'] })
+  assert.throws(() => react('Ben', '💩'), /emoji must be one of/)
+})

@@ -207,7 +207,11 @@
         const one = h('div', { class: `ov sel${i ? ' copy' : ''}`, style: box(b) })
         if (i === 0) {
           const n = nameOf(el)
-          one.append(h('div', { class: 'ov-tag' }, `${n.text}${sel.els.length > 1 ? ` · ${sel.els.length} ${everyCopy() ? 'copies' : 'selected'}` : ''}`, h('span', {}, `${Math.round(b.r.width)} × ${Math.round(b.r.height)}`)))
+          // The size of what is selected: of several, the box round them all, as Figma's selection reads.
+          const rs = sel.els.map(boxOf)
+          const w = sel.els.length > 1 ? Math.max(...rs.map((x) => x.right)) - Math.min(...rs.map((x) => x.left)) : b.r.width
+          const ht = sel.els.length > 1 ? Math.max(...rs.map((x) => x.bottom)) - Math.min(...rs.map((x) => x.top)) : b.r.height
+          one.append(h('div', { class: 'ov-tag' }, `${n.text}${sel.els.length > 1 ? ` · ${sel.els.length} ${everyCopy() ? 'copies' : 'selected'}` : ''}`, h('span', {}, `${Math.round(w)} × ${Math.round(ht)}`)))
           if (sel.els.length === 1 && editable(el) && !editing) {
             for (const hd of ['nw', 'ne', 'sw', 'se', 'e', 's']) one.append(h('div', { class: `handle ${hd}`, 'data-h': hd, onpointerdown: (e) => startResize(e, hd) }))
           }

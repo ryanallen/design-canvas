@@ -525,7 +525,33 @@
     const slider = h('input', { type: 'range', min: 0, max: 100, value: op })
     slider.addEventListener('input', () => { el.style.opacity = String(slider.value / 100) })
     slider.addEventListener('change', () => set({ opacity: String(slider.value / 100) }))
-    host.append(section('Appearance', ['background', 'box-shadow', 'filter', 'backdrop-filter', 'mix-blend-mode', 'outline', 'cursor', 'overflow'],
+    // A drop shadow as Figma's effect shows one: X, Y, Blur and Spread, and its colour, which keeps its see-through;
+    // none, + adds one; several shadows, or the selection's differing, stay as the CSS written out.
+    function shadowFields() {
+      const raw = across((x, k) => (k.boxShadow === 'none' ? '' : k.boxShadow))
+      const asText = () => [field('Shadow', input(raw, (v) => set({ 'box-shadow': v.trim() || 'none' }), { placeholder: '0 2px 8px rgba(0,0,0,.15)' }),
+        raw ? null : h('button', { type: 'button', class: 'mini', title: 'Add a drop shadow', onclick: () => set({ 'box-shadow': '0px 4px 12px 0px rgba(0, 0, 0, 0.15)' }) }, '+'))]
+      if (!raw || raw === MIXED) return asText()
+      const one = /^(rgba?\([^)]*\)|#[0-9a-f]{3,8})\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+([\d.]+)px\s+(-?[\d.]+)px(\s+inset)?$/i.exec(raw)
+      if (!one) return asText()
+      const [, col, x, y, b, s, inset] = one
+      const n0 = (v) => Math.round((Number(String(v).replace(/px$/, '')) || 0) * 100) / 100
+      const write = (parts) => {
+        const p = { col, x, y, b, s, ...parts }
+        set({ 'box-shadow': `${n0(p.x)}px ${n0(p.y)}px ${Math.max(0, n0(p.b))}px ${n0(p.s)}px ${p.col}${inset ? ' inset' : ''}` })
+      }
+      // A colour picked keeps the shadow's see-through (a picker has none of its own).
+      const alpha = /rgba\([^)]*,\s*([\d.]+)\)/.exec(col)?.[1] ?? '1'
+      const withAlpha = (v) => {
+        const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(v).trim())
+        return m ? `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${alpha})` : String(v).trim()
+      }
+      return [
+        field('Shadow', ...[['x', 'X', x], ['y', 'Y', y], ['b', 'Blur', b], ['s', 'Spread', s]].map(([k, title, v]) => h('label', { class: 'cap' }, input(n0(v), (nv) => write({ [k]: nv }), { class: 'n s', title, 'aria-label': `Shadow ${title}` }), h('small', {}, title)))),
+        field('Shadow colour', color(col, (v) => write({ col: withAlpha(v) }), () => set({ 'box-shadow': 'none' }))),
+      ]
+    }
+    host.append(section('Appearance',['background', 'box-shadow', 'filter', 'backdrop-filter', 'mix-blend-mode', 'outline', 'cursor', 'overflow'],
       field('Fill', color(bg, (v) => set({ 'background-color': v }), bg !== 'rgba(0, 0, 0, 0)' ? () => set({ 'background-color': '', background: '' }) : null, lever(el, 'background-color') ?? lever(el, 'background'))),
       field('Opacity', slider, h('span', { class: 'val' }, across((x, k) => Math.round(Number(k.opacity) * 100)) === MIXED ? 'Mixed' : `${op}%`)),
       radiusCorners || !sameR
@@ -533,7 +559,7 @@
         : field('Radius', input(across((x, s) => lever(x, 'border-radius') ?? num(s.borderTopLeftRadius)),(v) => set({ 'border-radius': px(v) }), { class: 'n' }), h('button', { type: 'button', class: 'mini', title: 'Each corner', onclick: () => { radiusCorners = true; renderProps() } }, '⊞')),
       field('Border', seg([['none', 'None'], ['solid', 'Solid'], ['dashed', 'Dash'], ['dotted', 'Dot']], c.borderTopStyle, (v) => (v === 'none' ? set({ border: 'none' }) : eachOwn((k) => ({ 'border-style': v, 'border-width': num(k.borderTopWidth) > 0 ? k.borderTopWidth : '1px', 'border-color': k.borderTopStyle === 'none' ? '#d1d5db' : k.borderTopColor }))))),
       c.borderTopStyle !== 'none' ? field('Width · Color', input(across((x, k) => num(k.borderTopWidth)),(v) => set({ 'border-width': px(v) }), { class: 'n' }), color(c.borderTopColor, (v) => set({ 'border-color': v }))) : null,
-      field('Shadow', input(across((x, k) => (k.boxShadow === 'none' ? '' : k.boxShadow)),(v) => set({ 'box-shadow': v || 'none' }), { placeholder: '0 2px 8px rgba(0,0,0,.15)' })),
+      ...shadowFields(),
       motionField(el, c),
       ...entranceFields(el, c)))
   }

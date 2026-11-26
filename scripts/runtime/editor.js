@@ -1158,8 +1158,9 @@
         if (el.parentElement && el.localName !== 'body') select(sel.frame, [el.parentElement])
       } else if (isText(el) && editable(el)) startEditing(sel.frame, el)
       else {
-        const kid = [...el.children].find((c) => !SKIP.has(c.localName))
-        if (kid) select(sel.frame, [kid])
+        // Every child, as Figma's Enter selects a group's children.
+        const kids = [...el.children].filter((c) => !SKIP.has(c.localName))
+        if (kids.length) select(sel.frame, kids)
       }
     } else if (e.key === 'Tab') {
       const list = [...(el.parentElement?.children ?? [])].filter((c) => !SKIP.has(c.localName))

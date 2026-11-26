@@ -530,7 +530,8 @@
     const sameR = radii.every((r) => r === radii[0])
     const op = Math.round(Number(c.opacity) * 100)
     const slider = h('input', { type: 'range', min: 0, max: 100, value: op })
-    slider.addEventListener('input', () => { el.style.opacity = String(slider.value / 100) })
+    // Seen on every element selected while it is dragged, not on the first alone; written once, when let go.
+    slider.addEventListener('input', () => { for (const x of ed.sel.els) x.style.opacity = String(slider.value / 100) })
     slider.addEventListener('change', () => set({ opacity: String(slider.value / 100) }))
     // A drop shadow as Figma's effect shows one: X, Y, Blur and Spread, and its colour, which keeps its see-through;
     // none, + adds one; several shadows, or the selection's differing, stay as the CSS written out.

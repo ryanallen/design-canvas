@@ -214,6 +214,9 @@
           one.append(h('div', { class: 'ov-tag' }, `${n.text}${sel.els.length > 1 ? ` · ${sel.els.length} ${everyCopy() ? 'copies' : 'selected'}` : ''}`, h('span', {}, `${Math.round(w)} × ${Math.round(ht)}`)))
           if (sel.els.length === 1 && editable(el) && !editing) {
             for (const hd of ['nw', 'ne', 'sw', 'se', 'e', 's']) one.append(h('div', { class: `handle ${hd}`, 'data-h': hd, onpointerdown: (e) => startResize(e, hd) }))
+            // A mesh fill's points, each where its colour sits, to drag.
+            const mesh = meshOf(cs(el).backgroundImage)
+            if (mesh) mesh.forEach((p, k) => one.append(h('div', { class: 'mesh-pt', 'data-i': k, title: 'Drag to move this colour', style: `left:${p.x}%;top:${p.y}%;background:${p.color}`, onpointerdown: (e) => startMeshDrag(e, el, k) })))
           }
         }
         overlay.append(one)
@@ -1420,6 +1423,59 @@
   }
 
   // ── the floating toolbar ──
+  // A mesh fill: colour points over the element's fill, each a radial gradient from its colour at its place fading to
+  // nothing at its spread, so the points blend into one another as a freeform gradient mesh does. Plain CSS, kept in
+  // the prototype's own file: `radial-gradient(at x% y%, colour 0px, transparent spread%)`, one layer a point.
+  // meshOf reads a computed background-image as points, or null where it is anything else.
+  const meshOf = (image) => {
+    if (!image || !image.startsWith('radial-gradient(at ')) return null
+    const layers = []
+    let depth = 0
+    let at = 0
+    for (let i = 0; i < image.length; i++) {
+      const ch = image[i]
+      if (ch === '(') depth++
+      else if (ch === ')') depth--
+      else if (ch === ',' && depth === 0) { layers.push(image.slice(at, i).trim()); at = i + 1 }
+    }
+    layers.push(image.slice(at).trim())
+    const points = []
+    for (const l of layers) {
+      const m = /^radial-gradient\(at (-?[\d.]+)% (-?[\d.]+)%, (rgba?\([^)]*\)) 0px, (?:transparent|rgba\(0, 0, 0, 0\)) ([\d.]+)%\)$/.exec(l)
+      if (!m) return null
+      points.push({ x: Number(m[1]), y: Number(m[2]), color: m[3], spread: Number(m[4]) })
+    }
+    return points.length ? points : null
+  }
+  const round1 = (n) => Math.round(n * 10) / 10
+  const meshCss = (points) => points.map((p) => `radial-gradient(at ${round1(p.x)}% ${round1(p.y)}%, ${p.color} 0px, transparent ${round1(p.spread)}%)`).join(', ')
+  /** A mesh point dragged on the element: seen as it moves, written once on letting go, one undo step. */
+  function startMeshDrag(e, el, i) {
+    e.stopPropagation()
+    e.preventDefault()
+    const points = meshOf(cs(el).backgroundImage)
+    if (!points) return
+    const f = sel.frame
+    const r = boxOf(el)
+    const start = { x: e.clientX, y: e.clientY, px: points[i].x, py: points[i].y }
+    let moved = false
+    const move = (ev) => {
+      const dx = (ev.clientX - start.x) / dc.view.z / f.s
+      const dy = (ev.clientY - start.y) / dc.view.z / f.s
+      if (Math.abs(dx) + Math.abs(dy) > 1) moved = true
+      points[i].x = Math.min(100, Math.max(0, start.px + (dx / r.width) * 100))
+      points[i].y = Math.min(100, Math.max(0, start.py + (dy / r.height) * 100))
+      el.style.setProperty('background-image', meshCss(points))
+      draw()
+    }
+    const up = () => {
+      removeEventListener('pointermove', move, true)
+      removeEventListener('pointerup', up, true)
+      if (moved) send({ op: 'style', cv: cvOf(el), props: { 'background-image': meshCss(points) } })
+    }
+    addEventListener('pointermove', move, true)
+    addEventListener('pointerup', up, true)
+  }
   const rgbHex = (c) => {
     const m = /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?/.exec(c || '')
     if (!m) return /^#[0-9a-f]{3,8}$/i.test(c || '') ? c : '#000000'
@@ -1519,7 +1575,7 @@
         // Over a gradient a fill colour would change nothing seen: the chip shows the gradient, and a colour picked
         // takes its place.
         const image = shared('background-image')
-        const graded = /gradient\(/.test(image ?? '')
+        const graded = /gradient\(/.test(image ?? '') && !meshOf(image)
         const fill = colorButton('Fill', 'background-color', shared('background-color'), (v) => setStyle(graded ? { 'background-color': v, 'background-image': 'none' } : { 'background-color': v }))
         if (graded) {
           fill.title = 'Fill: a colour picked replaces the gradient'
@@ -1799,7 +1855,7 @@
   const api = {
     get sel() { return sel },
     get editing() { return editing },
-    primary, select, pick, setStyle, send, sendSheet, everyCopy, reselect, setHidden, refreshFloat: () => renderFloat(), ops, undo, climb, cvOf, editable, nameOf, isText, cs, boxOf, copiesOf, copiesSelector, rgbHex, shared, notEditable, anchorFor,
+    primary, select, pick, setStyle, send, sendSheet, everyCopy, reselect, setHidden, refreshFloat: () => renderFloat(), ops, undo, climb, cvOf, editable, nameOf, isText, cs, boxOf, copiesOf, copiesSelector, rgbHex, meshOf, meshCss, shared, notEditable, anchorFor,
     hover: (frame, el) => {
       hover = el ? { frame, el } : null
       draw()

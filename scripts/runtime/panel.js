@@ -557,7 +557,8 @@
     const sameR = radii.every((r) => r === radii[0])
     // A gradient over the fill, as Figma's linear fill: two colours and an angle are edited here; one with more stops,
     // or of another kind, is named and left to the Code tab.
-    const grad = gradientOf(c.backgroundImage)
+    const mesh = ed.meshOf(c.backgroundImage)
+    const grad = mesh ? null : gradientOf(c.backgroundImage)
     const gradCss = (g) => `linear-gradient(${g.angle}deg, ${g.from}, ${g.to})`
     const gradFields = !grad
       ? []
@@ -567,6 +568,38 @@
             field('Gradient', color(grad.from, (v) => set({ 'background-image': gradCss({ ...grad, from: v }) }), () => set({ 'background-image': 'none' }))),
             field('To · Angle', color(grad.to, (v) => set({ 'background-image': gradCss({ ...grad, to: v }) })), input(grad.angle, (v) => { if (Number.isFinite(Number(v))) set({ 'background-image': gradCss({ ...grad, angle: ((Number(v) % 360) + 360) % 360 }) }) }, { class: 'n s', title: 'Angle in degrees: 180 runs top to bottom, 90 left to right' }))
           ]
+    // A mesh: its points, each a colour, how far it reaches, and − to take it out; + adds one in the middle. The points
+    // are dragged on the element itself.
+    const setMesh = (points) => set({ 'background-image': ed.meshCss(points) })
+    const hueOf = (rgb) => {
+      const m = /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)/.exec(rgb) ?? [0, 255, 255, 255]
+      const [r, g, b2] = [m[1], m[2], m[3]].map((v) => Number(v) / 255)
+      const max = Math.max(r, g, b2)
+      const min = Math.min(r, g, b2)
+      if (max - min < 0.08) return 200
+      const d = max - min
+      const hue = max === r ? ((g - b2) / d) % 6 : max === g ? (b2 - r) / d + 2 : (r - g) / d + 4
+      return Math.round((hue * 60 + 360) % 360)
+    }
+    const meshFields = !mesh
+      ? []
+      : [
+          field('Mesh', h('span', { class: 'val', title: 'Drag the points on the element to move their colours' }, `${mesh.length} ${mesh.length === 1 ? 'point' : 'points'}, dragged on it`),
+            h('button', { type: 'button', class: 'mini', title: 'Add a point', onclick: () => setMesh([...mesh, { x: 50, y: 50, color: `hsl(${(hueOf(mesh[mesh.length - 1].color) + 75) % 360} 75% 68%)`, spread: 50 }]) }, '+'),
+            h('button', { type: 'button', class: 'mini', title: 'Remove the mesh', onclick: () => set({ 'background-image': 'none' }) }, '−')),
+          ...mesh.map((pt, k) => field(`Point ${k + 1}`,
+            color(pt.color, (v) => setMesh(mesh.map((q, j) => (j === k ? { ...q, color: v } : q)))),
+            input(Math.round(pt.spread), (v) => { if (Number.isFinite(Number(v)) && Number(v) > 0) setMesh(mesh.map((q, j) => (j === k ? { ...q, spread: Math.min(150, Number(v)) } : q))) }, { class: 'n s', title: 'How far its colour reaches, in % of the element' }),
+            mesh.length > 1 ? h('button', { type: 'button', class: 'mini', title: 'Remove this point', onclick: () => setMesh(mesh.filter((_, j) => j !== k)) }, '×') : null)),
+        ]
+    // Starting one: four colours round the fill's own hue, in the corners, over the fill (a pale one where it has none).
+    const startMesh = () => {
+      const base = bg === 'rgba(0, 0, 0, 0)' ? null : bg
+      const hue = hueOf(base ?? 'rgb(255, 255, 255)')
+      const at = [[15, 20], [85, 15], [85, 85], [15, 80]]
+      const points = at.map(([x, y], k) => ({ x, y, color: `hsl(${(hue + k * 75) % 360} 75% 68%)`, spread: 60 }))
+      set(base ? { 'background-image': ed.meshCss(points) } : { 'background-color': `hsl(${hue} 60% 94%)`, 'background-image': ed.meshCss(points) })
+    }
     // Starting one: from the fill it has (white where it has none) to a darker shade of it.
     const startGradient = () => {
       const m = /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)/.exec(bg === 'rgba(0, 0, 0, 0)' ? 'rgb(255, 255, 255)' : bg) ?? [0, 255, 255, 255]
@@ -605,8 +638,9 @@
       ]
     }
     host.append(section('Appearance',['background', 'box-shadow', 'filter', 'backdrop-filter', 'mix-blend-mode', 'outline', 'cursor', 'overflow'],
-      field('Fill', color(bg, (v) => set({ 'background-color': v }), bg !== 'rgba(0, 0, 0, 0)' ? () => set({ 'background-color': '', background: '' }) : null, lever(el, 'background-color') ?? lever(el, 'background')), grad ? null : h('button', { type: 'button', class: 'mini', title: 'Gradient: fade this colour into another', onclick: startGradient }, '◐')),
+      field('Fill', color(bg, (v) => set({ 'background-color': v }), bg !== 'rgba(0, 0, 0, 0)' ? () => set({ 'background-color': '', background: '' }) : null, lever(el, 'background-color') ?? lever(el, 'background')), grad || mesh ? null : h('button', { type: 'button', class: 'mini', title: 'Gradient: fade this colour into another', onclick: startGradient }, '◐'), grad || mesh ? null : h('button', { type: 'button', class: 'mini', title: 'Mesh: colours blended from points you drag', onclick: startMesh }, '◍')),
       ...gradFields,
+      ...meshFields,
       field('Opacity', slider, h('span', { class: 'val' }, across((x, k) => Math.round(Number(k.opacity) * 100)) === MIXED ? 'Mixed' : `${op}%`)),
       radiusCorners || !sameR
         ? field('Radius', ...['top-left', 'top-right', 'bottom-right', 'bottom-left'].map((k) => input(across((x, s) => num(s.getPropertyValue(`border-${k}-radius`))), (v) =>set({ [`border-${k}-radius`]: px(v) }), { class: 'n s', title: k })), h('button', { type: 'button', class: 'mini', onclick: () => { radiusCorners = false; renderProps() } }, '▢'))

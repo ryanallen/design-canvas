@@ -20,6 +20,7 @@
 .handle.se { right: -5px; bottom: -5px; cursor: nwse-resize; }
 .handle.e { right: -5px; top: calc(50% - 4px); cursor: ew-resize; }
 .handle.s { bottom: -5px; left: calc(50% - 4px); cursor: ns-resize; }
+.mesh-pt { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35), 0 2px 6px rgb(0 0 0 / 0.3); pointer-events: auto; cursor: move; }
 .frame.editing iframe { pointer-events: auto; }
 .frame.editing { outline: calc(2px / var(--z, 1)) solid var(--accent); }
 

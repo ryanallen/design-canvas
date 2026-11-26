@@ -1515,7 +1515,7 @@
   const api = {
     get sel() { return sel },
     get editing() { return editing },
-    primary, select, pick, setStyle, send, sendSheet, everyCopy, refreshFloat: () => renderFloat(), ops, undo, climb, cvOf, editable, nameOf, isText, cs, boxOf, copiesOf, copiesSelector, rgbHex, shared, notEditable, anchorFor,
+    primary, select, pick, setStyle, send, sendSheet, everyCopy, reselect, refreshFloat: () => renderFloat(), ops, undo, climb, cvOf, editable, nameOf, isText, cs, boxOf, copiesOf, copiesSelector, rgbHex, shared, notEditable, anchorFor,
     hover: (frame, el) => {
       hover = el ? { frame, el } : null
       draw()

@@ -338,8 +338,18 @@
     const alignH = (where) => {
       if (parentFlex && !parentRow) return set({ 'align-self': { left: 'flex-start', center: 'center', right: 'flex-end' }[where] })
       if (parentRow) return set({ 'margin-left': where === 'left' ? '0' : 'auto', 'margin-right': where === 'right' ? '0' : 'auto' })
-      if (c.display.startsWith('inline')) return parent && ed.editable(parent) ? ed.send({ op: 'style', cv: ed.cvOf(parent), props: { 'text-align': where } }) : null
-      set({ 'margin-left': where === 'left' ? '0' : 'auto', 'margin-right': where === 'right' ? '0' : 'auto' })
+      const margins = { 'margin-left': where === 'left' ? '0' : 'auto', 'margin-right': where === 'right' ? '0' : 'auto' }
+      if (c.display.startsWith('inline')) {
+        // An inline element is placed by its parent's text-align, which moves everything else on its lines too. That
+        // is used only when the selection is all the parent holds; otherwise the element takes a line of its own,
+        // hugging its content, and is placed there by its margins, the rest left where it was.
+        const picked = new Set(ed.sel.els)
+        const alone = [...parent.childNodes].every((n) => picked.has(n) || (n.nodeType === 3 && !n.textContent.trim()) || n.nodeType === 8)
+        if (alone && ed.editable(parent)) return ed.send({ op: 'style', cv: ed.cvOf(parent), props: { 'text-align': where } }, { then: ed.reselect() })
+        const block = { 'inline-flex': 'flex', 'inline-grid': 'grid' }[c.display] ?? 'block'
+        return set({ display: block, width: 'fit-content', ...margins })
+      }
+      set(margins)
     }
     const alignV = (where) => {
       if (parentRow) return set({ 'align-self': { top: 'flex-start', middle: 'center', bottom: 'flex-end' }[where] })

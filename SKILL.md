@@ -75,7 +75,7 @@ Enter (or double-click) on a selected text element types in it. Enter while typi
 
 ## Commenting in Play
 
-Play shows a screen at full size; ← and → step through the page's screens. Where comments can be left, C or the comment button in its header and a click on the prototype pin a comment to the element there, the same anchor a comment made on the board gets, so it shows in both places; the pins for the screen played sit over it and follow it as it scrolls, and a pin opens its thread above Play.
+Play shows a screen at full size; ← and → step through the page's screens. A click on something that does nothing lights up, for a moment, everything on the screen that does (links, buttons, fields), as a Figma prototype shows its hotspots. Where comments can be left, C or the comment button in its header and a click on the prototype pin a comment to the element there, the same anchor a comment made on the board gets, so it shows in both places; the pins for the screen played sit over it and follow it as it scrolls, and a pin opens its thread above Play.
 
 ## Layers
 

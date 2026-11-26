@@ -2823,8 +2823,29 @@
     else return
     e.preventDefault()
   }
+  // A click on nothing that does anything lights up, for a moment, everything that does, as a Figma prototype shows its
+  // hotspots, so the way on is found without guessing.
+  const HOT = 'a[href], button, input, select, textarea, summary, label[for], [onclick], [role="button"], [role="link"], [role="tab"], [tabindex]:not([tabindex="-1"])'
+  function showHotspots(doc) {
+    const els = [...doc.querySelectorAll(HOT)].filter((x) => x.getClientRects().length)
+    if (!els.length) return
+    let style = doc.getElementById('dc-hotspots')
+    if (!style) {
+      style = doc.createElement('style')
+      style.id = 'dc-hotspots'
+      style.textContent = '[data-dc-hot]{outline:2px solid rgba(37,99,235,.85)!important;outline-offset:2px!important;box-shadow:inset 0 0 0 9999px rgba(37,99,235,.14)!important}'
+      doc.head.append(style)
+    }
+    for (const x of els) x.setAttribute('data-dc-hot', '')
+    clearTimeout(showHotspots.timer)
+    showHotspots.timer = setTimeout(() => { for (const x of doc.querySelectorAll('[data-dc-hot]')) x.removeAttribute('data-dc-hot') }, 700)
+  }
   playFrame.addEventListener('load', () => {
     playFrame.contentDocument?.addEventListener('keydown', playKey)
+    playFrame.contentDocument?.addEventListener('click', (e) => {
+      if (e.defaultPrevented || e.target.closest?.(HOT) || !playCatch.hidden) return
+      showHotspots(playFrame.contentDocument)
+    })
     // Pins over the prototype follow it as it scrolls, and as its page settles.
     playFrame.contentWindow?.addEventListener('scroll', () => { renderPlayPins(); placeThread() }, { passive: true })
     renderPlayPins()

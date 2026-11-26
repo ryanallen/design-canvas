@@ -1213,7 +1213,7 @@
       const straight = pts.reduce((s, v, i) => s + (i % 2 ? `,${v}` : `${i ? ' L' : 'M'}${v}`), '')
       // A pencil stroke is drawn through the midpoints between its samples, each sample the control
       // of a curve, so a hand-drawn line comes out smooth instead of a chain of short straight pieces.
-      const d = it.kind === 'pencil' && pts.length >= 6 ? smooth(pts) : straight
+      const d = it.kind === 'pencil' && pts.length >= 6 ? smooth(pts) : (it.kind !== 'pencil' && routed(pts, it.route)) || straight
       const color = it.color || SHAPE_COLORS[0]
       const W = Math.max(1, Number(it.w) || 0)
       const H = Math.max(1, Number(it.h) || 0)
@@ -1234,6 +1234,19 @@
         : null
       return h('div', { class: `${cls} svg`, 'data-id': it.id, style: box }, svg, label)
     }
+    return null
+  }
+  // A line's way between its two ends, as FigJam's connectors: an elbow goes across, then up or down, then across
+  // (down, across, down where the ends are further apart that way); a curve leaves and arrives the same ways. Both
+  // pass through the middle of the two ends, where a label sits.
+  function routed(pts, route) {
+    if (pts.length !== 4 || !route) return null
+    const [x1, y1, x2, y2] = pts
+    const mx = (x1 + x2) / 2
+    const my = (y1 + y2) / 2
+    const across = Math.abs(x2 - x1) >= Math.abs(y2 - y1)
+    if (route === 'elbow') return across ? `M${x1},${y1} H${mx} V${y2} H${x2}` : `M${x1},${y1} V${my} H${x2} V${y2}`
+    if (route === 'curve') return across ? `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}` : `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`
     return null
   }
   // A board object's own bar: its colours and delete, above it while it is picked.
@@ -1333,7 +1346,7 @@
   /** What is selected on the board: a drag box's or Shift's objects, or the one picked with its group. */
   const selectedItems = () => (chosen ? [...chosen.items] : picked ? withGroup(picked) : []).map((id) => board.items.find((i) => i.id === id)).filter((i) => i && i.kind !== 'guide')
   // Everything an object is, but where it is bound and which group it is in, which a copy is given anew; a guide's frame stays its own.
-  const COPIED = ['kind', 'x', 'y', 'w', 'h', 'text', 'color', 'points', 'from', 'to', 'group', 'size', 'z', 'cols', 'gutter', 'margin', 'frame', 'src']
+  const COPIED = ['kind', 'x', 'y', 'w', 'h', 'text', 'color', 'points', 'from', 'to', 'group', 'size', 'z', 'cols', 'gutter', 'margin', 'frame', 'src', 'route']
   /** New objects like these, moved by dx, dy: a group copied is a new group, and a line holding an
    * object copied with it holds the copy; one holding something left behind lets go where it is. */
   async function placeCopies(list, dx, dy) {
@@ -1629,6 +1642,8 @@
       ...colors.map((c) => h('button', { type: 'button', class: `swatch${(it.color || colors[0]) === c ? ' on' : ''}`, style: `background:${c}`, title: COLOR_NAMES[c] ?? c, 'aria-label': COLOR_NAMES[c] ?? c, 'aria-pressed': String((it.color || colors[0]) === c), onclick: () => updateItem(it.id, { color: c }) })),
       // A title's size: four steps, the middle one where a title starts.
       ...(it.kind === 'title' ? [h('span', { class: 'sep' }), ...[['S', 48], ['M', 96], ['L', 160], ['XL', 240]].map(([label, px]) => h('button', { type: 'button', class: `tool${(it.size || 96) === px ? ' on' : ''}`, title: `${px} px`, 'aria-pressed': String((it.size || 96) === px), onclick: () => updateItem(it.id, { size: px }) }, label))] : []),
+      // A line or arrow's way: Straight, Elbow or Curve.
+      ...((it.kind === 'line' || it.kind === 'arrow') && (it.points?.length ?? 0) === 4 ? [h('span', { class: 'sep' }), ...[['', 'Straight'], ['elbow', 'Elbow'], ['curve', 'Curve']].map(([route, label]) => h('button', { type: 'button', class: `tool${(it.route || '') === route ? ' on' : ''}`, title: `${label} line`, 'aria-pressed': String((it.route || '') === route), onclick: () => updateItem(it.id, { route }) }, label))] : []),
       ...(it.kind === 'guide'
         ? [
             h('label', {}, 'Cols', h('input', { type: 'number', min: 1, max: 24, value: it.cols || 12, onchange: (e) => updateItem(it.id, { cols: Number(e.target.value) || 12 }) })),
@@ -2269,7 +2284,7 @@
   const future = []
   let openStep = null
   let replaying = false
-  const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points', 'size', 'src']
+  const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points', 'size', 'src', 'route']
   /** The one thing a line touches, as a board says it is: an object's fields, a frame's place, or null for nothing there. */
   function stateOf(b, ev) {
     if (ev.op === 'item' || ev.op === 'remove') {

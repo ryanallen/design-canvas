@@ -187,6 +187,14 @@ test('an empty title size or guide setting is the default again', () => {
   assert.throws(() => board({ op: 'item', id: t.id, size: 'big' }), /size is not a number/)
 })
 
+test("a line's route: elbow, curve, or empty for straight; nothing else", () => {
+  const l = board({ op: 'item', kind: 'arrow', x: 0, y: 0, points: [0, 0, 100, 50], route: 'elbow' })
+  assert.equal(l.route, 'elbow')
+  assert.equal(board({ op: 'item', id: l.id, route: 'curve' }).route, 'curve')
+  assert.equal(board({ op: 'item', id: l.id, route: '' }).route, '')
+  assert.throws(() => board({ op: 'item', id: l.id, route: 'zigzag' }), /route must be/)
+})
+
 test('a picture on the board: a file in the folder by its path, never an address elsewhere', () => {
   const pic = makeBoardEvent({ op: 'item', kind: 'image', page: 'p1', src: 'images/swell-chart.png', x: 0, y: 0, w: 300, h: 200 })
   assert.equal(pic.kind, 'image')

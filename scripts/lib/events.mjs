@@ -272,6 +272,11 @@ export function makeBoardEvent(input, { now = new Date(), newId = randomId } = {
       // Objects grouped together share a group id; an empty string ungroups.
       if (input.group != null) event.group = input.group === '' ? '' : id(input.group, 'group')
       for (const k of ['cols', 'gutter', 'margin']) if (input[k] != null) event[k] = input[k] === '' ? '' : coord(input[k], k)
+      // A line's way between its ends, as FigJam's connectors: straight (empty), elbow or curve.
+      if (input.route != null) {
+        if (!['', 'elbow', 'curve'].includes(input.route)) throw new Error('route must be elbow, curve or empty')
+        event.route = input.route
+      }
       // A title's type size, in board pixels; an empty one is the default again.
       if (input.size != null) event.size = input.size === '' ? '' : Math.min(400, Math.max(12, coord(input.size, 'size')))
       if (input.points != null) {

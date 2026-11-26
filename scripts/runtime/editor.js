@@ -613,6 +613,23 @@
     if (!items.length) return
     send({ op: 'styles', items }, { file: frame.file, key: frame.key, then: sel?.frame === frame ? reselect() : undefined })
   }
+  /** The picture of the selection, as a PNG from the server; null, with a hint, when there is none. */
+  async function pngOf() {
+    if (!dc.serve || dc.local) {
+      hint('A picture is made by node: serve the folder (node scripts/canvas.mjs serve <folder>)', 5000)
+      return null
+    }
+    const el = primary()
+    const f = sel.frame
+    hint('Making the picture…', 6000)
+    const q = new URLSearchParams({ f: f.file, w: String(Math.round(f.w)), h: String(Math.round(f.h)), ...(f.hash ? { hash: f.hash } : {}), ...(el.localName === 'body' || cvOf(el) == null ? {} : { cv: String(cvOf(el)) }) })
+    const res = await fetch(`/api/png?${q}`)
+    if (!res.ok) {
+      hint((await res.json().catch(() => ({}))).error || 'No picture was made', 5000)
+      return null
+    }
+    return res.blob()
+  }
   /** What brings the selection as it is now back after its frame redraws: each element found again by its place,
    *  for an edit that moves nothing (a style). */
   function reselect() {
@@ -1086,6 +1103,31 @@
       send({ op: 'attr', cv: cvOf(c.root), name: 'data-component', value: null })
     },
     wrapIn: (kind) => ops.group({ row: 'display: flex; flex-direction: row; gap: 8px', column: 'display: flex; flex-direction: column; gap: 8px', grid: 'display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px' }[kind], { row: 'Row', column: 'Column', grid: 'Grid' }[kind]),
+    // Figma's Copy as PNG (Ctrl+Shift+C) and Export: a picture of what is selected (the whole screen when it is the
+    // screen), made by the server's browser at twice its size. The clipboard is asked at once, with the picture to
+    // come, so the press still counts as the person's when it arrives.
+    copyPng: () => {
+      if (!sel) return
+      const made = pngOf()
+      try {
+        navigator.clipboard.write([new ClipboardItem({ 'image/png': made.then((b) => b ?? Promise.reject(new Error('no picture'))) })])
+          .then(() => hint('Copied as PNG', 1200), () => made.then((b) => b && hint('This browser would not take a picture onto the clipboard: Export PNG under … saves it', 5000)))
+      } catch {
+        hint('This browser would not take a picture onto the clipboard: Export PNG under … saves it', 5000)
+      }
+    },
+    exportPng: async () => {
+      if (!sel) return
+      const name = (primary().localName === 'body' ? sel.frame.label : nameOf(primary()).text).replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'picture'
+      const blob = await pngOf()
+      if (!blob) return
+      const a = h('a', { href: URL.createObjectURL(blob), download: `${name}.png` })
+      document.body.append(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000)
+      hint(`Saved ${name}.png`, 1600)
+    },
     // Figma's Shift+A: one element holding others becomes a flex box itself; anything else selected is wrapped in a new
     // one. A row when they sit side by side, else a column, with the space already between them as its gap, so the
     // look stays as it was.
@@ -1316,6 +1358,7 @@
     // The whole screen selected (its label clicked): Ctrl+D copies the screen, as Figma duplicates a frame.
     else if (mod && k === 'd') el.localName === 'body' ? dc.duplicateScreens([sel.frame]) : ops.duplicate()
     else if (mod && k === 'g') e.shiftKey ? ops.ungroup() : ops.group()
+    else if (mod && e.shiftKey && k === 'c') ops.copyPng()
     else if (mod && k === 'c') ops.copy()
     // With nothing copied here, Ctrl+V is left to the page: a picture on the clipboard goes into the prototype.
     else if (mod && k === 'v' && clip) ops.paste()
@@ -1688,6 +1731,9 @@
             look ? { label: 'Paste properties', key: 'Ctrl+Alt+V', run: ops.pasteProps } : null,
           ]
         : []),
+      // A picture of it, locked or not.
+      dc.serve && !dc.local ? { label: 'Copy as PNG', key: 'Ctrl+Shift+C', run: ops.copyPng } : null,
+      dc.serve && !dc.local ? { label: 'Export PNG', run: ops.exportPng } : null,
       sel.els.length > 1 ? { label: 'Select this one alone', run: () => select(sel.frame, [primary()]) } : null,
       copiesOf(primary()).length > 1 && sel.els.length === 1 ? { label: 'Select every copy', run: () => select(sel.frame, copiesOf(primary())) } : null,
       componentOf(primary())?.copies.length > 1 && sel.els.length === 1 ? { label: `Select all ${componentOf(primary()).copies.length} ${componentOf(primary()).name}`, run: () => { const c = componentOf(primary()); select(sel.frame, [c.root, ...c.copies.filter((x) => x !== c.root)]) } } : null,

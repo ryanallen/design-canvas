@@ -85,6 +85,8 @@ The panel's Layers list the page's board objects and frames, and an open frame's
 
 Ctrl+C in a prototype copies every element selected, in page order, as its file has it; Ctrl+V puts them after the element selected (inside it for the page's body). Pasted into the same prototype they stay plain markup, styled by its classes. Pasted into another prototype, each part carries on itself whatever of its look that page would not give it (colours, type, spacing, corners, shadows, layout; never its width or height, so it fits where it lands), found by trying it in place: a page that links the same stylesheet gives it its look by its classes, so nothing is written on it and a change to the sheet still reaches it. An `id` already on the page gets a new one.
 
+Ctrl+Shift+C copies a picture of what is selected as a PNG, as Figma's Copy as PNG, and **Export PNG** under … saves it: the element alone, or the whole screen when its label was clicked, at the size its frame is drawn, twice over for sharpness. The server's browser makes it, so it needs a served canvas.
+
 Ctrl+Alt+C copies the selected element's properties and Ctrl+Alt+V pastes them on every element selected, in this prototype or another (both are in the toolbar's **…** menu too): its look alone (fill, gradient, borders, corners, shadow, opacity, text colour and type), never its size, place or content, and only what differs is written. Pasted on a box that holds text (a card), the box takes the fill, borders and the rest, and every line of text in it takes the type and text colour, over any of its own. A picture fill is left out, since its address as read is the served one. Pasted on every copy of something, it goes into their shared rule.
 
 ## Group

@@ -516,6 +516,8 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
     const site = req.headers['sec-fetch-site']
     return !site || site === 'same-origin' || site === 'none'
   }
+  // The browser pictures are made in: started on the first one asked for, kept for the next, closed with the server.
+  let shooter = null
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1')
     // No other site may frame the editor (and click through it), sniff a response into another type, or be told where it came from.
@@ -629,6 +631,33 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
             return json(res, 200, { src, saved: true })
           }
           if (fs.readFileSync(full).equals(bytes)) return json(res, 200, { src, saved: false })
+        }
+      }
+      // A picture of a screen, or of one element in it, as Figma's Copy as PNG and Export: the prototype as served,
+      // opened at its frame's width in the browser the canvas measures with, at twice its size.
+      if (url.pathname === '/api/png' && req.method === 'GET') {
+        const file = url.searchParams.get('f') ?? ''
+        if (!onCanvas(file)) return json(res, 404, { error: `${file} is not on this canvas` })
+        const w = Math.min(3840, Math.max(240, Math.round(Number(url.searchParams.get('w')) || WIDTH)))
+        const cv = url.searchParams.get('cv')
+        const hash = (url.searchParams.get('hash') ?? '').replace(/[^\w-]/g, '')
+        let page
+        try {
+          shooter ??= launchChromium(folder).then((r) => r.browser)
+          // As tall as its frame is drawn, so the whole screen comes out the size it is on the board.
+          const tall = Math.min(20000, Math.max(200, Math.round(Number(url.searchParams.get('h')) || 900)))
+          page = await (await shooter).newPage({ viewport: { width: w, height: tall }, deviceScaleFactor: 2 })
+          await page.goto(`http://127.0.0.1:${server.address().port}/${file.split('/').map(encodeURIComponent).join('/')}${hash ? `#${hash}` : ''}`, { waitUntil: 'load', timeout: 20000 })
+          await page.evaluate(() => document.fonts?.ready)
+          const el = cv != null && cv !== '' ? await page.$(`[data-cv="${Number(cv)}"]`) : null
+          if (cv != null && cv !== '' && !el) return json(res, 404, { error: 'that element is not in the file as it is now' })
+          const png = el ? await el.screenshot({ type: 'png' }) : await page.screenshot({ type: 'png', fullPage: true })
+          res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'no-store' })
+          return res.end(png)
+        } catch (e) {
+          return json(res, 422, { error: `no picture was made (${String(e.message).split('\n')[0]})` })
+        } finally {
+          await page?.close().catch(() => {})
         }
       }
       if (url.pathname === '/api/font' && req.method === 'POST') {
@@ -826,6 +855,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
       else json(res, err.status ?? 400, { error: err.message })
     }
   })
+  server.on('close', () => { shooter?.then((b) => b.close()).catch(() => {}) })
   server.canvas = { get text() { return memory ? renderPage(payload, lines) : canvasText }, readFile, get lines() { return lines }, get payload() { return payload }, outside: (file, text) => {
     // As a write from outside: on disk the watcher tells the pages; in memory they are told here, as the watcher would.
     if (!memory) return writeFileAtomic(path.join(folder, file), text)

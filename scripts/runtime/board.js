@@ -1192,7 +1192,7 @@
     // The one object picked shows where it resizes from: its bottom-right corner.
     const grip = serve && picked === it.id && !chosen && !isLocked(it.id) && ['note', 'rect', 'ellipse', 'section', 'image'].includes(it.kind) ? h('span', { class: 'grip', 'aria-hidden': 'true' }) : null
     // A picture from the canvas's folder, by its path there (the server serves it; a canvas.html beside it finds it).
-    if (it.kind === 'image') return h('div', { class: cls, 'data-id': it.id, style: box }, /^(?:[\w-]+\/)*[\w-][\w.-]*\.(?:png|jpe?g|gif|webp|avif|svg)$/i.test(String(it.src ?? '')) ? h('img', { src: it.src, alt: '', draggable: 'false' }) : null, grip)
+    if (it.kind === 'image') return h('div', { class: cls, 'data-id': it.id, style: box }, /^(?:[\w-]+\/)*[\w-][\w.-]*\.(?:png|jpe?g|gif|webp|avif|svg)$/i.test(String(it.src ?? '')) ? h('img', { src: (data.pictures && /^data:image\//.test(data.pictures[it.src] ?? '') ? data.pictures[it.src] : null) ?? it.src, alt: '', draggable: 'false' }) : null, grip)
     if (it.kind === 'note') return h('div', { class: cls, 'data-id': it.id, style: `${box};background:${it.color || NOTE_COLORS[0]}` }, it.text ?? '', grip)
     if (it.kind === 'title') return h('div', { class: cls, 'data-id': it.id, style: `left:${it.x}px;top:${it.y}px;${it.color ? `color:${it.color};` : ''}${it.size ? `font-size:${num(it.size)}px` : ''}` }, it.text || 'Title')
     if (it.kind === 'rect' || it.kind === 'ellipse') return h('div', { class: cls, 'data-id': it.id, style: `${box};--c:${it.color || SHAPE_COLORS[0]}` }, h('span', { class: 'txt' }, it.text ?? ''), grip)

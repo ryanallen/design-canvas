@@ -177,7 +177,33 @@ function pageParts() {
   return partsCache
 }
 
-function renderPage(payload, lines) {
+/** The board's pictures, read from the folder, so a canvas.html sent alone still shows them (as a prototype's own
+ *  pictures are carried inside it): each path the board's image objects name, as a data URL, up to 10 MB in all. */
+const PICTURE_TYPES = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.avif': 'image/avif', '.svg': 'image/svg+xml' }
+// Read and encoded once while the file is the same: the canvas is written again after every change.
+const pictureCache = new Map()
+function picturesOf(folder, lines) {
+  const srcs = [...new Set(foldBoard(lines.flatMap((l) => parseLines(l, 'board'))).items.filter((i) => i.kind === 'image' && i.src).map((i) => i.src))]
+  const out = {}
+  let size = 0
+  for (const src of srcs) {
+    const full = path.resolve(folder, src)
+    const type = PICTURE_TYPES[path.extname(src).toLowerCase()]
+    if (!type || !full.startsWith(path.resolve(folder) + path.sep) || !fs.existsSync(full)) continue
+    const st = fs.statSync(full)
+    if (size + st.size > 10_000_000) break
+    size += st.size
+    const key = `${full}|${st.mtimeMs}|${st.size}`
+    if (!pictureCache.has(key)) pictureCache.set(key, `data:${type};base64,${fs.readFileSync(full).toString('base64')}`)
+    out[src] = pictureCache.get(key)
+  }
+  return out
+}
+function renderPage(payload, lines, folder = null) {
+  if (folder) {
+    const pictures = picturesOf(folder, lines)
+    if (Object.keys(pictures).length) payload = { ...payload, pictures }
+  }
   const json = JSON.stringify(payload).replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
   const { runtime, css, shell, library: lib } = pageParts()
   const frames = payload.pages.reduce((n, p) => n + p.sections.reduce((m, s) => m + s.groups.reduce((k, g) => k + g.frames.length, 0), 0), 0)
@@ -280,7 +306,7 @@ export async function buildCanvas(options) {
     links: (layout.links ?? []).filter((l) => l && typeof l.text === 'string' && /^https?:\/\//i.test(l.href ?? '')).map((l) => ({ text: l.text, href: l.href })),
     serve: false,
   }
-  writeFileAtomic(out, renderPage(payload, lines))
+  writeFileAtomic(out, renderPage(payload, lines, folder))
   if (!options.quiet) {
     const kb = Math.round(fs.statSync(out).size / 1024)
     console.log(`${path.relative(process.cwd(), out) || out}: ${layout.pages.length} page${layout.pages.length === 1 ? '' : 's'}, ${sections.length} section${sections.length === 1 ? '' : 's'}, ${frames.length} frames, ${lines.length} lines kept, ${kb} KB`)
@@ -317,7 +343,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
   // Held in memory, the page is rendered only when asked for (server.canvas.text, /api/canvas), never after each change.
   const writeOut = () => {
     if (memory) return
-    canvasText = renderPage(payload, lines)
+    canvasText = renderPage(payload, lines, memory ? null : folder)
     writeFileAtomic(out, canvasText)
   }
   // A prototype at the top of the folder keeps its own picture paths, which the server answers; one in a subfolder
@@ -559,7 +585,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
       }
       if (url.pathname === '/api/canvas') {
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'content-disposition': `attachment; filename="${path.basename(out)}"` })
-        return res.end(memory ? renderPage(payload, lines) : canvasText)
+        return res.end(memory ? renderPage(payload, lines, folder) : canvasText)
       }
       if (url.pathname === '/api/refresh' && req.method === 'POST') {
         if (memory) return json(res, 409, { error: 'a canvas held in memory cannot be rebuilt' })
@@ -863,7 +889,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
     }
   })
   server.on('close', () => { shooter?.then((b) => b.close()).catch(() => {}) })
-  server.canvas = { get text() { return memory ? renderPage(payload, lines) : canvasText }, readFile, get lines() { return lines }, get payload() { return payload }, outside: (file, text) => {
+  server.canvas = { get text() { return memory ? renderPage(payload, lines, folder) : canvasText }, readFile, get lines() { return lines }, get payload() { return payload }, outside: (file, text) => {
     // As a write from outside: on disk the watcher tells the pages; in memory they are told here, as the watcher would.
     if (!memory) return writeFileAtomic(path.join(folder, file), text)
     mem.set(file, text)

@@ -963,7 +963,7 @@
     }
     placeItemBar()
     showEmpty()
-    if (itemPins) renderPins()
+    if (itemPins) movePinsOnItems()
   }
   /** A page with nothing on it says, once, in one quiet line, what can be done with it from here. */
   function showEmpty() {
@@ -2189,6 +2189,17 @@
     return Number.isNaN(d.getTime()) ? '' : d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
   }
 
+  /** The pins on board objects, put where their objects now are: only those, while objects are dragged or redrawn. */
+  function movePinsOnItems() {
+    for (const p of pinLayer.querySelectorAll('.pin[data-thread]')) {
+      const t = threads.find((x) => x.id === p.dataset.thread)
+      if (!t?.item) continue
+      const a = anchorOf(t)
+      p.style.left = `${a.x}px`
+      p.style.top = `${a.y}px`
+    }
+    placeThread()
+  }
   function renderPins() {
     drawFlows()
     itemPins = threads.some((t) => t.item)
@@ -2199,6 +2210,7 @@
       pinLayer.append(h('button', {
         type: 'button',
         class: `pin${t.resolved ? ' resolved' : ''}${t.agent ? ' agent' : ''}${t.id === activeId ? ' active' : ''}${p.detached ? ' detached' : ''}`,
+        'data-thread': t.id,
         style: `left:${p.x}px;top:${p.y}px`,
         title: `${t.name}: ${t.text}${p.detached ? ' (its element is gone; pinned where it was left)' : ''}`,
         onclick: (e) => { e.stopPropagation(); openThread(t.id) },

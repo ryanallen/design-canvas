@@ -154,7 +154,7 @@ const stripped = (file) =>
 // The page carries the event format and the edit engine, so a canvas opened from disk can edit
 // its own folder with no server (runtime/local.js).
 const library = () =>
-  `${stripped('events.mjs')}\nconst canvasHtml = (() => {\n${stripped('html.mjs')}\nreturn { parse, tag, untag, applyEdit, lockedFor }\n})()\n`
+  `${stripped('events.mjs')}\nconst canvasHtml = (() => {\n${stripped('html.mjs')}\nreturn { parse, tag, untag, applyEdit, lockedFor, inCaseOf }\n})()\n`
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 /** The canvas page: chrome, the payload, the runtime, and every stored line after it. */

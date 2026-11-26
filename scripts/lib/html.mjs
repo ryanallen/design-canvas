@@ -606,11 +606,11 @@ function applyOne(src, edit) {
       return { src: r.src, select: at }
     }
     case 'replaceText': {
-      // Every place the words appear in the page's text, any case, become the new words. Only text
+      // Every place the words appear in the page's text, any case, become the new words, in the case of the words
+      // they replace (inCaseOf). Only text
       // between tags changes: never a tag, an attribute, a comment, a script or style, or a locked part.
       const find = escText(String(edit.find ?? ''))
       if (!find) throw new Error('nothing to find')
-      const put = escText(String(edit.with ?? ''))
       const { byStart } = parse(src)
       const skip = [...byStart.values()].filter((e) => RAW.has(e.tag) || e.attrs.some((a) => a.name === 'data-locked')).map((e) => [e.start, e.end])
       const body = [...byStart.values()].find((e) => e.tag === 'body')
@@ -627,7 +627,7 @@ function applyOne(src, edit) {
       out += swap(src.slice(at), at)
       function swap(text, start) {
         if (start + text.length <= from || start >= to || skip.some(([s, e]) => start >= s && start < e)) return text
-        return text.replace(re, () => (count++, put))
+        return text.replace(re, (m) => (count++, escText(inCaseOf(m, String(edit.with ?? '')))))
       }
       return { src: out, select: edit.cv ?? null, count }
     }
@@ -677,6 +677,19 @@ function applyOne(src, edit) {
     default:
       throw new Error(`unknown edit ${edit.op}`)
   }
+}
+
+/**
+ * New words in the case of the words they replace, as a find-and-replace that keeps case: "Swell" → "Surf",
+ * "SWELL" → "SURF", "swell" → "surf". New words typed with a capital of their own are put as typed.
+ */
+export function inCaseOf(found, put) {
+  if (put !== put.toLowerCase()) return put
+  const letters = found.replace(/[^\p{L}]/gu, '')
+  if (letters.length > 1 && letters === letters.toUpperCase() && letters !== letters.toLowerCase()) return put.toUpperCase()
+  const first = found.match(/\p{L}/u)?.[0]
+  if (first && first !== first.toLowerCase()) return put.replace(/\p{L}/u, (c) => c.toUpperCase())
+  return put
 }
 
 /**

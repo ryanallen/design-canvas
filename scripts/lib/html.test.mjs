@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { applyComponentEdit, applyEdit, canvasRules, componentEdit, cssDecl, lockedFor, parse, tag, untag } from './html.mjs'
+import { applyComponentEdit, applyEdit, canvasRules, componentEdit, cssDecl, inCaseOf, lockedFor, parse, tag, untag } from './html.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const fixture = `<!doctype html>
@@ -263,8 +263,22 @@ test('replaceText changes words in the text only: not tags, attributes, scripts,
   assert.equal(r.src, src.replace('>Tides &amp; swell', '>Waves &amp; swell').replace('the TIDES daily', 'the Waves daily'))
   const amp = applyEdit(src, { op: 'replaceText', find: 'Tides & swell', with: 'a < b' })
   assert.equal(amp.count, 1)
-  assert.ok(amp.src.includes('>a &lt; b</h1>'))
+  assert.ok(amp.src.includes('>A &lt; b</h1>'))
   assert.throws(() => applyEdit(src, { op: 'replaceText', find: '' }), /nothing to find/)
+})
+
+test('replaceText keeps the case of the words it replaces, unless the new words have capitals of their own', () => {
+  const src = '<html><body><h3>Swell</h3><p>A south swell. SWELL ALERT</p><b>Tom &amp; swell</b></body></html>'
+  const r = applyEdit(src, { op: 'replaceText', find: 'swell', with: 'surf & sun' })
+  assert.equal(r.count, 4)
+  assert.ok(r.src.includes('<h3>Surf &amp; sun</h3>'))
+  assert.ok(r.src.includes('A south surf &amp; sun. SURF &amp; SUN ALERT'))
+  assert.ok(r.src.includes('Tom &amp; surf &amp; sun'))
+  assert.ok(applyEdit(src, { op: 'replaceText', find: 'swell', with: 'Big Wave' }).src.includes('A south Big Wave. Big Wave ALERT'))
+  assert.equal(inCaseOf('Swell', 'surf'), 'Surf')
+  assert.equal(inCaseOf('swell', 'surf'), 'surf')
+  assert.equal(inCaseOf('SWELL', 'surf'), 'SURF')
+  assert.equal(inCaseOf('A', 'b'), 'B')
 })
 
 test('a duplicate gets ids of its own', () => {

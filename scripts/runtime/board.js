@@ -2048,7 +2048,7 @@
       for (const id of [...new Set(found.filter((m) => m.item).map((m) => m.item))]) {
         const it = board.items.find((i) => i.id === id)
         if (!it || isLocked(id)) continue
-        const text = String(it.text ?? '').replace(re, () => (n++, put))
+        const text = String(it.text ?? '').replace(re, (m) => (n++, typeof canvasHtml === 'undefined' ? put : canvasHtml.inCaseOf(m, put)))
         it.text = text
         await sendBoard({ op: 'item', id, text })
       }

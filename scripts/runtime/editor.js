@@ -514,11 +514,11 @@
   /** One declaration of a rule in a stylesheet the prototypes link: written into that file, every frame linking it
    *  redraws, and the selection comes back. */
   async function sendSheet(sheet, selector, nth, prop, value) {
-    if (!dc.serve || !sel) return
+    if (!dc.serve) return
     if (busy) return hint('Still saving the last change', 1200)
     busy = true
     // Set before asking: the server tells every page of the change, and that may redraw the frames before the answer.
-    const keep = { file: sel.frame.file, key: sel.frame.key, cv: cvOf(primary()), copies: sel.els.length > 1 }
+    const keep = sel ? { file: sel.frame.file, key: sel.frame.key, cv: cvOf(primary()), copies: sel.els.length > 1 } : null
     pendingSelect = keep
     const drop = () => { if (pendingSelect === keep) pendingSelect = null }
     try {

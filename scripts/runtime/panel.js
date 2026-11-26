@@ -887,13 +887,40 @@
     }
     if (!f.doc) return host.append(h('div', { class: 'empty' }, 'Scroll the frame into view to load it.'))
     const root = f.doc.documentElement
+    // Where a lever is declared, the last :root to declare it winning as in the cascade: a stylesheet the screens link
+    // (changed there, so every screen linking it follows), or null for the prototype's own.
+    const rootKey = sameSelector(':root')
+    const homeOf = (name) => {
+      let home = null
+      for (const sheet of f.doc.styleSheets) {
+        const node = sheet.ownerNode
+        if (node?.localName !== 'style' || node.hasAttribute('data-canvas')) continue
+        const linked = node.getAttribute('data-dc-sheet')
+        let rules
+        try { rules = sheet.cssRules } catch { continue }
+        let nth = 0
+        const walk = (list, top) => {
+          for (const r of list) {
+            if (r.cssRules && !r.selectorText) { walk(r.cssRules, false); continue }
+            if (!r.selectorText || sameSelector(r.selectorText) !== rootKey) continue
+            if (top && r.style.getPropertyValue(name)) home = linked == null ? null : { sheet: linked, nth }
+            nth++
+          }
+        }
+        walk(rules, true)
+      }
+      return home
+    }
     for (const name of levers) {
       const value = cs(root).getPropertyValue(name).trim()
       if (!dc.serve) {
         host.append(field(name, h('span', { class: 'val' }, value)))
         continue
       }
-      const commit = (v) => ed.send({ op: 'rule', selector: ':root', props: { [name]: v } }, { file: f.file, key: f.key })
+      const home = homeOf(name)
+      const commit = (v) => (home && !dc.local && !home.sheet.split('/').includes('..')
+        ? ed.sendSheet(home.sheet, ':root', home.nth, name, v)
+        : ed.send({ op: 'rule', selector: ':root', props: { [name]: v } }, { file: f.file, key: f.key }))
       const live = (v) => root.style.setProperty(name, v)
       host.append(field(name, leverControl(value, live, commit)))
     }

@@ -1047,7 +1047,7 @@
         if (!moved) return call('onFramePick', f)
         if (isLocked(f.key)) return hint(LOCKED, 2000)
         try {
-          for (const x of list) if (!isLocked(x.key)) await sendBoard({ op: 'move', key: x.key, x: x.x, y: x.y, page: pageId })
+          await sendAll(list.filter((x) => !isLocked(x.key)).map((x) => ({ op: 'move', key: x.key, x: x.x, y: x.y, page: pageId })))
         } catch (err) {
           hint(err.message, 3000)
           takeBoardAgain()
@@ -1822,7 +1822,7 @@
             if (m.from === '' || m.to === '') Object.assign(change, { w: m.w, h: m.h, points: m.points, from: '', to: '' })
             await sendBoard({ op: 'item', id: m.id, ...change })
           }
-          for (const f of frameList) await sendBoard({ op: 'move', key: f.key, x: f.x, y: f.y, page: pageId })
+          await sendAll(frameList.map((f) => ({ op: 'move', key: f.key, x: f.x, y: f.y, page: pageId })))
         } catch (err) {
           hint(err.message, 3000)
           takeBoardAgain()
@@ -3249,7 +3249,7 @@
         // Only the end that went is let go; the other still holds what stays.
         await sendBoard({ op: 'item', id: it.id, x: g.x, y: g.y, w: g.w, h: g.h, points: g.points, from: it.from && going.has(it.from) ? '' : it.from ?? '', to: it.to && going.has(it.to) ? '' : it.to ?? '' })
       }
-      for (const it of [...list, ...along]) await sendBoard({ op: 'item', id: it.id, page })
+      await sendAll([...list, ...along].map((it) => ({ op: 'item', id: it.id, page })))
       for (const k of keys) {
         const f = allFrames.get(k)
         if (f) await sendBoard({ op: 'move', key: k, x: f.x, y: f.y, page })

@@ -693,6 +693,32 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
           await page?.close().catch(() => {})
         }
       }
+      // A screen as a PDF, as Figma's Export: the prototype as served, at its frame's width, printed by the same
+      // browser as one page as tall as the screen, its look as on screen (not its print styles), its words as type.
+      if (url.pathname === '/api/pdf' && req.method === 'GET') {
+        const file = url.searchParams.get('f') ?? ''
+        if (!onCanvas(file)) return json(res, 404, { error: `${file} is not on this canvas` })
+        const w = Math.min(3840, Math.max(240, Math.round(Number(url.searchParams.get('w')) || WIDTH)))
+        const hash = (url.searchParams.get('hash') ?? '').replace(/[^\w-]/g, '')
+        let page
+        try {
+          shooter ??= launchChromium(folder).then((r) => r.browser)
+          // As tall as its frame is drawn, as a picture of it is, or taller where the page runs on.
+          const drawn = Math.min(20000, Math.max(200, Math.round(Number(url.searchParams.get('h')) || 900)))
+          page = await (await shooter).newPage({ viewport: { width: w, height: drawn } })
+          await page.goto(`http://127.0.0.1:${server.address().port}/${file.split('/').map(encodeURIComponent).join('/')}${hash ? `#${hash}` : ''}`, { waitUntil: 'load', timeout: 20000 })
+          await page.emulateMedia({ media: 'screen' })
+          await page.evaluate(() => document.fonts?.ready)
+          const tall = await page.evaluate(() => Math.ceil(Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight ?? 0)))
+          const pdf = await page.pdf({ width: `${w}px`, height: `${Math.min(20000, Math.max(drawn, tall))}px`, printBackground: true, pageRanges: '1', margin: { top: 0, right: 0, bottom: 0, left: 0 } })
+          res.writeHead(200, { 'content-type': 'application/pdf', 'cache-control': 'no-store' })
+          return res.end(pdf)
+        } catch (e) {
+          return json(res, 422, { error: `no PDF was made (${String(e.message).split('\n')[0]})` })
+        } finally {
+          await page?.close().catch(() => {})
+        }
+      }
       if (url.pathname === '/api/font' && req.method === 'POST') {
         const { file, family } = await readBody(req)
         if (!onCanvas(file)) return json(res, 404, { error: `${file} is not on this canvas` })

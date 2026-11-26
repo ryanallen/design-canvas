@@ -1163,6 +1163,22 @@
       setTimeout(() => URL.revokeObjectURL(a.href), 4000)
       hint(`Saved ${name}.png`, 1600)
     },
+    // The screen the selection is on as a PDF, one page as tall as it, its words kept as type.
+    exportPdf: async () => {
+      if (!sel) return
+      if (!dc.serve || dc.local) return hint('A PDF is made by node: serve the folder (node scripts/canvas.mjs serve <folder>)', 5000)
+      const f = sel.frame
+      const name = String(f.label || f.file).replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'screen'
+      hint('Making the PDF…', 8000)
+      const res = await fetch(`/api/pdf?${new URLSearchParams({ f: f.file, w: String(Math.round(f.w)), h: String(Math.round(f.h)), ...(f.hash ? { hash: f.hash } : {}) })}`)
+      if (!res.ok) return hint((await res.json().catch(() => ({}))).error || 'No PDF was made', 5000)
+      const a = h('a', { href: URL.createObjectURL(await res.blob()), download: `${name}.pdf` })
+      document.body.append(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000)
+      hint(`Saved ${name}.pdf`, 1600)
+    },
     // Figma's Shift+H and Shift+V: each selected element mirrored across (0) or up and down (1), by the CSS scale
     // property, apart from any transform; mirrored back, the property goes.
     flip: (i) => {
@@ -1998,6 +2014,7 @@
       // A picture of it, locked or not.
       dc.serve && !dc.local ? { label: 'Copy as PNG', key: 'Ctrl+Shift+C', run: ops.copyPng } : null,
       dc.serve && !dc.local ? { label: 'Export PNG', run: ops.exportPng } : null,
+      dc.serve && !dc.local ? { label: 'Export the screen as PDF', run: ops.exportPdf } : null,
       sel.els.length > 1 ? { label: 'Select this one alone', run: () => select(sel.frame, [primary()]) } : null,
       copiesOf(primary()).length > 1 && sel.els.length === 1 ? { label: 'Select every copy', key: 'Ctrl+Alt+A', run: () => select(sel.frame, copiesOf(primary())) } : null,
       componentOf(primary())?.copies.length > 1 && sel.els.length === 1 ? { label: `Select all ${componentOf(primary()).copies.length} ${componentOf(primary()).name}`, run: () => { const c = componentOf(primary()); select(sel.frame, [c.root, ...c.copies.filter((x) => x !== c.root)]) } } : null,

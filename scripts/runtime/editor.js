@@ -1073,6 +1073,36 @@
       send({ op: 'attr', cv: cvOf(c.root), name: 'data-component', value: null })
     },
     wrapIn: (kind) => ops.group({ row: 'display: flex; flex-direction: row; gap: 8px', column: 'display: flex; flex-direction: column; gap: 8px', grid: 'display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px' }[kind], { row: 'Row', column: 'Column', grid: 'Grid' }[kind]),
+    // Figma's Shift+A: one element holding others becomes a flex box itself; anything else selected is wrapped in a new
+    // one. A row when they sit side by side, else a column, with the space already between them as its gap, so the
+    // look stays as it was.
+    autoLayout: () => {
+      if (!needEditable()) return
+      // The gap is the space between them less their margins, which a flex box keeps (block flow lets them overlap).
+      const arrange = (list) => {
+        const on = list.map((x) => ({ x, r: boxOf(x), k: cs(x) })).filter((o) => o.r.width || o.r.height)
+        if (on.length < 2) return { dir: 'column', gap: 0 }
+        const across = [...on].sort((a, b) => a.r.left - b.r.left)
+        const row = across.every((o, i) => i === 0 || o.r.left >= across[i - 1].r.right - 2)
+        const line = row ? across : [...on].sort((a, b) => a.r.top - b.r.top)
+        const m = (o, side) => parseFloat(o.k.getPropertyValue(`margin-${side}`)) || 0
+        const gaps = line.slice(1).map((o, i) => (row ? o.r.left - line[i].r.right - m(line[i], 'right') - m(o, 'left') : o.r.top - line[i].r.bottom - m(line[i], 'bottom') - m(o, 'top'))).sort((a, b) => a - b)
+        return { dir: row ? 'row' : 'column', gap: Math.max(0, Math.round(gaps[Math.floor(gaps.length / 2)])) }
+      }
+      // A column with an inline element in it (a button) keeps each at its own width, as a flex column would stretch it.
+      const hug = (list, dir) => (dir === 'column' && list.some((x) => cs(x).display.startsWith('inline')) ? 'flex-start' : null)
+      const el = primary()
+      const kids = [...el.children].filter((x) => !SKIP.has(x.localName) && cs(x).display !== 'none')
+      if (sel.els.length === 1 && el.localName !== 'body' && kids.length && !/flex|grid/.test(cs(el).display) && !ownText(el)) {
+        const { dir, gap } = arrange(kids)
+        // In a column, the blocks stretch across as they did and each inline element (a button) keeps its own width.
+        const inline = dir === 'column' ? kids.filter((x) => cs(x).display.startsWith('inline') && editable(x) && cvOf(x) != null) : []
+        return send({ op: 'styles', items: [{ cv: cvOf(el), props: { display: 'flex', 'flex-direction': dir, gap: `${gap}px` } }, ...inline.map((x) => ({ cv: cvOf(x), props: { 'align-self': 'flex-start' } }))] }, { then: reselect() })
+      }
+      const list = sel.els.filter(live)
+      const { dir, gap } = arrange(list)
+      ops.group(`display: flex; flex-direction: ${dir}; gap: ${gap}px${hug(list, dir) ? `; align-items: ${hug(list, dir)}` : ''}`)
+    },
     copy: async () => {
       if (!sel) return
       // Every element selected, in the order the page has them; nested ones go with what holds them.
@@ -1282,6 +1312,7 @@
       select(sel.frame, all)
     } else if (mod) return false
     else if (e.key === 'Delete' || e.key === 'Backspace') ops.remove()
+    else if (e.shiftKey && !e.altKey && k === 'a') ops.autoLayout()
     else if (e.key === 'Escape') {
       const up = el.parentElement
       if (!up || el.localName === 'body' || up.localName === 'html') select(null, [])
@@ -1623,6 +1654,7 @@
             { label: 'Duplicate', key: 'Ctrl+D', run: ops.duplicate },
             { label: 'Group', key: 'Ctrl+G', run: () => ops.group() },
             primary().children.length ? { label: 'Ungroup', key: 'Ctrl+Shift+G', run: ops.ungroup } : null,
+            { label: 'Add auto layout', key: 'Shift+A', run: ops.autoLayout },
             { label: 'Wrap in flex row', run: () => ops.wrapIn('row') },
             { label: 'Wrap in flex column', run: () => ops.wrapIn('column') },
             { label: 'Wrap in grid', run: () => ops.wrapIn('grid') },

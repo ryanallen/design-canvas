@@ -89,7 +89,7 @@ Ctrl+Alt+C copies the selected element's properties and Ctrl+Alt+V pastes them o
 
 ## Group
 
-Ctrl+G in a prototype wraps the elements selected, side by side in one parent, in a new `div`, and Ctrl+Shift+G takes a wrapper away and keeps what it held. As in Figma, grouping moves nothing: in a grid or a flex row the group is written with `display: contents`, so each part keeps its own cell, and the group is selected and measured by the box around them. **Wrap in flex row**, **flex column** and **grid** under … make a wrapper that lays them out instead.
+Ctrl+G in a prototype wraps the elements selected, side by side in one parent, in a new `div`, and Ctrl+Shift+G takes a wrapper away and keeps what it held. As in Figma, grouping moves nothing: in a grid or a flex row the group is written with `display: contents`, so each part keeps its own cell, and the group is selected and measured by the box around them. **Wrap in flex row**, **flex column** and **grid** under … make a wrapper that lays them out instead. **Shift+A** (Add auto layout, under … too), as in Figma: one element holding others becomes a flex box itself, anything else selected is wrapped in a new one; a row when they sit side by side, else a column, its gap the space already between them less their margins, so nothing moves (in a column the blocks stretch across as before and an inline element such as a button keeps its own width).
 
 ## Code tab
 

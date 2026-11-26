@@ -75,7 +75,7 @@ The panel's Layers list the page's board objects and frames, and an open frame's
 
 ## Copy and paste
 
-Ctrl+C in a prototype copies every element selected, in page order, as its file has it; Ctrl+V puts them after the element selected (inside it for the page's body). Pasted into the same prototype they stay plain markup, styled by its classes. Pasted into another prototype, whose stylesheet has none of those rules, each part carries its look on itself (colours, type, spacing, corners, shadows, layout; never its width or height, so it fits where it lands). An `id` already on the page gets a new one.
+Ctrl+C in a prototype copies every element selected, in page order, as its file has it; Ctrl+V puts them after the element selected (inside it for the page's body). Pasted into the same prototype they stay plain markup, styled by its classes. Pasted into another prototype, each part carries on itself whatever of its look that page would not give it (colours, type, spacing, corners, shadows, layout; never its width or height, so it fits where it lands), found by trying it in place: a page that links the same stylesheet gives it its look by its classes, so nothing is written on it and a change to the sheet still reaches it. An `id` already on the page gets a new one.
 
 ## Group
 

@@ -991,8 +991,10 @@
         }
         parts.push(html)
       }
-      // Another prototype has none of this one's rules: what goes there carries its look on itself.
-      clip = { html: parts.join('\n'), file: sel.frame.file, styled: els.map(standalone).join('\n') }
+      // Another prototype may have none of this one's rules: what goes there carries on itself whatever of its look
+      // that page would not give it. Each part's look is kept here, to compare against the page it lands in.
+      const looks = els.map((el) => [el, ...el.querySelectorAll('*')].map((n) => Object.fromEntries(LOOK.map((p) => [p, cs(n).getPropertyValue(p)]))))
+      clip = { html: parts.join('\n'), file: sel.frame.file, styled: els.map(standalone).join('\n'), looks }
       try { await navigator.clipboard.writeText(clip.html) } catch {}
       hint(els.length > 1 ? `Copied ${els.length}` : 'Copied', 900)
     },
@@ -1000,8 +1002,9 @@
       if (!clip) return hint('Nothing copied yet', 1200)
       if (!needEditable()) return
       const el = primary()
-      const html = clip.file === sel.frame.file ? clip.html : clip.styled
-      send({ op: 'insert', cv: cvOf(el), where: el.localName === 'body' ? 'inside' : 'after', html })
+      const where = el.localName === 'body' ? 'inside' : 'after'
+      const html = clip.file === sel.frame.file ? clip.html : lookedIn(el, where) ?? clip.styled
+      send({ op: 'insert', cv: cvOf(el), where, html })
     },
     nudge: (dx, dy, alt) => {
       if (!needEditable()) return
@@ -1027,6 +1030,32 @@
     'color', 'font-family', 'font-size', 'font-weight', 'font-style', 'line-height', 'letter-spacing', 'text-align', 'text-transform', 'text-decoration-line', 'white-space', 'list-style-type']
   const INHERITS = new Set(['color', 'font-family', 'font-size', 'font-weight', 'font-style', 'line-height', 'letter-spacing', 'text-align', 'text-transform', 'white-space', 'list-style-type'])
   let blankDoc = null
+  /** The copied parts as they would land beside `el` (or inside it), each carrying on itself only the parts of its
+   *  look that page would not give it: tried in place, the differences found before any is written, then taken out.
+   *  A page that links the same stylesheet gives them their look by their classes, so nothing is written on them.
+   *  Null when the copy cannot be matched part for part (a script made some of it), for the plain-page way. */
+  function lookedIn(el, where) {
+    if (!clip?.looks) return null
+    const doc = el.ownerDocument
+    const t = doc.createElement('template')
+    t.innerHTML = clip.html
+    const nodes = [...t.content.children]
+    if (nodes.length !== clip.looks.length) return null
+    const lists = nodes.map((n) => [n, ...n.querySelectorAll('*')])
+    if (lists.some((l, i) => l.length !== clip.looks[i].length)) return null
+    if (where === 'inside') el.append(...nodes)
+    else el.after(...nodes)
+    try {
+      const wants = lists.flatMap((l, i) => l.map((n, j) => {
+        const c = cs(n)
+        return [n, LOOK.filter((p) => c.getPropertyValue(p) !== clip.looks[i][j][p]).map((p) => [p, clip.looks[i][j][p]])]
+      }))
+      for (const [n, props] of wants) for (const [p, v] of props) n.style.setProperty(p, v)
+      return nodes.map((n) => n.outerHTML).join('\n')
+    } finally {
+      for (const n of nodes) n.remove()
+    }
+  }
   /** A tag's look with no stylesheet but the browser's own, from a blank page kept for it. */
   function defaultLook(tag) {
     if (!blankDoc) {

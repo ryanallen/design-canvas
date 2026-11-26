@@ -1152,7 +1152,7 @@
       h('b', {}, 'An empty board'),
       serve ? h('span', { class: 'start' },
         h('button', { type: 'button', onclick: () => setTool('artboard') }, h('kbd', {}, 'A'), ' A new prototype screen'),
-        h('span', {}, 'or pick a tool below for notes, text, drawings and shapes. ', h('kbd', {}, '?'), ' shows every key.'))
+        h('span', {}, 'or pick a tool below for notes, text, drawings and shapes, or ', h('button', { type: 'button', class: 'link', onclick: (e) => templateMenu(e.currentTarget) }, 'start from a template'), '. ', h('kbd', {}, '?'), ' shows every key.'))
         : edit ? h('span', {}, h('button', { type: 'button', onclick: () => edit.click() }, 'Edit'), ' and pick this folder to draw on it.')
           : h('span', {}, 'Nothing has been put on this page yet.'))
   }
@@ -1757,6 +1757,67 @@
       return null
     }
   }
+  // FigJam's templates: a board laid out for a common session, put in the middle of the view in one undo step and
+  // left selected, so a drag moves it all. An arrow's `from` and `to` name the parts it joins by their place in the list.
+  const TEMPLATES = [
+    { name: 'Retro', parts: [
+      { kind: 'title', x: 0, y: 0, text: 'Retro', size: 96 },
+      ...[['Went well', 4, 4], ['To change', 5, 5], ['To try', 1, 1]].flatMap(([text, sc, nc], i) => [
+        { kind: 'section', x: i * 760, y: 220, w: 720, h: 900, text, color: SECTION_COLORS[sc] },
+        { kind: 'note', x: i * 760 + 40, y: 300, w: 300, h: 220, text: '', color: NOTE_COLORS[nc] }]),
+    ] },
+    { name: 'Kanban', parts: [
+      { kind: 'title', x: 0, y: 0, text: 'Board', size: 96 },
+      ...[['To do', 1, 1], ['Doing', 5, 5], ['Done', 4, 4]].flatMap(([text, sc, nc], i) => [
+        { kind: 'section', x: i * 560, y: 220, w: 520, h: 1100, text, color: SECTION_COLORS[sc] },
+        ...(i ? [] : [{ kind: 'note', x: 40, y: 300, w: 300, h: 200, text: '', color: NOTE_COLORS[nc] }])]),
+    ] },
+    { name: 'Journey map', parts: [
+      { kind: 'title', x: 0, y: 0, text: 'Journey', size: 96 },
+      ...['Doing', 'Thinking', 'Feeling'].map((text, r) => ({ kind: 'title', x: 0, y: 340 + r * 300, text, size: 48 })),
+      ...['Discover', 'Sign up', 'First use', 'Habit', 'Recommend'].map((text, i) => ({ kind: 'section', x: 320 + i * 520, y: 220, w: 480, h: 1000, text, color: SECTION_COLORS[i % SECTION_COLORS.length] })),
+    ] },
+    { name: 'Flowchart', parts: [
+      { kind: 'title', x: 0, y: 0, text: 'Flow', size: 96 },
+      { kind: 'ellipse', x: 0, y: 220, w: 280, h: 160, text: 'Start', color: SHAPE_COLORS[4] },
+      { kind: 'rect', x: 440, y: 200, w: 320, h: 200, text: 'A step', color: SHAPE_COLORS[1] },
+      { kind: 'diamond', x: 920, y: 170, w: 340, h: 260, text: 'A choice?', color: SHAPE_COLORS[5] },
+      { kind: 'rect', x: 1420, y: 200, w: 320, h: 200, text: 'Done', color: SHAPE_COLORS[4] },
+      ...[[1, 2], [2, 3], [3, 4]].map(([from, to]) => ({ kind: 'arrow', from, to })),
+    ] },
+  ]
+  async function placeTemplate(t) {
+    if (!serve) return hint(readOnly, 2000)
+    const boxes = t.parts.filter((q) => q.kind !== 'arrow')
+    const left = Math.min(...boxes.map((q) => q.x))
+    const top = Math.min(...boxes.map((q) => q.y))
+    const right = Math.max(...boxes.map((q) => q.x + (q.w ?? 600)))
+    const bottom = Math.max(...boxes.map((q) => q.y + (q.h ?? (q.size ?? 96) * 1.3)))
+    const mid = toWorld(innerWidth / 2, innerHeight / 2)
+    const ox = Math.round(mid.x - (left + right) / 2)
+    const oy = Math.round(mid.y - (top + bottom) / 2)
+    const ids = []
+    for (const q of t.parts) {
+      let it = { ...q, x: q.x + ox, y: q.y + oy }
+      if (q.kind === 'arrow') {
+        const a = t.parts[q.from]
+        const b = t.parts[q.to]
+        const ax = a.x + a.w + ox
+        const ay = a.y + a.h / 2 + oy
+        const bx = b.x + ox
+        const by = b.y + b.h / 2 + oy
+        it = { kind: 'arrow', x: Math.min(ax, bx), y: Math.min(ay, by), w: Math.max(1, Math.abs(bx - ax)), h: Math.max(1, Math.abs(by - ay)), points: [ax - Math.min(ax, bx), ay - Math.min(ay, by), bx - Math.min(ax, bx), by - Math.min(ay, by)], from: ids[q.from], to: ids[q.to] }
+      }
+      const id = await addItem(it)
+      if (!id) break
+      ids.push(id)
+    }
+    renderItems()
+    if (!ids.length) return
+    chooseItems(ids)
+    fitTo(boxAround(ids, []), 80, 1)
+  }
+  const templateMenu = (anchor) => openMenu(anchor, TEMPLATES.map((t) => ({ label: t.name, run: () => placeTemplate(t) })))
   // ── snapping: what is dragged lines up with what it passes, and the line it lines up on is drawn ──
   const SNAP_PX = 6
   let snapEls = []
@@ -3302,6 +3363,8 @@
       sel ? { label: `Download ${sel}`, icon: 'download', run: () => downloadFile(sel) } : null,
       serve ? { label: 'Rename', run: rename } : null,
       { label: 'History', run: openHistory },
+      // A board laid out for a retro, a kanban, a journey map or a flowchart.
+      serve ? { label: 'Templates…', run: () => setTimeout(() => templateMenu($('#title-btn')), 0) } : null,
       // Which element a click in a prototype picks: the one under the pointer, or the outermost block (as Figma), a
       // click inside the selection then going one level in. Kept in this browser.
       { label: `Clicks pick the line${store.get('clickDepth') === 'outer' ? '' : '  ✓'}`, run: () => { store.set('clickDepth', 'inner'); hint('A click picks what is under the pointer; Esc climbs out', 2200) } },

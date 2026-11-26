@@ -1429,7 +1429,7 @@
     for (const it of list) it.z = at++
     renderItems()
     try {
-      for (const it of list) await sendBoard({ op: 'item', id: it.id, z: it.z })
+      await sendAll(list.map((it) => ({ op: 'item', id: it.id, z: it.z })))
     } catch (err) {
       hint(err.message, 3000)
       takeBoardAgain()
@@ -1465,7 +1465,7 @@
     if (chosen) chosen.box = boxAround([...chosen.items], [...chosen.frames])
     renderItems()
     try {
-      for (const s of sends) await sendBoard(s)
+      await sendAll(sends)
     } catch (err) {
       hint(err.message, 3000)
       takeBoardAgain()
@@ -1516,7 +1516,7 @@
     for (const id of ids) Object.assign(board.items.find((i) => i.id === id), { color })
     renderItems()
     try {
-      for (const id of ids) await sendBoard({ op: 'item', id, color })
+      await sendAll(ids.map((id) => ({ op: 'item', id, color })))
     } catch (err) {
       hint(err.message, 3000)
       takeBoardAgain()
@@ -1527,8 +1527,11 @@
     const ids = all.filter((id) => !isLocked(id))
     if (ids.length < all.length) hint(`${all.length - ids.length} locked, left where they are`, 2400)
     chosen = null
+    // Gone at once, as in Figma, while their lines are saved.
+    const saving = sendAll(ids.map((id) => ({ op: 'remove', id })))
+    renderItems()
     try {
-      for (const id of ids) await sendBoard({ op: 'remove', id })
+      await saving
     } catch (err) {
       hint(err.message, 3000)
     }
@@ -1735,8 +1738,7 @@
     renderItems()
     if (frameList.length) renderPins()
     try {
-      for (const m of moving) await sendBoard({ op: 'item', id: m.id, x: m.x, y: m.y })
-      for (const f of frameList) await sendBoard({ op: 'move', key: f.key, x: f.x, y: f.y, page: pageId })
+      await sendAll([...moving.map((m) => ({ op: 'item', id: m.id, x: m.x, y: m.y })), ...frameList.map((f) => ({ op: 'move', key: f.key, x: f.x, y: f.y, page: pageId }))])
     } catch (err) {
       hint(err.message, 3000)
       takeBoardAgain()
@@ -2063,6 +2065,7 @@
   function drawAhead() {
     for (const [k, fields] of ahead) {
       if (k.startsWith('item:')) {
+        if (fields.removed) board.items = board.items.filter((i) => i.id !== k.slice(5))
         const it = board.items.find((i) => i.id === k.slice(5))
         if (it) Object.assign(it, fields)
       } else {
@@ -2073,6 +2076,22 @@
         board.moved = { ...(board.moved ?? {}), [key]: m }
       }
     }
+  }
+  /** Every line of one action: all of it drawn at once, then saved in order, so what is drawn never steps back while
+   *  the later lines are on their way (a deletion of several, a colour, an align, a drag). */
+  async function sendAll(inputs) {
+    for (const input of inputs) {
+      if (input.op === 'remove') ahead.set(`item:${input.id}`, { removed: true })
+      else if (input.op === 'item' && input.id) {
+        const { op, id, name, ...fields } = input
+        ahead.set(`item:${id}`, { ...(ahead.get(`item:${id}`) ?? {}), ...fields })
+      } else if (input.op === 'move') {
+        const { op, key, name, ...fields } = input
+        ahead.set(`frame:${key}`, { ...(ahead.get(`frame:${key}`) ?? {}), ...fields })
+      }
+    }
+    drawAhead()
+    for (const input of inputs) await sendBoard(input)
   }
   async function sendBoard(input) {
     if (!serve) throw new Error(readOnly)

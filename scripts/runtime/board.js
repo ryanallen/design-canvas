@@ -2660,6 +2660,14 @@
           showThread({ id: t.id })
         } catch (err) { error.textContent = err.message }
       } }, t.resolved ? 'Reopen' : '✓ Resolve') : null,
+      // The thread before or after it, in number order, as Figma steps through comments; resolved ones only when shown.
+      ...(t ? (() => {
+        const list = threads.filter((x) => showResolved() || !x.resolved || x.id === t.id)
+        const at = list.findIndex((x) => x.id === t.id)
+        if (list.length < 2) return []
+        const go = (d) => openThread(list[(at + d + list.length) % list.length].id, true)
+        return [h('button', { type: 'button', class: 'tool', title: 'Previous thread', 'aria-label': 'Previous thread', onclick: () => go(-1) }, '‹'), h('button', { type: 'button', class: 'tool', title: 'Next thread', 'aria-label': 'Next thread', onclick: () => go(1) }, '›')]
+      })() : []),
       h('button', { type: 'button', class: 'tool', title: 'Close', 'aria-label': 'Close', onclick: closeThread }, '✕'),
     )
     // Where comments cannot be saved, a thread is read and not answered: no composer at all.

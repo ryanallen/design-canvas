@@ -1693,7 +1693,10 @@
       el.removeEventListener('blur', done)
       el.contentEditable = 'false'
       const text = el.innerText.replace(/\n$/, '')
-      if (text !== (it.text ?? '')) updateItem(id, { text })
+      // A note given more words than it holds grows down to hold them all, so none is hidden under its edge.
+      const over = it.kind === 'note' ? box.scrollHeight - box.clientHeight : 0
+      const grow = over > 1 ? { h: Math.ceil(it.h + over + 8) } : {}
+      if (text !== (it.text ?? '') || grow.h) updateItem(id, { text, ...grow })
       else renderItems()
     }
     el.addEventListener('blur', done)

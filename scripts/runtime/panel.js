@@ -378,9 +378,20 @@
       else set({ [dim]: '100%' })
     }
     const dimRow = (dim, label) => field(label, input(String(drawn(dim)), (v) => set({ [dim]: /^\d+(\.\d+)?$/.test(String(v).trim()) ? cssSize(dim, v) : px(v) }), { class: 'n' }), seg([['hug', 'Hug'], ['fixed', 'Fixed'], ['fill', 'Fill']], sizeMode(dim), (m) => setMode(dim, m)))
+    // The whole screen selected: its width is the screen's own (its canvas-width), as a Figma frame's is; its height
+    // is measured from what it holds.
+    const screen = el.localName === 'body' ? ed.sel.frame : null
+    const setScreenWidth = (v) => {
+      const w = Math.round(Number(String(v).replace(/px$/, '')))
+      if (w >= 240 && w <= 3840) dc.setFrameWidth(screen, w)
+      else dc.hint('A width from 240 to 3840', 2000)
+    }
+    if (screen) host.append(section('Screen', [],
+      field('Width', input(String(screen.w), setScreenWidth, { class: 'n' }), seg(dc.ARTBOARD_SIZES.map(([name, w]) => [w, String(w), name]), screen.w, setScreenWidth)),
+      field('Height', h('span', { class: 'val' }, `${Math.round(screen.h)} · from what it holds`))))
     host.append(section('Size', ['min-width', 'max-width', 'min-height', 'max-height', 'aspect-ratio', 'overflow', 'margin', 'z-index', 'inset'],
-      dimRow('width', 'Width'),
-      dimRow('height', 'Height'),
+      screen ? null : dimRow('width', 'Width'),
+      screen ? null : dimRow('height', 'Height'),
       field('Position', select(['static', 'relative', 'absolute', 'fixed', 'sticky'], c.position, (v) => set({ position: v }))),
       ['absolute', 'fixed', 'relative', 'sticky'].includes(c.position) ? field('Left · Top', input(num(c.left), (v) => set({ left: px(v) }), { class: 'n' }), input(num(c.top), (v) => set({ top: px(v) }), { class: 'n' })) : null,
       parentFlex ? field('Grow', input(c.flexGrow, (v) => set({ 'flex-grow': v }), { class: 'n' })) : null))

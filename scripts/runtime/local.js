@@ -281,6 +281,8 @@
         raw.set(file, result.src)
         await write(file, result.src)
         undo.push({ file, before, after: result.src })
+        // The last 200 steps, as the server keeps: each holds the whole file twice.
+        if (undo.length > 200) undo.splice(0, undo.length - 200)
         redo.length = 0
         lines.push(lineOf({ op: edit.op, id: randomId('e'), at: new Date().toISOString(), name: nameOf(name), file, summary: summarize(before, edit).slice(0, 600), sha: await sha(result.src) }, 'edit'))
         await writeCanvas([file])

@@ -358,6 +358,13 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
   const sheetInFolder = (sheet) => typeof sheet === 'string' && !!payload.assets[sheet] && !sheet.split('/').some((s) => s === '..' || s.startsWith('.') || s === '') && path.resolve(folder, sheet).startsWith(path.resolve(folder) + path.sep)
   const undo = []
   const redo = []
+  // Each step holds the whole file before and after, so the history keeps the last 200 (as the board's does): a long
+  // day of edits to large screens does not grow the server without end.
+  const UNDO_STEPS = 200
+  const pushUndo = (step) => {
+    undo.push(step)
+    if (undo.length > UNDO_STEPS) undo.splice(0, undo.length - UNDO_STEPS)
+  }
   let selection = null
   const clients = new Set()
   const tell = (event, data) => {
@@ -685,7 +692,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         }
         if (after === before) return json(res, 200, { sheet, text: payload.assets[sheet].text, same: true })
         writeFile(sheet, after)
-        undo.push({ file: sheet, before, after, sheet: true })
+        pushUndo({ file: sheet, before, after, sheet: true })
         redo.length = 0
         record({ op: 'decl', id: randomId('e'), at: new Date().toISOString(), name: String(name || 'someone').slice(0, 80), file: sheet, summary: `${selector} ${prop}: ${value === '' || value == null ? '(removed)' : value}`.slice(0, 600), sha: sha(after) })
         const text = sheetChanged(sheet, after)
@@ -710,7 +717,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
             count += r.count ?? 0
           }
           if (!parts.length) return json(res, 200, { same: true, count: 0, files: {} })
-          undo.push({ ...parts[0], also: parts.slice(1) })
+          pushUndo({ ...parts[0], also: parts.slice(1) })
           redo.length = 0
           const elsewhere = parts.length > 1 ? ` (and on ${parts.length - 1} other screen${parts.length === 2 ? '' : 's'})` : ''
           record({ op: edit.op, id: randomId('e'), at: new Date().toISOString(), name: String(name || 'someone').slice(0, 80), file: parts[0].file, summary: `${summarize(parts[0].before, edit)}${elsewhere}`.slice(0, 600), sha: sha(parts[0].after) })
@@ -743,7 +750,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
             also.push({ file: other, before: was, after: r.src, count: r.count })
           }
         }
-        undo.push({ file, before, after: result.src, also: also.map(({ file, before, after }) => ({ file, before, after })) })
+        pushUndo({ file, before, after: result.src, also: also.map(({ file, before, after }) => ({ file, before, after })) })
         redo.length = 0
         const elsewhere = also.length ? ` (and on ${also.length} other screen${also.length === 1 ? '' : 's'})` : ''
         record({ op: edit.op, id: randomId('e'), at: new Date().toISOString(), name: String(name || 'someone').slice(0, 80), file, summary: `${summarize(before, edit)}${elsewhere}`.slice(0, 600), sha: sha(result.src) })

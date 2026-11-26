@@ -26,6 +26,18 @@ test('a page carries its place, and the fold keeps it with its name', () => {
   assert.throws(() => board({ op: 'page', id: 'p2', order: 'first' }))
 })
 
+test('a comment off the prototypes keeps its page, and the board object it is on with its offset', () => {
+  const on = makeEvent({ op: 'add', name: 'A', text: 'Say what dragging does', x: 300, y: 200, page: 'p2', item: 'b-abc123', dx: 12.4, dy: 8 })
+  assert.deepEqual([on.page, on.item, on.dx, on.dy], ['p2', 'b-abc123', 12, 8])
+  const t = foldEvents([on])[0]
+  assert.deepEqual([t.page, t.item, t.dx, t.dy], ['p2', 'b-abc123', 12, 8])
+  // On a prototype, the frame says where it is: no page or object is kept.
+  const framed = makeEvent({ op: 'add', name: 'A', text: 'Hi', frame: 'home.html', x: 1, y: 2, page: 'p2', item: 'b-abc123' })
+  assert.equal(framed.page, undefined)
+  assert.equal(framed.item, undefined)
+  assert.throws(() => makeEvent({ op: 'add', name: 'A', text: 'Hi', x: 1, y: 2, item: 'b-1', dx: 'x' }), /dx is not a number/)
+})
+
 test('a bad line is skipped, not fatal', () => {
   const good = eventLine(make({ op: 'add', name: 'A', text: 'ok', frame: null, x: 0, y: 0 }))
   const html = `<!-- comment {not json} -->\n${good}\n<!-- comment {"no":"op"} -->`

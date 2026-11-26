@@ -911,6 +911,8 @@
   // that one waits until this one is done.
   let drawingItems = false
   let itemsAgain = false
+  // Whether a comment is pinned to a board object, whose pin then moves whenever the objects are drawn again.
+  let itemPins = false
   function renderItems() {
     if (drawingItems) {
       itemsAgain = true
@@ -939,6 +941,7 @@
     }
     placeItemBar()
     showEmpty()
+    if (itemPins) renderPins()
   }
   /** A page with nothing on it says, once, in one quiet line, what can be done with it from here. */
   function showEmpty() {
@@ -2132,7 +2135,11 @@
       if (at) return { x: at.x, y: at.y, top: at.top, bottom: at.bottom, frame: f, page: f.page }
       return { x: f.x + t.x * (f.s ?? 1), y: f.y + t.y * (f.s ?? 1), frame: f, page: f.page, detached: !!f.doc }
     }
-    return f ? { x: f.x + t.x * (f.s ?? 1), y: f.y + t.y * (f.s ?? 1), frame: f, page: f.page } : { x: t.x, y: t.y, frame: null, page: t.page ?? firstPage() }
+    if (f) return { x: f.x + t.x * (f.s ?? 1), y: f.y + t.y * (f.s ?? 1), frame: f, page: f.page }
+    // On a board object: where the object is now, at the same offset; else where it was left, on its own page.
+    const on = t.item ? board.items.find((i) => i.id === t.item) : null
+    if (on) return { x: on.x + (t.dx ?? 0), y: on.y + (t.dy ?? 0), frame: null, page: on.page ?? firstPage() }
+    return { x: t.x, y: t.y, frame: null, page: t.page ?? firstPage() }
   }
   const number = (t) => threads.indexOf(t) + 1 || '…'
   const when = (iso) => {
@@ -2142,6 +2149,7 @@
 
   function renderPins() {
     drawFlows()
+    itemPins = threads.some((t) => t.item)
     pinLayer.replaceChildren()
     for (const t of threads) {
       const p = anchorOf(t)
@@ -2180,7 +2188,9 @@
     const p = toWorld(sx, sy)
     const f = frameAt(sx, sy)
     const pin = f ? call('commentAnchor', f, p) : null
-    draft = { wx: p.x, wy: p.y, frame: f ? f.key : null, x: f ? Math.round((p.x - f.x) / f.s) : p.x, y: f ? Math.round((p.y - f.y) / f.s) : p.y, page: pageId, agent, ...(pin ?? {}) }
+    // Dropped on a board object (a note, a shape, a section): the pin goes with it when it moves.
+    const on = f ? null : board.items.find((i) => i.id === document.elementFromPoint(sx, sy)?.closest('.item')?.dataset.id && i.kind !== 'line' && i.kind !== 'arrow' && i.kind !== 'pencil')
+    draft = { wx: p.x, wy: p.y, frame: f ? f.key : null, x: f ? Math.round((p.x - f.x) / f.s) : p.x, y: f ? Math.round((p.y - f.y) / f.s) : p.y, page: pageId, agent, ...(on ? { item: on.id, dx: Math.round(p.x - on.x), dy: Math.round(p.y - on.y) } : {}), ...(pin ?? {}) }
     activeId = null
     renderPins()
     showThread({ draft })
@@ -2287,7 +2297,7 @@
           showThread({ id: t.id })
         } else {
           const d = what.draft
-          const ev = await send({ op: 'add', name, text, frame: d.frame, x: d.x, y: d.y, file: d.file, anchor: d.anchor, agent: forAgent.checked })
+          const ev = await send({ op: 'add', name, text, frame: d.frame, x: d.x, y: d.y, file: d.file, anchor: d.anchor, agent: forAgent.checked, ...(d.frame ? {} : { page: d.page, item: d.item, dx: d.dx, dy: d.dy }) })
           draft = null
           activeId = ev.id
           renderPins()

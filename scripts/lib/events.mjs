@@ -125,6 +125,12 @@ export function makeEvent(input, { now = new Date(), newId = randomId } = {}) {
       if (box) event.box = box
       const about = refsOf(input.items, 'items')
       if (about?.length) event.items = about
+      // Off the prototypes: the page it is on, and the board object it was dropped on (a note, a shape), whose place
+      // the pin follows at its offset dx, dy; x, y are where it was left, for when the object is gone.
+      if (frame == null) {
+        if (input.page != null) event.page = text(input.page, LIMITS.frame, 'page')
+        if (input.item != null) Object.assign(event, { item: text(input.item, LIMITS.frame, 'item'), dx: coord(input.dx ?? 0, 'dx'), dy: coord(input.dy ?? 0, 'dy') })
+      }
       return event
     }
     case 'reply':
@@ -152,7 +158,7 @@ export function foldEvents(events) {
   const owner = new Map()
   for (const e of events) {
     if (e.op === 'add' && !threads.has(e.id)) {
-      threads.set(e.id, { id: e.id, at: e.at, name: e.name, text: e.text, frame: e.frame ?? null, x: e.x, y: e.y, file: e.file ?? null, anchor: e.anchor ?? null, box: e.box ?? null, items: e.items ?? [], agent: !!e.agent, resolved: false, resolvedBy: null, replies: [] })
+      threads.set(e.id, { id: e.id, at: e.at, name: e.name, text: e.text, frame: e.frame ?? null, x: e.x, y: e.y, file: e.file ?? null, anchor: e.anchor ?? null, box: e.box ?? null, items: e.items ?? [], page: e.page ?? null, item: e.item ?? null, dx: e.dx ?? 0, dy: e.dy ?? 0, agent: !!e.agent, resolved: false, resolvedBy: null, replies: [] })
     } else if (e.op === 'reply' && threads.has(e.to)) {
       threads.get(e.to).replies.push({ id: e.id, at: e.at, name: e.name, text: e.text })
       owner.set(e.id, e.to)

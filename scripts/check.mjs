@@ -378,18 +378,35 @@ export async function check(options, { buildCanvas, serveCanvas } = {}) {
       await undoBack('the new text')
     })
 
-    await step('Undo is refused after a change from outside', async () => {
+    await step('Undo after a change from outside keeps it; refused where that change touched the same place', async () => {
       await pick(textSel, { alt: true })
       await page.evaluate(() => window.designCanvas.editor.setStyle({ 'letter-spacing': '1px' }))
       await settle()
       const edited = mem(file)
-      server.canvas.outside(file, `${edited}\n`)
+      must(edited.includes('letter-spacing: 1px'), 'the letter spacing was not written')
+      server.canvas.outside(file, `${edited}\n<!-- outside -->\n`)
+      await settle()
+      await page.keyboard.press('Control+z')
+      await settle()
+      must(mem(file) === `${original}\n<!-- outside -->\n`, 'the undo did not take the spacing off and keep the outside change')
+      server.canvas.outside(file, original)
+      await settle()
+      await pick(textSel, { alt: true })
+      await page.evaluate(() => window.designCanvas.editor.setStyle({ 'letter-spacing': '1px' }))
+      await settle()
+      must(mem(file).includes('letter-spacing: 1px'), 'the letter spacing set after the outside change was not written')
+      const respaced = mem(file).replace('letter-spacing: 1px', 'letter-spacing: 2px')
+      server.canvas.outside(file, respaced)
+      await settle()
       expectedErrors++
       await page.keyboard.press('Control+z')
       await settle()
       expectedErrors--
-      must(mem(file) === `${edited}\n`, 'the undo went through over an outside change')
+      must(mem(file) === respaced, 'the undo went through over an outside change to the same place')
       server.canvas.outside(file, original)
+      await settle()
+      await page.waitForFunction(() => window.designCanvas.frames.every((f) => !f.el || f.doc), null, { timeout: 5000 })
+      return 'kept elsewhere, refused on the same place'
     })
 
     await step('An element the prototype\'s script made can be inspected and not edited', async () => {

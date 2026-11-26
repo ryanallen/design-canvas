@@ -35,6 +35,7 @@ import { inlineCss, inlineFile } from './lib/inline.mjs'
 import { writeFileAtomic } from './lib/write.mjs'
 import { cropToOption } from './lib/crop.mjs'
 import { familyValue, fetchWebFont, WEB_FONTS } from './lib/webfont.mjs'
+import { rebase } from './lib/rebase.mjs'
 import { launchChromium } from './lib/browser.mjs'
 import { CANVAS_MARK, foldBoard, foldEvents, insertEvent, makeBoardEvent, makeEvent, parseEvents, parseLines, randomId, storedLines } from './lib/events.mjs'
 
@@ -682,15 +683,20 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         const step = from.pop()
         if (!step) return json(res, 200, { none: true })
         const back = url.pathname === '/api/undo'
-        const want = back ? step.before : step.after
-        // Every file the step changed (a component's copies on other screens too) is checked before any is written.
+        // Every file the step changed (a component's copies on other screens too) is worked out before any is
+        // written. A file changed outside since (an agent wrote another part of it) has the step's own change undone
+        // in it and the rest kept; when the part the step changed was itself changed, nothing is undone, and the step
+        // stays to be tried again.
         const parts = [{ file: step.file, before: step.before, after: step.after }, ...(step.also ?? [])]
-        const moved = parts.find((p) => readFile(p.file) !== (back ? p.after : p.before))
-        if (moved) {
-          return json(res, 409, { error: `${moved.file} changed outside the canvas since; nothing was undone` })
+        const next = parts.map((p) => rebase(readFile(p.file), back ? p.after : p.before, back ? p.before : p.after))
+        const stuck = parts.find((p, i) => next[i] == null)
+        if (stuck) {
+          from.push(step)
+          return json(res, 409, { error: `${stuck.file} changed outside the canvas where this was made; nothing was ${back ? 'undone' : 'redone'}` })
         }
-        for (const p of parts) writeFile(p.file, back ? p.before : p.after)
+        parts.forEach((p, i) => writeFile(p.file, next[i]))
         to.push(step)
+        const want = next[0]
         record({ op: url.pathname.slice(5), id: randomId('e'), at: new Date().toISOString(), name: String(name || 'someone').slice(0, 80), file: step.file, summary: url.pathname === '/api/undo' ? 'undid the last edit' : 'redid an edit', sha: sha(want) })
         if (step.sheet) {
           const text = sheetChanged(step.file, want)
@@ -773,7 +779,13 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
       else json(res, err.status ?? 400, { error: err.message })
     }
   })
-  server.canvas = { get text() { return memory ? renderPage(payload, lines) : canvasText }, readFile, get lines() { return lines }, get payload() { return payload }, outside: (file, text) => (memory ? mem.set(file, text) : writeFileAtomic(path.join(folder, file), text)) }
+  server.canvas = { get text() { return memory ? renderPage(payload, lines) : canvasText }, readFile, get lines() { return lines }, get payload() { return payload }, outside: (file, text) => {
+    // As a write from outside: on disk the watcher tells the pages; in memory they are told here, as the watcher would.
+    if (!memory) return writeFileAtomic(path.join(folder, file), text)
+    mem.set(file, text)
+    refresh(file)
+    tell('file', { file })
+  } }
   // A port another canvas (or anything else) already holds: unless this one was asked for by
   // name, the next free one up to 20 along; otherwise one plain line, not a stack.
   let at = port

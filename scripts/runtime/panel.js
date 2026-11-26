@@ -556,7 +556,17 @@
         field('Color', color(S('color'), (v) => set({ color: v }), null, lever(el, 'color'))),
         contrast(el),
         field('Emphasis', seg([['underline', 'U̲', 'Underline'], ['line-through', 'S̶', 'Strikethrough']], deco.includes('underline') ? 'underline' : deco.includes('line-through') ? 'line-through' : '', (v) => set({ 'text-decoration': deco.includes(v) ? 'none' : v }))),
-        field('Align', seg([['left', '⇤', 'Left'], ['center', '↔', 'Centre'], ['right', '⇥', 'Right'], ['justify', '☰', 'Justify']], c.textAlign === 'start' ? 'left' : c.textAlign, (v) => set({ 'text-align': v })))))
+        field('Align', seg([['left', '⇤', 'Left'], ['center', '↔', 'Centre'], ['right', '⇥', 'Right'], ['justify', '☰', 'Justify']], c.textAlign === 'start' ? 'left' : c.textAlign, (v) => set({ 'text-align': v }))),
+        // Figma's Case: the letters as typed, or shown upper, lower or title case without changing the words.
+        field('Case', seg([['none', '—', 'As typed'], ['uppercase', 'AG', 'Upper case'], ['lowercase', 'ag', 'Lower case'], ['capitalize', 'Ag', 'Title case']], across((x, k) => k.textTransform), (v) => set({ 'text-transform': v }))),
+        // Figma's Truncate text: past so many lines the text stops with an ellipsis.
+        (() => {
+          const lines = across((x, k) => k.webkitLineClamp ?? k.getPropertyValue('-webkit-line-clamp'))
+          const on = lines !== 'none' && lines !== '' && lines !== MIXED
+          const clamp = (n) => set({ display: '-webkit-box', '-webkit-box-orient': 'vertical', '-webkit-line-clamp': String(n), overflow: 'hidden' })
+          return field('Truncate', seg([['off', 'Off'], ['on', 'Lines']], on ? 'on' : lines === MIXED ? '' : 'off', (v) => (v === 'on' ? (on ? null : clamp(2)) : on ? set({ display: '', '-webkit-box-orient': '', '-webkit-line-clamp': '', overflow: '' }) : null)),
+            on ? input(lines, (v) => { const n = Math.round(Number(v)); if (n >= 1) clamp(n) }, { class: 'n s', title: 'How many lines show before the ellipsis', 'aria-label': 'Lines shown' }) : null)
+        })()))
     }
 
     // Appearance
@@ -658,8 +668,8 @@
       const [, col, x, y, b, s, inset] = one
       const n0 = (v) => Math.round((Number(String(v).replace(/px$/, '')) || 0) * 100) / 100
       const write = (parts) => {
-        const p = { col, x, y, b, s, ...parts }
-        set({ 'box-shadow': `${n0(p.x)}px ${n0(p.y)}px ${Math.max(0, n0(p.b))}px ${n0(p.s)}px ${p.col}${inset ? ' inset' : ''}` })
+        const p = { col, x, y, b, s, inset: inset ?? '', ...parts }
+        set({ 'box-shadow': `${n0(p.x)}px ${n0(p.y)}px ${Math.max(0, n0(p.b))}px ${n0(p.s)}px ${p.col}${p.inset ? ' inset' : ''}` })
       }
       // A colour picked keeps the shadow's see-through (a picker has none of its own).
       const alpha = /rgba\([^)]*,\s*([\d.]+)\)/.exec(col)?.[1] ?? '1'
@@ -668,6 +678,8 @@
         return m ? `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${alpha})` : String(v).trim()
       }
       return [
+        // Figma's Drop shadow and Inner shadow: the same shadow, cast outside or inside the element.
+        field('Shadow type', seg([['drop', 'Drop'], ['inner', 'Inner']], inset ? 'inner' : 'drop', (v) => write({ inset: v === 'inner' ? ' inset' : '' }))),
         field('Shadow', ...[['x', 'X', x], ['y', 'Y', y], ['b', 'Blur', b], ['s', 'Spread', s]].map(([k, title, v]) => h('label', { class: 'cap' }, input(n0(v), (nv) => write({ [k]: nv }), { class: 'n s', title, 'aria-label': `Shadow ${title}` }), h('small', {}, title)))),
         field('Shadow colour', color(col, (v) => write({ col: withAlpha(v) }), () => set({ 'box-shadow': 'none' }))),
       ]

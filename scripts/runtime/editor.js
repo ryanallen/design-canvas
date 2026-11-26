@@ -1321,12 +1321,17 @@
   }
   /** Bold, italic or underline on or off: when the element's CSS alone already gives what is wanted, its own value is removed; otherwise the value is written. */
   function toggleStyle(prop, on, onValue, offValue, isOn, read = prop) {
-    const el = primary()
-    const own = el.style.getPropertyValue(prop)
-    el.style.removeProperty(prop)
-    const byCss = isOn(cs(el).getPropertyValue(read))
-    if (own) el.style.setProperty(prop, own)
-    setStyle({ [prop]: byCss === on ? '' : on ? onValue : offValue })
+    // Each element selected on its own: a headline bold by its CSS needs nothing to be bold, the paragraph beside it
+    // needs a weight written.
+    const each = sel.els.filter(live).map((x) => {
+      const own = x.style.getPropertyValue(prop)
+      x.style.removeProperty(prop)
+      const byCss = isOn(cs(x).getPropertyValue(read))
+      if (own) x.style.setProperty(prop, own)
+      return { x, value: byCss === on ? '' : on ? onValue : offValue }
+    })
+    if (new Set(each.map((e) => e.value)).size === 1 || everyCopy() || dc.stateRuleFor?.(primary())) return setStyle({ [prop]: each[0].value })
+    send({ op: 'styles', items: each.filter((e) => editable(e.x) && cvOf(e.x) != null).map((e) => ({ cv: cvOf(e.x), props: { [prop]: e.value } })) }, { then: reselect() })
   }
   function colorButton(title, prop, value, onPick, targets = () => sel?.els.filter(live) ?? []) {
     const input = h('input', { type: 'color', value: rgbHex(value), 'aria-label': title })

@@ -525,6 +525,26 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
       if (url.pathname === '/api/artboard' && req.method === 'POST') {
         // A new blank prototype in the folder, placed on the board where it was drawn.
         const body = await readBody(req)
+        // Or copies of prototypes on the board (Ctrl+D on screens): each file copied whole to <name>-copy.html, the
+        // next free name, and placed where asked.
+        if (Array.isArray(body.copies)) {
+          if (memory) return json(res, 409, { error: 'a canvas held in memory makes no files' })
+          const made = []
+          for (const c of body.copies.slice(0, 20)) {
+            const from = String(c?.from ?? '')
+            if (!onCanvas(from)) return json(res, 404, { error: `${from} is not on this canvas` })
+            const base = from.replace(/\.html$/, '').replace(/^.*\//, '').replace(/[^A-Za-z0-9-]+/g, '-').slice(0, 54)
+            const dir = from.includes('/') ? from.slice(0, from.lastIndexOf('/') + 1) : ''
+            let file = `${dir}${base}-copy.html`
+            for (let n = 2; fs.existsSync(path.join(folder, file)) || payload.files[file]; n++) file = `${dir}${base}-copy-${n}.html`
+            writeFileAtomic(path.join(folder, file), readFile(from))
+            lines.push(insertEvent('', makeBoardEvent({ op: 'move', key: file, x: Number(c.x) || 0, y: Number(c.y) || 0, page: body.page, name: body.by }), 'board').trim())
+            made.push(file)
+          }
+          writeOut()
+          await rebuild()
+          return json(res, 200, { files: made })
+        }
         const base = String(body.name ?? '').trim().toLowerCase().replace(/\.html$/, '').replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60)
         if (!base) return json(res, 400, { error: 'the artboard needs a name' })
         const file = `${base}.html`

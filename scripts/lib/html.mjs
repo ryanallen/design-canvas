@@ -430,12 +430,22 @@ function applyLinked(src, edit) {
  * Apply one edit. Returns the new source and the offset of the element to select afterwards.
  * Every op names elements by `data-cv` offsets taken from the source it is applied to.
  */
+// A page has one <html>, one <head> and one <body>: none of them is copied, removed, wrapped, unwrapped or moved.
+const PAGE_ROOTS = new Set(['html', 'head', 'body'])
+const RESHAPES = new Set(['delete', 'duplicate', 'wrap', 'unwrap', 'move'])
+
 function applyOne(src, edit) {
   const { byStart } = parse(src)
   const get = (cv) => {
     const el = byStart.get(Number(cv))
     if (!el) throw new Error(`no element at ${cv}; the file changed, reload the frame`)
     return el
+  }
+  if (RESHAPES.has(edit.op)) {
+    for (const cv of [edit.cv].flat()) {
+      const el = byStart.get(Number(cv))
+      if (el && PAGE_ROOTS.has(el.tag)) throw new Error(`The page's <${el.tag}> stays one and in its place`)
+    }
   }
   switch (edit.op) {
     case 'link': {

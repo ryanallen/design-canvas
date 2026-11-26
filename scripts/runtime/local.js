@@ -318,6 +318,41 @@
       case '/api/refresh':
         return answer(409, { error: 'Rebuilding lays the prototypes out again, which needs node: node scripts/canvas.mjs build <folder>' })
       case '/api/artboard': {
+        // Copies of prototypes on the board (Ctrl+D on screens): each file copied whole to <name>-copy.html.
+        if (Array.isArray(body.copies)) {
+          const files = []
+          const events = []
+          for (const c of body.copies.slice(0, 20)) {
+            const from = String(c?.from ?? '')
+            if (!known(from)) return answer(404, { error: `${from} is not on this canvas` })
+            const base = from.replace(/\.html$/, '').replace(/^.*\//, '').replace(/[^A-Za-z0-9-]+/g, '-').slice(0, 54)
+            const dir = from.includes('/') ? from.slice(0, from.lastIndexOf('/') + 1) : ''
+            const taken = async (f) => {
+              if (raw.has(f)) return true
+              if (play) return false
+              try {
+                await fileHandle(f)
+                return true
+              } catch {
+                return false
+              }
+            }
+            let file = `${dir}${base}-copy.html`
+            for (let n = 2; await taken(file); n++) file = `${dir}${base}-copy-${n}.html`
+            const html = raw.get(from)
+            raw.set(file, html)
+            await write(file, html)
+            data.files[file] = await served(file)
+            data.meta[file] = { ...(data.meta[from] ?? { levers: [], fluid: false, play: false }) }
+            ;(data.loose ??= []).push({ file, hash: '', label: file.replace(/\.html$/, ''), w: Math.round(Number(c.w) || 1440), h: Math.round(Number(c.h) || 900) })
+            const event = makeBoardEvent({ op: 'move', key: file, x: Number(c.x) || 0, y: Number(c.y) || 0, page: body.page, name: body.by })
+            lines.push(lineOf(event, 'board'))
+            files.push(file)
+            events.push(event)
+          }
+          await writeCanvas(files)
+          return answer(200, { files, events })
+        }
         const base = String(body.name ?? '').trim().toLowerCase().replace(/\.html$/, '').replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60)
         if (!base) return answer(400, { error: 'the artboard needs a name' })
         const file = `${base}.html`

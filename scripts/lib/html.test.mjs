@@ -311,6 +311,15 @@ test('decl changes a declaration of the prototype\'s own rule where it is writte
   assert.throws(() => applyEdit(src, { op: 'decl', selector: '.x', prop: 'color: red; x', value: 'red' }), /not a property/)
 })
 
+test("the page's html, head and body are never copied, removed, wrapped or moved", () => {
+  const src = '<!doctype html>\n<html>\n<head><title>t</title></head>\n<body>\n<h1>Hi</h1>\n</body>\n</html>\n'
+  for (const tagName of ['html', 'head', 'body']) {
+    const cv = src.indexOf(`<${tagName}`)
+    for (const op of ['delete', 'duplicate', 'wrap', 'unwrap']) assert.throws(() => applyEdit(src, { op, cv, tag: 'div' }), /stays one/, `${op} ${tagName}`)
+  }
+  assert.equal(applyEdit(src, { op: 'duplicate', cv: src.indexOf('<h1') }).src.split('<h1>').length, 3)
+})
+
 test('a linked stylesheet: one declaration of its nth rule changed in the file, comments and @media counted as the browser does', () => {
   const css = '@import url(base.css);\n/* .title { color: blue } */\n.title { color: #123; font-size: 30px; }\n@media (min-width: 600px) {\n  .title { color: #456; }\n}\n.note{color:gray}\n'
   assert.equal(cssDecl(css, '.title', 0, 'color', '#a00'), css.replace('#123', '#a00'))

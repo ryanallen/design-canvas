@@ -1186,6 +1186,35 @@
     const list = selectedItems()
     if (list.length) placeCopies(list, 24, 24)
   }
+  /** Ctrl+D on screens: each prototype file copied whole to <name>-copy.html, placed to the right of its original,
+   *  past any screen in the way, as Figma duplicates a frame. */
+  async function duplicateScreens(list) {
+    list = list.filter((f) => f && !f.crop && !f.key.includes('#'))
+    if (!list.length) return
+    const taken = frames().map((f) => ({ x: f.x, y: f.y, w: f.W, h: f.H }))
+    const copies = list.map((f) => {
+      const spot = { x: f.x + f.W + 80, y: f.y, w: f.W, h: f.H }
+      for (let hit = taken.find((t) => overlaps(t, spot)); hit; hit = taken.find((t) => overlaps(t, spot))) spot.x = hit.x + hit.w + 80
+      taken.push(spot)
+      return { from: f.file, x: spot.x, y: spot.y, w: f.W, h: f.H }
+    })
+    try {
+      const res = await fetch('/api/artboard', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ copies, page: pageId, by: me || 'someone' }) })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.error || `Duplicating failed (${res.status})`)
+      // Served by node, the server rebuilds and every page reloads; from disk, the frames are added here.
+      if (body.events?.length) {
+        boardEvents.push(...body.events)
+        board = foldBoard(boardEvents)
+        layoutAll()
+        renderPage()
+        loadVisible()
+      }
+      hint(`${body.files.join(', ')} made`, 2000)
+    } catch (err) {
+      hint(err.message, 4000)
+    }
+  }
   function copyItems() {
     const list = selectedItems()
     if (!list.length) return false
@@ -2931,7 +2960,8 @@
         e.preventDefault()
         return restack(k === ']')
       }
-      const done = k === 'd' ? (selectedItems().length ? (duplicateItems(), true) : false) : k === 'c' ? copyItems() : k === 'v' ? pasteItems() : false
+      const screens = k === 'd' && chosen?.frames.size ? frames().filter((f) => chosen.frames.has(f.key)) : []
+      const done = k === 'd' ? (selectedItems().length || screens.length ? (selectedItems().length && duplicateItems(), screens.length && duplicateScreens(screens), true) : false) : k === 'c' ? copyItems() : k === 'v' ? pasteItems() : false
       if (done) return e.preventDefault()
     }
     // Figma's align keys, by the key's place so a Mac's Option characters do not matter.
@@ -3060,7 +3090,7 @@
     get pages() { return pages() },
     get threads() { return threads },
     overlay, viewport, world,
-    toWorld, toScreen, frameAt, findFrame, showFrame, docFor, plainFile, reloadFile, reloadSheet, relayout, downloadFile,
+    toWorld, toScreen, frameAt, findFrame, showFrame, docFor, plainFile, reloadFile, reloadSheet, duplicateScreens, relayout, downloadFile,
     setTool, openPanel, setPanel, currentTab, openMenu, closeMenu, question, sure, openPlay, goPage, moveFrameToPage,
     startComment, commentOn, openAsk, renderPins, pickItem, apply, sendBoard, showEmpty,
     setName: (n) => setName(n),

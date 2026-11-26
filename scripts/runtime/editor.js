@@ -1062,7 +1062,8 @@
     const el = primary()
     if (!sel || !el) return false
     if (mod && e.altKey && k === 'k') ops.makeComponent()
-    else if (mod && k === 'd') ops.duplicate()
+    // The whole screen selected (its label clicked): Ctrl+D copies the screen, as Figma duplicates a frame.
+    else if (mod && k === 'd') el.localName === 'body' ? dc.duplicateScreens([sel.frame]) : ops.duplicate()
     else if (mod && k === 'g') e.shiftKey ? ops.ungroup() : ops.group()
     else if (mod && k === 'c') ops.copy()
     else if (mod && k === 'v') ops.paste()

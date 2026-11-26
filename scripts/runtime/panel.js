@@ -802,7 +802,12 @@
     }
     // A sheet outside the prototypes' folder is not the canvas's to write, and only a canvas served by node writes one.
     const writable = (r) => r.own || (r.sheet != null && !dc.local && !r.sheet.split('/').includes('..'))
-    const linkedBy = (sheet) => Object.values(dc.data.files).filter((html) => html.includes(`__RC_ASSET__(${sheet})`) || html.includes(`data-dc-sheet="${sheet}"`)).length
+    // How many screens link a sheet, counted once a sheet for this panel: a board can have a hundred screens.
+    const linkCounts = new Map()
+    const linkedBy = (sheet) => {
+      if (!linkCounts.has(sheet)) linkCounts.set(sheet, Object.values(dc.data.files).filter((html) => html.includes(`__RC_ASSET__(${sheet})`) || html.includes(`data-dc-sheet="${sheet}"`)).length)
+      return linkCounts.get(sheet)
+    }
     for (const [i, r] of rules.entries()) {
       const count = writable(r) ? el.ownerDocument.querySelectorAll(r.selector).length : 0
       const screens = r.sheet != null ? linkedBy(r.sheet) : 0

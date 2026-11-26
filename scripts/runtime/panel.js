@@ -183,12 +183,15 @@
     c.addEventListener('change', () => onPick(c.value))
     return h('div', { class: 'colorf' }, c, t, alpha && Number(alpha) < 1 ? h('span', { class: 'alpha', title: 'How see-through it is, kept when another colour is picked' }, `${Math.round(Number(alpha) * 100)}%`) : null, onRemove ? h('button', { type: 'button', class: 'mini', title: 'Remove', onclick: onRemove }, '−') : null)
   }
-  // What a computed background-image says of a gradient: null where there is none; { angle, from, to } for a linear
-  // one of two colours end to end; { rich: true } for any other.
+  // What a computed background-image says of a gradient: null where there is none; { kind, angle, from, to } for one of
+  // two colours end to end, as Figma's linear, radial and angular fills (an angular one turning from its angle); { rich:
+  // true } for any other.
   const gradientOf = (image) => {
     if (!image || !/gradient\(/.test(image)) return null
-    const m = /^linear-gradient\((.*)\)$/.exec(image.trim())
+    const m = /^(linear|radial|conic)-gradient\((.*)\)$/.exec(image.trim())
     if (!m) return { rich: true }
+    const kind = m[1]
+    m[1] = m[2]
     const parts = []
     let depth = 0
     let at = 0
@@ -201,14 +204,19 @@
     if (depth !== 0) return { rich: true }
     parts.push(m[1].slice(at).trim())
     const SIDES = { 'to top': 0, 'to right': 90, 'to bottom': 180, 'to left': 270 }
-    let angle = 180
-    const deg = /^(-?[\d.]+)deg$/.exec(parts[0])
-    if (deg) { angle = ((Number(deg[1]) % 360) + 360) % 360; parts.shift() } else if (parts[0] in SIDES) { angle = SIDES[parts[0]]; parts.shift() } else if (/^to |turn$|rad$/.test(parts[0])) return { rich: true }
+    let angle = kind === 'conic' ? 0 : 180
+    if (kind === 'linear') {
+      const deg = /^(-?[\d.]+)deg$/.exec(parts[0])
+      if (deg) { angle = ((Number(deg[1]) % 360) + 360) % 360; parts.shift() } else if (parts[0] in SIDES) { angle = SIDES[parts[0]]; parts.shift() } else if (/^to |turn$|rad$/.test(parts[0])) return { rich: true }
+    } else if (kind === 'conic') {
+      const from = /^from (-?[\d.]+)deg$/.exec(parts[0])
+      if (from) { angle = ((Number(from[1]) % 360) + 360) % 360; parts.shift() } else if (!/^rgba?\(/.test(parts[0])) return { rich: true }
+    } else if (!/^rgba?\(/.test(parts[0])) return { rich: true }
     if (parts.length !== 2) return { rich: true }
     const stop = (t, end) => { const k = /^(rgba?\([^)]*\))(?:\s+([\d.]+)%)?$/.exec(t); return k && (k[2] == null || Number(k[2]) === end) ? k[1] : null }
     const from = stop(parts[0], 0)
     const to = stop(parts[1], 100)
-    return from && to ? { angle, from, to } : { rich: true }
+    return from && to ? { kind, angle, from, to } : { rich: true }
   }
   const section = (title, adds, ...body) => h('section', { class: 'psec' }, h('header', {}, h('b', {}, title), adds ? h('button', { type: 'button', class: 'mini', title: `Add a property to ${title}`, onclick: (e) => addProp(e.currentTarget, adds) }, '+') : null), ...body)
   function addProp(anchor, props) {
@@ -560,14 +568,16 @@
     const lattice = ed.gridOf(el)
     const mesh = lattice ? null : ed.meshOf(c.backgroundImage)
     const grad = lattice || mesh ? null : gradientOf(c.backgroundImage)
-    const gradCss = (g) => `linear-gradient(${g.angle}deg, ${g.from}, ${g.to})`
+    const gradCss = (g) => (g.kind === 'radial' ? `radial-gradient(${g.from}, ${g.to})` : g.kind === 'conic' ? `conic-gradient(from ${g.angle}deg, ${g.from}, ${g.to})` : `linear-gradient(${g.angle}deg, ${g.from}, ${g.to})`)
     const gradFields = !grad
       ? []
       : grad.rich
         ? [field('Gradient', h('span', { class: 'val', title: c.backgroundImage }, 'Set in the Code tab'), h('button', { type: 'button', class: 'mini', title: 'Remove the gradient', onclick: () => set({ 'background-image': 'none' }) }, '−'))]
         : [
-            field('Gradient', color(grad.from, (v) => set({ 'background-image': gradCss({ ...grad, from: v }) }), () => set({ 'background-image': 'none' }))),
-            field('To · Angle', color(grad.to, (v) => set({ 'background-image': gradCss({ ...grad, to: v }) })), input(grad.angle, (v) => { if (Number.isFinite(Number(v))) set({ 'background-image': gradCss({ ...grad, angle: ((Number(v) % 360) + 360) % 360 }) }) }, { class: 'n s', title: 'Angle in degrees: 180 runs top to bottom, 90 left to right' }))
+            field('Gradient', seg([['linear', 'Linear'], ['radial', 'Radial'], ['conic', 'Angular']], grad.kind, (v) => set({ 'background-image': gradCss({ ...grad, kind: v, angle: v === 'conic' && grad.kind !== 'conic' ? 0 : v === 'linear' && grad.kind !== 'linear' ? 180 : grad.angle }) }))),
+            field(grad.kind === 'radial' ? 'From' : 'From · Angle', color(grad.from, (v) => set({ 'background-image': gradCss({ ...grad, from: v }) }), () => set({ 'background-image': 'none' })),
+              grad.kind === 'radial' ? null : input(grad.angle, (v) => { if (Number.isFinite(Number(v))) set({ 'background-image': gradCss({ ...grad, angle: ((Number(v) % 360) + 360) % 360 }) }) }, { class: 'n s', title: grad.kind === 'conic' ? 'Where it starts turning, in degrees from the top' : 'Angle in degrees: 180 runs top to bottom, 90 left to right' })),
+            field(grad.kind === 'radial' ? 'To (the edge)' : 'To', color(grad.to, (v) => set({ 'background-image': gradCss({ ...grad, to: v }) }))),
           ]
     // A mesh: its points, each a colour, how far it reaches, and − to take it out; + adds one in the middle. The points
     // are dragged on the element itself.
@@ -629,7 +639,7 @@
     const startGradient = () => {
       const m = /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)/.exec(bg === 'rgba(0, 0, 0, 0)' ? 'rgb(255, 255, 255)' : bg) ?? [0, 255, 255, 255]
       const [r, g, b2] = [m[1], m[2], m[3]].map(Number)
-      set({ 'background-image': gradCss({ angle: 180, from: `rgb(${r}, ${g}, ${b2})`, to: `rgb(${Math.round(r * 0.7)}, ${Math.round(g * 0.7)}, ${Math.round(b2 * 0.7)})` }) })
+      set({ 'background-image': gradCss({ kind: 'linear', angle: 180, from: `rgb(${r}, ${g}, ${b2})`, to: `rgb(${Math.round(r * 0.7)}, ${Math.round(g * 0.7)}, ${Math.round(b2 * 0.7)})` }) })
     }
     const op = Math.round(Number(c.opacity) * 100)
     const slider = h('input', { type: 'range', min: 0, max: 100, value: op })

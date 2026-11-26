@@ -1752,6 +1752,16 @@
             look ? { label: 'Paste properties', key: 'Ctrl+Alt+V', run: ops.pasteProps } : null,
           ]
         : []),
+      // A link that opens the canvas on this screen, as Figma's Copy link to a frame.
+      { label: 'Copy link to this screen', run: async () => {
+        const url = `${location.origin}${location.pathname}#page=${encodeURIComponent(dc.page)}&screen=${encodeURIComponent(sel.frame.key)}`
+        try {
+          await navigator.clipboard.writeText(url)
+          hint('Link copied: it opens the canvas on this screen', 1800)
+        } catch {
+          hint(url, 8000)
+        }
+      } },
       // A picture of it, locked or not.
       dc.serve && !dc.local ? { label: 'Copy as PNG', key: 'Ctrl+Shift+C', run: ops.copyPng } : null,
       dc.serve && !dc.local ? { label: 'Export PNG', run: ops.exportPng } : null,

@@ -3200,7 +3200,23 @@
     want = want.trim().toLowerCase()
     return pages().find((p) => p.id.toLowerCase() === want || String(p.title).trim().toLowerCase() === want)?.id ?? null
   }
+  /** The screen `#screen=<file, key or name>` names, as Figma's link to a frame: the canvas opens on it. */
+  function screenFromHash() {
+    const m = /(?:^#|&)screen=([^&]+)/.exec(location.hash)
+    if (!m) return null
+    let want = m[1]
+    try { want = decodeURIComponent(want) } catch {}
+    return [...allFrames.values()].find((f) => f.key === want) ?? [...allFrames.values()].find((f) => f.file === want || f.label === want) ?? null
+  }
+  function goScreenFromHash() {
+    const f = screenFromHash()
+    if (!f) return false
+    if (f.page && f.page !== pageId) goPage(f.page)
+    showFrame(f)
+    return true
+  }
   addEventListener('hashchange', () => {
+    if (goScreenFromHash()) return
     const id = pageFromHash()
     if (id) goPage(id)
   })
@@ -3606,6 +3622,7 @@
       Object.assign(view, saved)
       apply()
     } else firstView()
+    goScreenFromHash()
     const tab = store.get('tab')
     if (store.get('panel')) openPanel(tab || 'properties')
     refresh()

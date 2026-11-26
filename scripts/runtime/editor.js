@@ -26,6 +26,10 @@
   const cs = (el) => win(el).getComputedStyle(el)
   /** An element's box as drawn. A group in a grid or flex row has none of its own (`display: contents`, so grouping
    *  moves nothing): its box is the one around what it holds. */
+  // An element turned or mirrored by its own rotate, scale or transform is as wide and high as it is laid out, not as
+  // the box drawn round it, as Figma's W and H read on a rotated layer.
+  const turned = (el) => el.offsetWidth != null && ['rotate', 'scale', 'transform'].some((p) => cs(el)[p] !== 'none')
+  const sizeOf = (el) => (turned(el) ? { width: el.offsetWidth, height: el.offsetHeight } : boxOf(el))
   function boxOf(el) {
     if (cs(el).display !== 'contents') return el.getBoundingClientRect()
     const rs = [...el.children].map(boxOf).filter((r) => r.width || r.height)
@@ -209,8 +213,8 @@
           const n = nameOf(el)
           // The size of what is selected: of several, the box round them all, as Figma's selection reads.
           const rs = sel.els.map(boxOf)
-          const w = sel.els.length > 1 ? Math.max(...rs.map((x) => x.right)) - Math.min(...rs.map((x) => x.left)) : b.r.width
-          const ht = sel.els.length > 1 ? Math.max(...rs.map((x) => x.bottom)) - Math.min(...rs.map((x) => x.top)) : b.r.height
+          const w = sel.els.length > 1 ? Math.max(...rs.map((x) => x.right)) - Math.min(...rs.map((x) => x.left)) : sizeOf(el).width
+          const ht = sel.els.length > 1 ? Math.max(...rs.map((x) => x.bottom)) - Math.min(...rs.map((x) => x.top)) : sizeOf(el).height
           one.append(h('div', { class: 'ov-tag' }, `${n.text}${sel.els.length > 1 ? ` · ${sel.els.length} ${everyCopy() ? 'copies' : 'selected'}` : ''}`, h('span', {}, `${Math.round(w)} × ${Math.round(ht)}`)))
           if (sel.els.length === 1 && editable(el) && !editing) {
             for (const hd of ['nw', 'ne', 'sw', 'se', 'e', 's']) one.append(h('div', { class: `handle ${hd}`, 'data-h': hd, onpointerdown: (e) => startResize(e, hd) }))
@@ -1993,7 +1997,7 @@
   const api = {
     get sel() { return sel },
     get editing() { return editing },
-    primary, select, pick, setStyle, send, sendSheet, everyCopy, reselect, setHidden, refreshFloat: () => renderFloat(), ops, undo, climb, cvOf, editable, nameOf, isText, cs, boxOf, copiesOf, copiesSelector, rgbHex, meshOf, meshCss, gridOf, writeGrid, regrid, shared, notEditable, anchorFor,
+    primary, select, pick, setStyle, send, sendSheet, everyCopy, reselect, setHidden, refreshFloat: () => renderFloat(), ops, undo, climb, cvOf, editable, nameOf, isText, cs, boxOf, sizeOf, copiesOf, copiesSelector, rgbHex, meshOf, meshCss, gridOf, writeGrid, regrid, shared, notEditable, anchorFor,
     hover: (frame, el) => {
       hover = el ? { frame, el } : null
       draw()

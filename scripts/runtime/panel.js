@@ -499,7 +499,7 @@
       else if (along) set({ flex: '1 1 0', [dim]: '' })
       else set({ [dim]: '100%' })
     }
-    const dimRow = (dim, label) => field(label, input(across((x) => Math.round((ed.boxOf?.(x) ?? x.getBoundingClientRect())[dim])),(v) => set({ [dim]: /^\d+(\.\d+)?$/.test(String(v).trim()) ? cssSize(dim, v) : px(v) }), { class: 'n' }), seg([['hug', 'Hug'], ['fixed', 'Fixed'], ['fill', 'Fill']], sizeMode(dim), (m) => setMode(dim, m)))
+    const dimRow = (dim, label) => field(label, input(across((x) => Math.round(ed.sizeOf(x)[dim])),(v) => set({ [dim]: /^\d+(\.\d+)?$/.test(String(v).trim()) ? cssSize(dim, v) : px(v) }), { class: 'n' }), seg([['hug', 'Hug'], ['fixed', 'Fixed'], ['fill', 'Fill']], sizeMode(dim), (m) => setMode(dim, m)))
     // The whole screen selected: its width is the screen's own (its canvas-width), as a Figma frame's is; its height
     // is measured from what it holds.
     const screen = el.localName === 'body' ? ed.sel.frame : null
@@ -511,12 +511,27 @@
     if (screen) host.append(section('Screen', [],
       field('Width', input(String(screen.w), setScreenWidth, { class: 'n' }), seg(dc.ARTBOARD_SIZES.map(([name, w]) => [w, String(w), name]), screen.w, setScreenWidth)),
       field('Height', h('span', { class: 'val' }, `${Math.round(screen.h)} · from what it holds`))))
+    // Figma's rotation and flips: the CSS rotate and scale properties, apart from any transform the element has, so
+    // an entrance or a hover's transform still plays on top; 90° turns it a quarter, ⇋ and ⇵ mirror it.
+    function turnRow() {
+      const deg = (k) => { const m = /^(-?[\d.]+)deg$/.exec(k.rotate); return m ? Math.round(Number(m[1]) * 100) / 100 : 0 }
+      const scales = (k) => { const n = k.scale === 'none' ? [1, 1] : k.scale.split(/\s+/).map(Number); return [n[0], n[1] ?? n[0], ...n.slice(2)] }
+      const scaleCss = ([x, y, ...z]) => (x === 1 && y === 1 && !z.length ? '' : [x, y, ...z].join(' '))
+      const turn = (n) => (n % 360 === 0 ? '' : `${Math.round((((n % 360) + 540) % 360 - 180) * 100) / 100}deg`)
+      const now = across((x, k) => deg(k))
+      const flip = (i) => eachOwn((k) => { const sc = scales(k); sc[i] = -sc[i]; return { scale: scaleCss(sc) } })
+      return field('Rotation', input(now, (v) => { const n = Number(String(v).replace(/°|deg$/g, '')); if (Number.isFinite(n)) set({ rotate: turn(n) }) }, { class: 'n', title: 'Turned, in degrees', 'aria-label': 'Rotation' }), h('span', { class: 'val unit' }, '°'),
+        h('button', { type: 'button', class: 'mini', title: 'Turn 90° clockwise', onclick: () => eachOwn((k) => ({ rotate: turn(deg(k) + 90) })) }, '↻'),
+        h('button', { type: 'button', class: 'mini', title: 'Flip horizontal', 'aria-pressed': String(scales(c)[0] < 0), onclick: () => flip(0) }, '⇋'),
+        h('button', { type: 'button', class: 'mini', title: 'Flip vertical', 'aria-pressed': String(scales(c)[1] < 0), onclick: () => flip(1) }, '⇵'))
+    }
     host.append(section('Size', ['min-width', 'max-width', 'min-height', 'max-height', 'aspect-ratio', 'overflow', 'margin', 'z-index', 'inset'],
       screen ? null : dimRow('width', 'Width'),
       screen ? null : dimRow('height', 'Height'),
       field('Position', select(['static', 'relative', 'absolute', 'fixed', 'sticky'], c.position, (v) => set({ position: v }))),
       ['absolute', 'fixed', 'relative', 'sticky'].includes(c.position) ? field('Left · Top', input(across((x, k) => num(k.left)), (v) => set({ left: px(v) }), { class: 'n' }), input(across((x, k) => num(k.top)),(v) => set({ top: px(v) }), { class: 'n' })) : null,
-      parentFlex ? field('Grow', input(across((x, k) => k.flexGrow),(v) => set({ 'flex-grow': v }), { class: 'n' })) : null))
+      parentFlex ? field('Grow', input(across((x, k) => k.flexGrow),(v) => set({ 'flex-grow': v }), { class: 'n' })) : null,
+      screen ? null : turnRow()))
 
     // Layout
     const flex = c.display.includes('flex')

@@ -818,23 +818,18 @@
   let lastPoint = null
   viewport.addEventListener('pointermove', (e) => { lastPoint = { x: e.clientX, y: e.clientY } })
   const PICTURE_TYPES = /^image\/(png|jpeg|gif|webp|avif)$/
-  async function placePictures(files, at) {
+  /** Dropped on a prototype, or pasted while one of its elements is selected, the picture goes into that prototype
+   *  (the editor's placePicture); anywhere else, onto the board. */
+  async function placePictures(files, at, into = null) {
     const pics = [...files].filter((f) => PICTURE_TYPES.test(f.type))
     if (!pics.length) return false
     if (!serve) return hint(readOnly, 4000), true
-    const saved = []
-    for (const file of pics) {
-      try {
-        const res = await fetch(`/api/image?name=${encodeURIComponent(file.name || 'image')}`, { method: 'POST', headers: { 'content-type': file.type }, body: file })
-        const body = await res.json().catch(() => ({}))
-        if (!res.ok) throw new Error(body.error || `Saving the picture failed (${res.status})`)
-        const size = await new Promise((r) => { const img = new Image(); img.onload = () => r({ w: img.naturalWidth, h: img.naturalHeight }); img.onerror = () => r({ w: 400, h: 300 }); img.src = body.src })
-        const k = Math.min(1, 1200 / Math.max(1, size.w))
-        saved.push({ src: body.src, w: Math.max(1, Math.round(size.w * k)), h: Math.max(1, Math.round(size.h * k)) })
-      } catch (err) {
-        hint(err.message, 4000)
-      }
+    if (into) {
+      const [s] = await savePictures(pics.slice(0, 1))
+      if (s) call('placePicture', s.src, into)
+      return true
     }
+    const saved = await savePictures(pics)
     if (!saved.length) return true
     const p = toWorld(at.x, at.y)
     let x = Math.round(p.x - saved[0].w / 2)
@@ -849,6 +844,23 @@
     hint(saved.length > 1 ? `Placed ${saved.length} pictures` : 'Placed the picture', 1200)
     return true
   }
+  /** Each picture saved into the folder's images/, with its size to place it at (no wider than 1200). */
+  async function savePictures(pics) {
+    const saved = []
+    for (const file of pics) {
+      try {
+        const res = await fetch(`/api/image?name=${encodeURIComponent(file.name || 'image')}`, { method: 'POST', headers: { 'content-type': file.type }, body: file })
+        const body = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(body.error || `Saving the picture failed (${res.status})`)
+        const size = await new Promise((r) => { const img = new Image(); img.onload = () => r({ w: img.naturalWidth, h: img.naturalHeight }); img.onerror = () => r({ w: 400, h: 300 }); img.src = body.src })
+        const k = Math.min(1, 1200 / Math.max(1, size.w))
+        saved.push({ src: body.src, w: Math.max(1, Math.round(size.w * k)), h: Math.max(1, Math.round(size.h * k)) })
+      } catch (err) {
+        hint(err.message, 4000)
+      }
+    }
+    return saved
+  }
   viewport.addEventListener('dragover', (e) => {
     if ([...(e.dataTransfer?.items ?? [])].some((i) => i.kind === 'file')) e.preventDefault()
   })
@@ -856,14 +868,15 @@
     const files = e.dataTransfer?.files
     if (!files?.length || ![...files].some((f) => PICTURE_TYPES.test(f.type))) return
     e.preventDefault()
-    placePictures(files, { x: e.clientX, y: e.clientY })
+    const f = e.target.closest?.('.item') ? null : frameAt(e.clientX, e.clientY)
+    placePictures(files, { x: e.clientX, y: e.clientY }, f?.doc ? { frame: f, point: toWorld(e.clientX, e.clientY) } : null)
   })
   document.addEventListener('paste', (e) => {
     if (e.target.closest?.('input, textarea, [contenteditable="true"]') || document.body.classList.contains('playing')) return
     const files = e.clipboardData?.files
     if (!files?.length || ![...files].some((f) => PICTURE_TYPES.test(f.type))) return
     e.preventDefault()
-    placePictures(files, lastPoint ?? { x: innerWidth / 2, y: innerHeight / 2 })
+    placePictures(files, lastPoint ?? { x: innerWidth / 2, y: innerHeight / 2 }, call('selectedFile') ? { selected: true } : null)
   })
   /** The menu of the board objects selected: what their keys and bar do, in one place. */
   function itemMenu() {
@@ -3277,7 +3290,7 @@
         return restack(k === ']')
       }
       const screens = k === 'd' && chosen?.frames.size ? frames().filter((f) => chosen.frames.has(f.key)) : []
-      const done = k === 'd' ? (selectedItems().length || screens.length ? (selectedItems().length && duplicateItems(), screens.length && duplicateScreens(screens), true) : false) : k === 'c' ? copyItems() : k === 'v' ? pasteItems() : false
+      const done = k === 'd' ? (selectedItems().length || screens.length ? (selectedItems().length && duplicateItems(), screens.length && duplicateScreens(screens), true) : false) : k === 'c' ? copyItems() : k === 'v' ? !call('selectedFile') && pasteItems() : false
       if (done) return e.preventDefault()
     }
     // Figma's align keys, by the key's place so a Mac's Option characters do not matter.

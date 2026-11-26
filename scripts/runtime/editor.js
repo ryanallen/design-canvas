@@ -442,6 +442,19 @@
     return { frame: sel.frame, file: sel.frame.file, anchor: a, wx: sel.frame.x + b.left * sel.frame.s, wy: sel.frame.y + b.top * sel.frame.s, label: `${nameOf(el).text} in ${sel.frame.file}` }
   }
   hooks.onOutsideChange = () => {}
+  // A picture saved into the folder, put into a prototype: dropped on an <img> (or pasted with one selected), it
+  // takes that one's place, its srcset going with the old picture, as an image dropped on a Figma shape fills it;
+  // anywhere else a new <img> goes after the element there, or inside it when it holds others.
+  hooks.placePicture = (src, into) => {
+    const frame = into.selected ? sel?.frame : into.frame
+    const el = into.selected ? primary() : elementAt(frame, into.point) || frame?.doc?.body
+    if (!frame || !el) return
+    if (!editable(el) || cvOf(el) == null) return hint(notEditable(el), 3000)
+    const rel = `${'../'.repeat(frame.file.split('/').length - 1)}${src}`
+    if (el.localName === 'img') return send({ op: 'styles', items: [{ cv: cvOf(el), props: {}, attrs: { src: rel, srcset: null } }] }, { file: frame.file, key: frame.key })
+    const where = isText(el) || ['img', 'svg', 'input', 'hr', 'br', 'video', 'picture', 'canvas'].includes(el.localName) ? 'after' : 'inside'
+    send({ op: 'insert', cv: cvOf(el), where, html: `<img src="${rel}" alt="" style="max-width: 100%">` }, { file: frame.file, key: frame.key })
+  }
   // The file being typed in changed (an agent wrote it): kept, and drawn when the typing ends, so the words go on.
   hooks.holdFile = (file, html) => {
     if (editing?.frame.file !== file) return false
@@ -1304,7 +1317,8 @@
     else if (mod && k === 'd') el.localName === 'body' ? dc.duplicateScreens([sel.frame]) : ops.duplicate()
     else if (mod && k === 'g') e.shiftKey ? ops.ungroup() : ops.group()
     else if (mod && k === 'c') ops.copy()
-    else if (mod && k === 'v') ops.paste()
+    // With nothing copied here, Ctrl+V is left to the page: a picture on the clipboard goes into the prototype.
+    else if (mod && k === 'v' && clip) ops.paste()
     // Everything alongside the selection, as Figma's Ctrl+A: the selected element's siblings.
     else if (mod && k === 'a' && !e.shiftKey && !e.altKey) {
       const all = [...(el.parentElement?.children ?? [])].filter((c) => !SKIP.has(c.localName))

@@ -312,6 +312,7 @@
   }
   let paddingSides = false
   let radiusCorners = false
+  let borderSides = false
   // ── states: hover, pressed and focus, shown on the board and written as the element's :hover (…) rule ──
   let state = 'default'
   let shownIn = null // the element now shown in a state, and its style
@@ -717,6 +718,42 @@
           : field(label, input(now, (v) => { const n = Number(String(v).replace(/px$/, '')); if (Number.isFinite(n) && n >= 0) write(n) }, { class: 'n', title: `${tip}, in px`, 'aria-label': label }), h('span', { class: 'val unit' }, 'px'), h('button', { type: 'button', class: 'mini', title: `Remove ${label.toLowerCase()}`, onclick: () => write(0) }, '−'))
       })
     }
+    // Figma's stroke, side by side: a border on some sides only (a divider's line under it) is read from a side that
+    // has one, its style changes only the sides that have it, and each side's width can be set on its own.
+    function borderFields() {
+      const S = ['top', 'right', 'bottom', 'left']
+      const has = (k, s) => k.getPropertyValue(`border-${s}-style`) !== 'none' && num(k.getPropertyValue(`border-${s}-width`)) > 0
+      const litOf = (k) => S.find((s) => has(k, s))
+      const lit = litOf(c)
+      const style = lit ? c.getPropertyValue(`border-${lit}-style`) : 'none'
+      const colour = lit ? c.getPropertyValue(`border-${lit}-color`) : ''
+      const pick = (v) => (v === 'none'
+        ? set({ border: 'none' })
+        : eachOwn((k) => {
+          const on = S.filter((s) => has(k, s))
+          return on.length ? Object.fromEntries(on.map((s) => [`border-${s}-style`, v])) : { 'border-style': v, 'border-width': '1px', 'border-color': '#d1d5db' }
+        }))
+      const rows = [field('Border', seg([['none', 'None'], ['solid', 'Solid'], ['dashed', 'Dash'], ['dotted', 'Dot']], style, pick))]
+      if (!lit) return rows
+      const same = S.every((s) => has(c, s) && c.getPropertyValue(`border-${s}-width`) === c.borderTopWidth)
+      if (borderSides || !same) {
+        // A side given a width takes the style and colour of a side that has one.
+        const side = (s) => (v) => {
+          const n = Number(String(v).replace(/px$/, ''))
+          if (!Number.isFinite(n) || n < 0) return
+          eachOwn((k) => {
+            const from = litOf(k)
+            return has(k, s) || !n || !from ? { [`border-${s}-width`]: `${n}px` } : { [`border-${s}-width`]: `${n}px`, [`border-${s}-style`]: k.getPropertyValue(`border-${from}-style`), [`border-${s}-color`]: k.getPropertyValue(`border-${from}-color`) }
+          })
+        }
+        rows.push(
+          field('Border sides', ...S.map((s) => input(across((x, k) => (has(k, s) ? num(k.getPropertyValue(`border-${s}-width`)) : 0)), side(s), { class: 'n s', title: s, 'aria-label': `Border ${s}` })), same ? h('button', { type: 'button', class: 'mini', title: 'One width', onclick: () => { borderSides = false; renderProps() } }, '▢') : null),
+          field('Border colour', color(colour, (v) => set({ 'border-color': v }))))
+      } else {
+        rows.push(field('Width · Color', input(across((x, k) => num(k.borderTopWidth)), (v) => set({ 'border-width': px(v) }), { class: 'n' }), color(colour, (v) => set({ 'border-color': v })), h('button', { type: 'button', class: 'mini', title: 'Each side', onclick: () => { borderSides = true; renderProps() } }, '⊞')))
+      }
+      return rows
+    }
     host.append(section('Appearance',['background', 'box-shadow', 'filter', 'backdrop-filter', 'mix-blend-mode', 'outline', 'cursor', 'overflow'],
       field('Fill', color(bg, (v) => set({ 'background-color': v }), bg !== 'rgba(0, 0, 0, 0)' ? () => set({ 'background-color': '', background: '' }) : null, lever(el, 'background-color') ?? lever(el, 'background')), grad || mesh || lattice ? null : h('button', { type: 'button', class: 'mini', title: 'Gradient: fade this colour into another', onclick: startGradient }, '◐'), grad || mesh || lattice ? null : h('button', { type: 'button', class: 'mini', title: 'Mesh: colours blended from points you drag', onclick: startMesh }, '◍'), grad || mesh || lattice ? null : h('button', { type: 'button', class: 'mini', title: 'Grid mesh: a lattice of colours whose points bend them, as an Illustrator gradient mesh', onclick: startGrid }, '◫')),
       ...gradFields,
@@ -729,8 +766,7 @@
       radiusCorners || !sameR
         ? field('Radius', ...['top-left', 'top-right', 'bottom-right', 'bottom-left'].map((k) => input(across((x, s) => num(s.getPropertyValue(`border-${k}-radius`))), (v) =>set({ [`border-${k}-radius`]: px(v) }), { class: 'n s', title: k })), h('button', { type: 'button', class: 'mini', onclick: () => { radiusCorners = false; renderProps() } }, '▢'))
         : field('Radius', input(across((x, s) => lever(x, 'border-radius') ?? num(s.borderTopLeftRadius)),(v) => set({ 'border-radius': px(v) }), { class: 'n' }), h('button', { type: 'button', class: 'mini', title: 'Each corner', onclick: () => { radiusCorners = true; renderProps() } }, '⊞')),
-      field('Border', seg([['none', 'None'], ['solid', 'Solid'], ['dashed', 'Dash'], ['dotted', 'Dot']], c.borderTopStyle, (v) => (v === 'none' ? set({ border: 'none' }) : eachOwn((k) => ({ 'border-style': v, 'border-width': num(k.borderTopWidth) > 0 ? k.borderTopWidth : '1px', 'border-color': k.borderTopStyle === 'none' ? '#d1d5db' : k.borderTopColor }))))),
-      c.borderTopStyle !== 'none' ? field('Width · Color', input(across((x, k) => num(k.borderTopWidth)),(v) => set({ 'border-width': px(v) }), { class: 'n' }), color(c.borderTopColor, (v) => set({ 'border-color': v }))) : null,
+      ...borderFields(),
       ...shadowFields(),
       ...blurFields(),
       motionField(el, c),

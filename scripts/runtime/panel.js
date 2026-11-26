@@ -18,7 +18,10 @@
   const openFrames = new Set()
   let tweaksFrame = null
   const layersEl = () => (dc.currentTab() === 'code' ? $('#layers-c') : $('#layers-p'))
+  // A layer being renamed in its row: the list is not drawn again under the typing until the name is kept or left.
+  let renaming = false
   function renderLayers() {
+    if (renaming) return
     const host = layersEl()
     $('#layers-p').replaceChildren()
     $('#layers-c').replaceChildren()
@@ -110,12 +113,35 @@
       dragging = null
       ed.send({ op: 'move', cv: ed.cvOf(moved), target: ed.cvOf(el), where }, { file: f.file, key: f.key })
     })
-    row.addEventListener('dblclick', async (e) => {
+    // Renamed in the row itself, as in Figma's layers: Enter or a click away keeps the name, Escape leaves it.
+    row.addEventListener('dblclick', (e) => {
       e.preventDefault()
+      const label = row.querySelector('.ln')
+      if (!label) return
       const now = el.getAttribute('data-name') ?? ''
-      const name = await dc.question('Layer name (empty for none):', now || ed.nameOf(el).text.replace(/^[.#◇]\s*|"[^"]*"/g, '').trim())
-      if (name == null || name.trim() === now) return
-      ed.send({ op: 'attr', cv: ed.cvOf(el), name: 'data-name', value: name.trim() || null }, { file: f.file, key: f.key })
+      const field = h('input', { class: 'lname', value: now || ed.nameOf(el).text.replace(/^[.#◇]\s*|"[^"]*"/g, '').trim(), 'aria-label': 'Layer name', spellcheck: 'false' })
+      row.draggable = false
+      label.replaceWith(field)
+      renaming = true
+      field.focus()
+      field.select()
+      let done = false
+      const finish = (save) => {
+        if (done) return
+        done = true
+        renaming = false
+        const name = field.value.trim()
+        if (!save || name === now) return renderLayers()
+        ed.send({ op: 'attr', cv: ed.cvOf(el), name: 'data-name', value: name || null }, { file: f.file, key: f.key })
+      }
+      field.addEventListener('keydown', (ev) => {
+        ev.stopPropagation()
+        if (ev.key === 'Enter') finish(true)
+        else if (ev.key === 'Escape') finish(false)
+      })
+      field.addEventListener('keyup', (ev) => ev.preventDefault())
+      field.addEventListener('click', (ev) => ev.stopPropagation())
+      field.addEventListener('blur', () => finish(true))
     })
   }
   const kindGlyph = (k) => ({ Heading: 'H', Paragraph: '¶', Text: 'T', Button: '▭', Image: '▨', Vector: '✎', List: '☰', Item: '•', Row: '⇥', Column: '⇩', Grid: '▦', Field: '⎀', body: '#', named: '◆' }[k] ?? (k === 'group' ? '▢' : '§'))

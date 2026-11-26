@@ -2202,6 +2202,7 @@
     $('#comment-count').textContent = String(open)
     $('#comment-count').hidden = !open
     renderList()
+    renderPlayPins()
   }
   function renderList() {
     const list = $('#comment-list')
@@ -2402,6 +2403,18 @@
   }
   function placeThread() {
     if (!threadAt || !thread.classList.contains('open')) return
+    // In Play, beside its pin over the prototype.
+    if (playing && play.classList.contains('open')) {
+      const p = threadAt.thread ? playPointOf(threadAt.thread) : playDraft ? playPointOf({ draft: playDraft }) : null
+      if (p) {
+        const w = thread.offsetWidth || 300
+        const hgt = thread.offsetHeight || 200
+        const left = p.x + 24 + w > innerWidth - 12 ? Math.max(12, p.x - w - 12) : p.x + 24
+        thread.style.left = `${left}px`
+        thread.style.top = `${Math.max(56, Math.min(p.y - 30, innerHeight - hgt - 12))}px`
+        return
+      }
+    }
     const p = threadAt.thread ? anchorOf(threadAt.thread) : { x: threadAt.draft.wx, y: threadAt.draft.wy }
     const s = toScreen(p.x, p.y)
     const w = thread.offsetWidth || 300
@@ -2503,6 +2516,10 @@
     $('#play-title').textContent = `${pages().find((p) => p.id === f.page)?.title ?? ''} · ${f.label}`
     playFrame.srcdoc = docFor(f)
     play.classList.add('open')
+    document.body.classList.add('playing')
+    playCommentBtn.hidden = !api
+    playDraft = null
+    playPins.replaceChildren()
     setPlayWidth(width ?? (f.meta.fluid ? 'fill' : store.get('playWidth') || 'fill'))
     const list = playList()
     const at = list.indexOf(f)
@@ -2526,10 +2543,17 @@
     if (e.key === 'Escape') closePlay()
     else if (e.key === 'ArrowRight') stepPlay(1)
     else if (e.key === 'ArrowLeft') stepPlay(-1)
+    else if ((e.key === 'c' || e.key === 'C') && api) setPlayCommenting(playCatch.hidden)
     else return
     e.preventDefault()
   }
-  playFrame.addEventListener('load', () => playFrame.contentDocument?.addEventListener('keydown', playKey))
+  playFrame.addEventListener('load', () => {
+    playFrame.contentDocument?.addEventListener('keydown', playKey)
+    // Pins over the prototype follow it as it scrolls, and as its page settles.
+    playFrame.contentWindow?.addEventListener('scroll', () => { renderPlayPins(); placeThread() }, { passive: true })
+    renderPlayPins()
+    setTimeout(renderPlayPins, 400)
+  })
   $('#play-prev').addEventListener('click', () => stepPlay(-1))
   $('#play-next').addEventListener('click', () => stepPlay(1))
   /** On a touch screen a fixed width as wide as the screen or wider does nothing a finger can use. */
@@ -2560,15 +2584,102 @@
     } else Object.assign(playFrame.style, { width: `${w}px`, height: '100%', margin: '0 auto' })
     if (w !== 'fit') playFrame.style.margin = '0 auto'
     for (const b of play.querySelectorAll('[data-width]')) b.setAttribute('aria-pressed', String(b.dataset.width === String(w)))
+    requestAnimationFrame(() => renderPlayPins())
   }
   for (const b of play.querySelectorAll('[data-width]')) b.addEventListener('click', () => setPlayWidth(b.dataset.width))
   $('#play-close').addEventListener('click', () => closePlay())
   $('#play-download').addEventListener('click', () => playing && downloadFile(playing.file))
   function closePlay() {
     play.classList.remove('open')
+    document.body.classList.remove('playing')
+    setPlayCommenting(false)
+    playPins.replaceChildren()
+    playDraft = null
     playFrame.srcdoc = ''
     playing = null
   }
+
+  // ── comments in Play: C (or the button) and a click on the prototype pins a thread to the element there, as on the
+  // board, so it shows in both; the pins for the screen played sit over it and follow its scrolling ──
+  const playPins = $('#play-pins')
+  const playCatch = $('#play-catch')
+  const playCommentBtn = $('#play-comment')
+  let playDraft = null
+  function setPlayCommenting(on) {
+    playCatch.hidden = !on
+    playCommentBtn.setAttribute('aria-pressed', String(on))
+  }
+  playCommentBtn.addEventListener('click', () => setPlayCommenting(playCatch.hidden))
+  /** Where a thread's pin is on screen while its prototype is played, or null when it is not on this one. */
+  function playPointOf(t) {
+    const doc = playing && play.classList.contains('open') ? playFrame.contentDocument : null
+    if (!doc?.body) return null
+    const fr = playFrame.getBoundingClientRect()
+    const k = fr.width / (playFrame.offsetWidth || fr.width) || 1
+    let el = null
+    let dx = 0
+    let dy = 0
+    if (t.draft) ({ el, dx, dy } = t.draft)
+    else {
+      if (t.frame !== playing.key) return null
+      el = call('elementOfAnchor', doc, t)
+      dx = t.anchor?.dx ?? 0
+      dy = t.anchor?.dy ?? 0
+    }
+    if (el?.isConnected) {
+      const r = el.getBoundingClientRect()
+      return { x: fr.left + (r.left + Math.min(dx, r.width)) * k, y: fr.top + (r.top + Math.min(dy, r.height)) * k }
+    }
+    if (t.x == null) return null
+    const sc = doc.scrollingElement
+    return { x: fr.left + (t.x - (sc?.scrollLeft ?? 0)) * k, y: fr.top + (t.y - (sc?.scrollTop ?? 0)) * k }
+  }
+  function renderPlayPins() {
+    playPins.replaceChildren()
+    if (!playing || !play.classList.contains('open')) return
+    const stage = play.querySelector('.stage').getBoundingClientRect()
+    const shown = (p) => p && p.x >= stage.left && p.x <= stage.right && p.y >= stage.top && p.y <= stage.bottom + 28
+    for (const t of threads) {
+      if (t.frame !== playing.key || (t.resolved && !showResolved())) continue
+      const p = playPointOf(t)
+      if (!shown(p)) continue
+      playPins.append(h('button', {
+        type: 'button',
+        class: `pin${t.resolved ? ' resolved' : ''}${t.agent ? ' agent' : ''}${t.id === activeId ? ' active' : ''}`,
+        style: `left:${p.x}px;top:${p.y}px`,
+        title: `${t.name}: ${t.text}`,
+        onclick: (e) => { e.stopPropagation(); openThread(t.id) },
+      }, String(number(t))))
+    }
+    if (draft && playDraft) {
+      const p = playPointOf({ draft: playDraft })
+      if (shown(p)) playPins.append(h('div', { class: 'pin active', style: `left:${p.x}px;top:${p.y}px` }, '+'))
+    }
+  }
+  playCatch.addEventListener('click', (e) => {
+    setPlayCommenting(false)
+    if (!api) return hint(readOnly, 3000)
+    const doc = playFrame.contentDocument
+    if (!doc || !playing) return
+    const fr = playFrame.getBoundingClientRect()
+    const k = fr.width / (playFrame.offsetWidth || fr.width) || 1
+    const x = (e.clientX - fr.left) / k
+    const y = (e.clientY - fr.top) / k
+    const el = doc.elementFromPoint(x, y)
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const sc = doc.scrollingElement
+    const f = playing
+    const docX = x + (sc?.scrollLeft ?? 0)
+    const docY = y + (sc?.scrollTop ?? 0)
+    playDraft = { el, dx: x - r.left, dy: y - r.top }
+    const anchor = el.localName === 'html' || el.localName === 'body' ? undefined : call('anchorOfElement', el, x - r.left, y - r.top)
+    draft = { wx: f.x + docX * f.s, wy: f.y + docY * f.s, frame: f.key, x: Math.round(docX), y: Math.round(docY), page: f.page, agent: false, ...(anchor ? { file: f.file, anchor } : {}) }
+    activeId = null
+    renderPins()
+    showThread({ draft })
+  })
+  addEventListener('resize', () => renderPlayPins())
   // A link to another prototype, posted by the frame: move to that prototype.
   addEventListener('message', (e) => {
     if (!e.data || e.data.dc !== 'go' || e.source !== playFrame.contentWindow) return

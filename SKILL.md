@@ -69,6 +69,10 @@ Enter (or double-click) on a selected text element types in it. Enter while typi
 
 **Show flows on the board**, at the top of the Play menu, draws an arrow from each link in a screen to the screen on the page it opens (a link to `other.html` or `other.html#screen`), as Figma draws prototype connections: up from the link, over the tops of the screens, onto the top edge of the one it opens. Kept in that browser until **Hide flows**.
 
+## Commenting in Play
+
+Play shows a screen at full size; ← and → step through the page's screens. Where comments can be left, C or the comment button in its header and a click on the prototype pin a comment to the element there, the same anchor a comment made on the board gets, so it shows in both places; the pins for the screen played sit over it and follow it as it scrolls, and a pin opens its thread above Play.
+
 ## Layers
 
 The panel's Layers list the page's board objects and frames, and an open frame's elements, each named by its `data-name` or `aria-label`, else what it is and what it says. Served, a layer dragged onto another goes before it or after it (by the half it is dropped on), or inside it on the middle of one that holds others: one move in the file. Double-click names a layer, written as `data-name` (empty takes it off). The eye on a layer hides it, as `display: none` on the element so Play hides it too, and shows it again; a hidden layer's row is dimmed.

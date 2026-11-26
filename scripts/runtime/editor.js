@@ -470,6 +470,9 @@
     const r = boxOf(el)
     return { file: f.file, anchor: anchorFor(f, el, l.x - r.left, l.y - r.top) }
   }
+  // Play's own page: a comment dropped on one of its elements, and the element a thread is pinned to there.
+  hooks.anchorOfElement = (el, dx, dy) => anchorFor(null, el, dx, dy)
+  hooks.elementOfAnchor = (doc, t) => (t.anchor ? resolveAnchor(doc, t.anchor.path, t.anchor) : null)
   hooks.anchorPoint = (t, f) => {
     if (!f.doc || !t.anchor || (t.file && t.file !== f.file)) return null
     const el = resolveAnchor(f.doc, t.anchor.path, t.anchor)

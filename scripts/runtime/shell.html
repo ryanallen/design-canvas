@@ -88,9 +88,11 @@
     <span class="sep"></span>
     <button type="button" class="tool" data-width="fill">Fill</button>
     <button type="button" class="tool" data-width="fit">Fit</button>
+    <button type="button" class="tool" id="play-comment" title="Comment on it (C)" aria-pressed="false" hidden><span class="ico" data-icon="comment"></span></button>
     <button type="button" class="tool" id="play-download" title="Download this prototype"><span class="ico" data-icon="download"></span></button>
   </div>
-  <div class="stage"><iframe title="Prototype"></iframe></div>
+  <div class="stage"><iframe title="Prototype"></iframe><div id="play-catch" hidden></div></div>
+  <div id="play-pins"></div>
 </div>
 <div id="hint" role="status"></div>
 <!-- One question at a time, in the page's own look: a name, a link, a value, or yes to a delete.

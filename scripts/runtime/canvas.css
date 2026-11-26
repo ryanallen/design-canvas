@@ -409,6 +409,12 @@ body.panel-open #panel { display: flex; }
 #play .stage { flex: 1; overflow: auto; display: flex; padding: 12px; min-height: 0; }
 #play iframe { border: 0; background: #fff; height: 100%; width: 100%; margin: 0 auto; flex: none; transform-origin: 0 0; }
 #play.fit .stage { overflow: hidden; }
+/* Commenting in Play: a click on the prototype drops a pin there; pins for this screen sit over it. */
+#play .stage { position: relative; }
+#play-catch { position: absolute; inset: 0; cursor: crosshair; }
+#play-pins { position: fixed; inset: 0; pointer-events: none; }
+#play-pins .pin { pointer-events: auto; transform: translate(-4px, -100%); }
+body.playing #thread { z-index: 31; }
 
 /* The page's own question box, in place of the browser's prompt and confirm. */
 #dialog {

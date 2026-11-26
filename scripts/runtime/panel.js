@@ -658,6 +658,24 @@
           const clamp = (n) => set({ display: '-webkit-box', '-webkit-box-orient': 'vertical', '-webkit-line-clamp': String(n), overflow: 'hidden' })
           return field('Truncate', seg([['off', 'Off'], ['on', 'Lines']], on ? 'on' : lines === MIXED ? '' : 'off', (v) => (v === 'on' ? (on ? null : clamp(2)) : on ? set({ display: '', '-webkit-box-orient': '', '-webkit-line-clamp': '', overflow: '' }) : null)),
             on ? input(lines, (v) => { const n = Math.round(Number(v)); if (n >= 1) clamp(n) }, { class: 'n s', title: 'How many lines show before the ellipsis', 'aria-label': 'Lines shown' }) : null)
+        })(),
+        // Figma's drop shadow on a text layer follows the letters: text-shadow, X, Y, Blur and its colour (its
+        // see-through kept); + gives one, − takes it off; more than one is shown as written, for the Code tab.
+        (() => {
+          const raw = across((x, k) => k.textShadow)
+          if (raw === MIXED) return field('Text shadow', h('span', { class: 'val' }, 'Mixed'))
+          if (raw === 'none') return field('Text shadow', h('span', { class: 'val' }, 'None'), h('button', { type: 'button', class: 'mini', title: 'Add a text shadow', onclick: () => set({ 'text-shadow': '0px 2px 6px rgba(0, 0, 0, 0.25)' }) }, '+'))
+          const m = /^(rgba?\([^)]*\)|#[0-9a-f]{3,8})\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+([\d.]+)px$/i.exec(raw.trim())
+          if (!m) return field('Text shadow', h('span', { class: 'val', title: raw }, 'Set in the Code tab'), h('button', { type: 'button', class: 'mini', title: 'Remove the text shadow', onclick: () => set({ 'text-shadow': 'none' }) }, '−'))
+          const [, col, x, y, b] = m
+          const n0 = (v) => Math.round((Number(String(v).replace(/px$/, '')) || 0) * 100) / 100
+          const write = (ch) => { const q = { col, x, y, b, ...ch }; set({ 'text-shadow': `${n0(q.x)}px ${n0(q.y)}px ${Math.max(0, n0(q.b))}px ${q.col}` }) }
+          const alpha = /rgba\([^)]*,\s*([\d.]+)\)/.exec(col)?.[1] ?? '1'
+          const keep = (v) => { const mm = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(v).trim()); return mm ? `rgba(${parseInt(mm[1], 16)}, ${parseInt(mm[2], 16)}, ${parseInt(mm[3], 16)}, ${alpha})` : String(v).trim() }
+          return [
+            field('Text shadow', ...[['x', 'X', x], ['y', 'Y', y], ['b', 'Blur', b]].map(([k, title, v]) => h('label', { class: 'cap' }, input(n0(v), (nv) => write({ [k]: nv }), { class: 'n s', title, 'aria-label': `Text shadow ${title}` }), h('small', {}, title)))),
+            field('Text shadow colour', color(col, (v) => write({ col: keep(v) }), () => set({ 'text-shadow': 'none' }))),
+          ]
         })()))
     }
 

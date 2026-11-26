@@ -695,6 +695,9 @@
       ...meshFields,
       ...gridFields,
       field('Opacity', slider, h('span', { class: 'val' }, across((x, k) => Math.round(Number(k.opacity) * 100)) === MIXED ? 'Mixed' : `${op}%`)),
+      // Figma's layer blend mode, and Clip content: what overflows the element cut off at its edge (and its radius).
+      field('Blend', select(['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity'], (() => { const v = across((x, k) => k.mixBlendMode); return v === MIXED ? 'Mixed' : v })(), (v) => { if (v !== 'Mixed') set({ 'mix-blend-mode': v }) })),
+      field('Clip content', seg([['visible', 'Off'], ['hidden', 'Clip']], (() => { const v = across((x, k) => (k.overflowX === 'visible' && k.overflowY === 'visible' ? 'visible' : k.overflowX === 'hidden' && k.overflowY === 'hidden' ? 'hidden' : 'other')); return v })(), (v) => set({ overflow: v }))),
       radiusCorners || !sameR
         ? field('Radius', ...['top-left', 'top-right', 'bottom-right', 'bottom-left'].map((k) => input(across((x, s) => num(s.getPropertyValue(`border-${k}-radius`))), (v) =>set({ [`border-${k}-radius`]: px(v) }), { class: 'n s', title: k })), h('button', { type: 'button', class: 'mini', onclick: () => { radiusCorners = false; renderProps() } }, '▢'))
         : field('Radius', input(across((x, s) => lever(x, 'border-radius') ?? num(s.borderTopLeftRadius)),(v) => set({ 'border-radius': px(v) }), { class: 'n' }), h('button', { type: 'button', class: 'mini', title: 'Each corner', onclick: () => { radiusCorners = true; renderProps() } }, '⊞')),

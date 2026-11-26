@@ -442,6 +442,16 @@
     return { frame: sel.frame, file: sel.frame.file, anchor: a, wx: sel.frame.x + b.left * sel.frame.s, wy: sel.frame.y + b.top * sel.frame.s, label: `${nameOf(el).text} in ${sel.frame.file}` }
   }
   hooks.onOutsideChange = () => {}
+  // Words pasted with an element selected: a paragraph each line, after it, or inside it when it holds others.
+  hooks.placeText = (text) => {
+    const el = primary()
+    if (!sel || !el) return
+    if (!editable(el) || cvOf(el) == null) return hint(notEditable(el), 3000)
+    const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    const html = text.split(/\n+/).map((l) => l.trim()).filter(Boolean).map((l) => `<p>${esc(l)}</p>`).join('\n')
+    const where = isText(el) || ['img', 'svg', 'input', 'hr', 'br', 'video', 'picture', 'canvas', 'button', 'a'].includes(el.localName) ? 'after' : 'inside'
+    send({ op: 'insert', cv: cvOf(el), where, html })
+  }
   // A picture saved into the folder, put into a prototype: dropped on an <img> (or pasted with one selected), it
   // takes that one's place, its srcset going with the old picture, as an image dropped on a Figma shape fills it;
   // anywhere else a new <img> goes after the element there, or inside it when it holds others.

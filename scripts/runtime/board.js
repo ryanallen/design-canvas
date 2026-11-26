@@ -872,12 +872,35 @@
     placePictures(files, { x: e.clientX, y: e.clientY }, f?.doc ? { frame: f, point: toWorld(e.clientX, e.clientY) } : null)
   })
   document.addEventListener('paste', (e) => {
-    if (e.target.closest?.('input, textarea, [contenteditable="true"]') || document.body.classList.contains('playing')) return
+    if (e.target.closest?.('input, textarea, [contenteditable="true"], [contenteditable="plaintext-only"]') || document.body.classList.contains('playing')) return
     const files = e.clipboardData?.files
-    if (!files?.length || ![...files].some((f) => PICTURE_TYPES.test(f.type))) return
+    const at = lastPoint ?? { x: innerWidth / 2, y: innerHeight / 2 }
+    if (files?.length && [...files].some((f) => PICTURE_TYPES.test(f.type))) {
+      e.preventDefault()
+      return placePictures(files, at, call('selectedFile') ? { selected: true } : null)
+    }
+    // Words pasted, as FigJam and Figma make text of them: into the prototype element selected, else a sticky note
+    // where the pointer is, grown to hold them all.
+    const text = (e.clipboardData?.getData('text/plain') ?? '').replace(/\r\n?/g, '\n').trim()
+    if (!text || !serve) return
     e.preventDefault()
-    placePictures(files, lastPoint ?? { x: innerWidth / 2, y: innerHeight / 2 }, call('selectedFile') ? { selected: true } : null)
+    if (call('selectedFile')) return call('placeText', text)
+    pasteNote(text, at)
   })
+  async function pasteNote(text, at) {
+    const p = toWorld(at.x, at.y)
+    try {
+      const ev = await sendBoard({ op: 'item', kind: 'note', page: pageId, x: Math.round(p.x - 180), y: Math.round(p.y - 130), w: 360, h: 260, text, color: NOTE_COLORS[0] })
+      renderItems()
+      const el = document.querySelector(`.item[data-id="${ev.id}"]`)
+      const over = el ? el.scrollHeight - el.clientHeight : 0
+      if (over > 1) await sendBoard({ op: 'item', id: ev.id, h: Math.ceil(260 + over + 8) })
+      pickItem(ev.id)
+      renderItems()
+    } catch (err) {
+      hint(err.message, 3000)
+    }
+  }
   /** The menu of the board objects selected: what their keys and bar do, in one place. */
   function itemMenu() {
     const ids = chosen ? [...chosen.items] : picked ? withGroup(picked) : []
@@ -1285,7 +1308,11 @@
     const change = ids.filter((id) => on || board.items.find((i) => i.id === id)?.group)
     const changeFrames = keys.filter((k) => on || board.moved?.[k]?.group)
     if (!change.length && !changeFrames.length) return hint('Nothing selected is in a group', 1600)
-    for (const id of change) Object.assign(board.items.find((i) => i.id === id), { group: gid })
+    // Objects and screens join the group at once, and stay in it while their lines are saved one by one, so a drag
+    // made before the last is saved takes the whole group.
+    for (const id of change) ahead.set(`item:${id}`, { group: gid })
+    for (const k of changeFrames) ahead.set(`frame:${k}`, { group: gid })
+    drawAhead()
     renderItems()
     try {
       for (const id of change) await sendBoard({ op: 'item', id, group: gid })
@@ -2030,6 +2057,23 @@
   }
   const drawLocks = () => { for (const f of allFrames.values()) drawLock(f); stackLabels() }
 
+  // Changes drawn before their lines are saved, by 'item:<id>' or 'frame:<key>': each board read from the lines again
+  // (as every saved line does) takes them back on until their own line is saved.
+  const ahead = new Map()
+  function drawAhead() {
+    for (const [k, fields] of ahead) {
+      if (k.startsWith('item:')) {
+        const it = board.items.find((i) => i.id === k.slice(5))
+        if (it) Object.assign(it, fields)
+      } else {
+        const key = k.slice(6)
+        const f = allFrames.get(key)
+        const m = { ...(board.moved?.[key] ?? (f ? { x: f.x, y: f.y, page: pageId } : {})), ...fields }
+        if (fields.group === '') delete m.group
+        board.moved = { ...(board.moved ?? {}), [key]: m }
+      }
+    }
+  }
   async function sendBoard(input) {
     if (!serve) throw new Error(readOnly)
     const refused = lockedReason(input)
@@ -2044,9 +2088,20 @@
       boardEvents.push(body.event)
       board = foldBoard(boardEvents)
       if (was) remember(was, stateOf(board, body.event))
+      // What is drawn ahead of lines still being saved (the rest of a group) stays drawn; this line's part is saved.
+      ahead.delete(body.event.op === 'move' ? `frame:${body.event.key}` : `item:${body.event.id}`)
+      drawAhead()
       return body.event
+    } catch (err) {
+      ahead.clear()
+      throw err
     } finally {
       pending--
+      // A redraw from the server held back while these were saved comes now.
+      if (!pending && boardMissed) {
+        boardMissed = false
+        setTimeout(refreshBoard, 0)
+      }
     }
   }
 
@@ -2229,6 +2284,7 @@
     else openStep.changes.set(k, { kind: before.kind, id: before.id, key: before.key, before: before.state, after: after.state })
   }
   let pending = 0
+  let boardMissed = false
   /** Put every object and frame of a step back as it was (or forward as it became). */
   async function replay(step, back) {
     replaying = true
@@ -3371,6 +3427,9 @@
   /** Someone else changed the board: take its lines again. Not mid-drag or mid-typing; the next change brings it. */
   async function refreshBoard() {
     if (drag || document.querySelector('.items .editing')) return
+    // Lines of this page's own still being saved: the server's board would undo what is drawn here ahead of them
+    // (a group half written); it is read again once they are all saved.
+    if (pending) return (boardMissed = true)
     try {
       const res = await fetch('/api/board', { cache: 'no-store' })
       const body = await res.json()

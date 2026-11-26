@@ -326,6 +326,13 @@
     const S = (p) => ed.shared(p)
     // What a field shows for the whole selection: `get(element, its style)` when every element selected gives the
     // same, else Mixed; one element's value is never shown as if all had it.
+    // A change worked out from each element's own style (its own border width and colour kept when only the border's
+    // style changes), in one edit; one element, every copy of one thing, or a state's rule takes it as one.
+    const eachOwn = (propsOf) => {
+      if (ed.sel.els.length < 2 || ed.everyCopy() || state !== 'default') return set(propsOf(c))
+      const items = ed.sel.els.filter((x) => ed.editable(x) && ed.cvOf(x) != null).map((x) => ({ cv: ed.cvOf(x), props: propsOf(cs(x)) }))
+      ed.send({ op: 'styles', items }, { then: ed.reselect() })
+    }
     const across = (get) => {
       const vals = new Set(ed.sel.els.filter((x) => x.isConnected).map((x) => String(get(x, cs(x)))))
       return vals.size > 1 ? MIXED : String(get(el, c))
@@ -497,7 +504,7 @@
       radiusCorners || !sameR
         ? field('Radius', ...['top-left', 'top-right', 'bottom-right', 'bottom-left'].map((k) => input(across((x, s) => num(s.getPropertyValue(`border-${k}-radius`))), (v) =>set({ [`border-${k}-radius`]: px(v) }), { class: 'n s', title: k })), h('button', { type: 'button', class: 'mini', onclick: () => { radiusCorners = false; renderProps() } }, '▢'))
         : field('Radius', input(across((x, s) => lever(x, 'border-radius') ?? num(s.borderTopLeftRadius)),(v) => set({ 'border-radius': px(v) }), { class: 'n' }), h('button', { type: 'button', class: 'mini', title: 'Each corner', onclick: () => { radiusCorners = true; renderProps() } }, '⊞')),
-      field('Border', seg([['none', 'None'], ['solid', 'Solid'], ['dashed', 'Dash'], ['dotted', 'Dot']], c.borderTopStyle, (v) => set(v === 'none' ? { border: 'none' } : { 'border-style': v, 'border-width': num(c.borderTopWidth) > 0 ? c.borderTopWidth : '1px', 'border-color': c.borderTopStyle === 'none' ? '#d1d5db' : c.borderTopColor }))),
+      field('Border', seg([['none', 'None'], ['solid', 'Solid'], ['dashed', 'Dash'], ['dotted', 'Dot']], c.borderTopStyle, (v) => (v === 'none' ? set({ border: 'none' }) : eachOwn((k) => ({ 'border-style': v, 'border-width': num(k.borderTopWidth) > 0 ? k.borderTopWidth : '1px', 'border-color': k.borderTopStyle === 'none' ? '#d1d5db' : k.borderTopColor }))))),
       c.borderTopStyle !== 'none' ? field('Width · Color', input(across((x, k) => num(k.borderTopWidth)),(v) => set({ 'border-width': px(v) }), { class: 'n' }), color(c.borderTopColor, (v) => set({ 'border-color': v }))) : null,
       field('Shadow', input(across((x, k) => (k.boxShadow === 'none' ? '' : k.boxShadow)),(v) => set({ 'box-shadow': v || 'none' }), { placeholder: '0 2px 8px rgba(0,0,0,.15)' })),
       motionField(el, c),

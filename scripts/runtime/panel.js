@@ -372,6 +372,8 @@
   let paddingSides = false
   let radiusCorners = false
   let borderSides = false
+  // Min and max rows asked for with ⇔ before any limit is set.
+  const limitsOpen = new Set()
   // ── states: hover, pressed and focus, shown on the board and written as the element's :hover (…) rule ──
   let state = 'default'
   let shownIn = null // the element now shown in a state, and its style
@@ -528,7 +530,7 @@
       ? n(k.paddingLeft) + n(k.paddingRight) + n(k.borderLeftWidth) + n(k.borderRightWidth)
       : n(k.paddingTop) + n(k.paddingBottom) + n(k.borderTopWidth) + n(k.borderBottomWidth))
     const extra = (dim) => extraOf(c, dim)
-    const drawn = (dim) => Math.round((ed.boxOf?.(el) ?? el.getBoundingClientRect())[dim])
+    const drawn = (dim) => Math.round(ed.sizeOf(el)[dim])
     const cssSize = (dim, outer) => `${Math.max(0, Math.round(Number(outer) - extra(dim)))}px`
     const sizeMode = (dim) => {
       const own = el.style.getPropertyValue(dim)
@@ -549,7 +551,7 @@
           const pk = x.parentElement ? cs(x.parentElement) : null
           const row = pk?.display.includes('flex') && !pk.flexDirection.startsWith('column')
           const on = dim === 'width' ? row : pk?.display.includes('flex') && !row
-          const size = Math.max(0, Math.round((ed.boxOf?.(x) ?? x.getBoundingClientRect())[dim] - extraOf(cs(x), dim)))
+          const size = Math.max(0, Math.round(ed.sizeOf(x)[dim] - extraOf(cs(x), dim)))
           return { cv: ed.cvOf(x), props: { [dim]: `${size}px`, ...(on ? { flex: '' } : {}) } }
         })
         ed.send({ op: 'styles', items }, { then: ed.reselect() })
@@ -558,7 +560,30 @@
       else if (along) set({ flex: '1 1 0', [dim]: '' })
       else set({ [dim]: '100%' })
     }
-    const dimRow = (dim, label) => field(label, input(across((x) => Math.round(ed.sizeOf(x)[dim])),(v) => set({ [dim]: /^\d+(\.\d+)?$/.test(String(v).trim()) ? cssSize(dim, v) : px(v) }), { class: 'n' }), seg([['hug', 'Hug'], ['fixed', 'Fixed'], ['fill', 'Fill']], sizeMode(dim), (m) => setMode(dim, m)))
+    // Figma's min and max width and height: shown where one is set, or asked for with ⇔ beside the size; a field left
+    // empty takes that limit off.
+    const limitsOf = (dim) => {
+      // As drawn, padding and border in, as Width reads; a percentage as written.
+      const shown = (v, k) => (/px$/.test(v) ? String(Math.round(Number(num(v)) + extraOf(k, dim))) : v)
+      const lo = across((x, k) => (k.getPropertyValue(`min-${dim}`) === 'auto' || k.getPropertyValue(`min-${dim}`) === '0px' ? '' : shown(k.getPropertyValue(`min-${dim}`), k)))
+      const hi = across((x, k) => (k.getPropertyValue(`max-${dim}`) === 'none' ? '' : shown(k.getPropertyValue(`max-${dim}`), k)))
+      return { lo, hi, set: lo !== '' || hi !== '' }
+    }
+    const limitRow = (dim) => {
+      const { lo, hi } = limitsOf(dim)
+      // Emptied, a limit written on the element goes; one from its CSS is overruled (none, or 0).
+      const off = (edge) => (ed.sel.els.every((x) => x.style.getPropertyValue(`${edge}-${dim}`)) ? '' : edge === 'min' ? '0px' : 'none')
+      const put = (edge) => (v) => { const t = String(v).trim(); if (t === '' || /^\d+(\.\d+)?(px|%)?$/.test(t)) set({ [`${edge}-${dim}`]: t === '' ? off(edge) : /%$/.test(t) ? t : cssSize(dim, t.replace(/px$/, '')) }) }
+      return field(`Min · Max ${dim}`,
+        h('label', { class: 'cap' }, input(lo, put('min'), { class: 'n s', placeholder: '–', title: `Min ${dim}`, 'aria-label': `Min ${dim}` }), h('small', {}, 'Min')),
+        h('label', { class: 'cap' }, input(hi, put('max'), { class: 'n s', placeholder: '–', title: `Max ${dim}`, 'aria-label': `Max ${dim}` }), h('small', {}, 'Max')),
+        h('button', { type: 'button', class: 'mini', title: `Take the min and max ${dim} off`, onclick: () => { limitsOpen.delete(dim); const props = { ...(lo !== '' ? { [`min-${dim}`]: off('min') } : {}), ...(hi !== '' ? { [`max-${dim}`]: off('max') } : {}) }; Object.keys(props).length ? set(props) : renderProps() } }, '−'))
+    }
+    const dimRow = (dim, label) => [
+      field(label, input(across((x) => Math.round(ed.sizeOf(x)[dim])),(v) => set({ [dim]: /^\d+(\.\d+)?$/.test(String(v).trim()) ? cssSize(dim, v) : px(v) }), { class: 'n' }), seg([['hug', 'Hug'], ['fixed', 'Fixed'], ['fill', 'Fill']], sizeMode(dim), (m) => setMode(dim, m)),
+        limitsOf(dim).set || limitsOpen.has(dim) ? null : h('button', { type: 'button', class: 'mini', title: `Min and max ${dim}`, 'aria-label': `Min and max ${dim}`, onclick: () => { limitsOpen.add(dim); renderProps() } }, '⇔')),
+      limitsOf(dim).set || limitsOpen.has(dim) ? limitRow(dim) : null,
+    ]
     // The whole screen selected: its width is the screen's own (its canvas-width), as a Figma frame's is; its height
     // is measured from what it holds.
     const screen = el.localName === 'body' ? ed.sel.frame : null

@@ -39,7 +39,8 @@
       rows.push(h('button', { type: 'button', class: `lrow lframe${sel?.frame === f && sel.els[0]?.localName === 'body' ? ' on' : ''}`, style: '--d:0', onclick: () => { if (f.doc) ed.select(f, [f.doc.body]) } },
         h('span', { class: 'tw', onclick: (e) => { e.stopPropagation(); isOpen ? openFrames.delete(f.key) : openFrames.add(f.key); renderLayers() } }, isOpen ? '▾' : '▸'),
         h('span', { class: 'lk' }, '#'), h('span', { class: 'ln' }, f.label)))
-      if (!isOpen || !f.doc?.body) continue
+      // A frame being drawn again has a document with no window yet: its rows come when it has one.
+      if (!isOpen || !f.doc?.body || !f.doc.defaultView) continue
       const walk = (el, d) => {
         for (const c of el.children) {
           if (ed.SKIP.has(c.localName) || count > 1500) continue

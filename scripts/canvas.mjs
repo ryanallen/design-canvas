@@ -476,6 +476,33 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
       })
     })
 
+  /** A request's bytes as they came, up to `max`. */
+  const readBytes = (req, max) =>
+    new Promise((resolve, reject) => {
+      const chunks = []
+      let size = 0
+      req.on('data', (c) => {
+        size += c.length
+        if (size > max) {
+          reject(Object.assign(new Error(`the picture is larger than ${max / 1_000_000} MB`), { status: 413 }))
+          req.removeAllListeners('data')
+          req.resume()
+          return
+        }
+        chunks.push(c)
+      })
+      req.on('end', () => resolve(Buffer.concat(chunks)))
+      req.on('error', reject)
+    })
+  // A picture's kind by its first bytes, so a file named .png is one.
+  const PICTURES = {
+    png: (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+    jpg: (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
+    gif: (b) => b.subarray(0, 4).toString('latin1') === 'GIF8',
+    webp: (b) => b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WEBP',
+    avif: (b) => b.subarray(4, 8).toString('latin1') === 'ftyp' && /avi[fs]/.test(b.subarray(8, 12).toString('latin1')),
+  }
+
   // Only this machine, and only the canvas's own page, reach the server. It listens on the loopback
   // address and answers no other host name, so a site that points its own name at 127.0.0.1 is
   // turned away. An /api/ call that another site's page sends is refused by its Origin and
@@ -584,6 +611,26 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
       // A web font picked for a prototype: its files downloaded once into the folder's fonts/, answered with the sheet's
       // path from the prototype, which the page then links by a `link` edit, so the font shows on the board, in the
       // built canvas and offline.
+      // A picture dropped or pasted onto the canvas, saved into the folder's images/ for the board or a prototype to
+      // show by its path there. The same picture dropped again is the file already there; another of the same name
+      // takes a number. Only PNG, JPEG, GIF, WebP and AVIF, by their bytes: an SVG can carry script.
+      if (url.pathname === '/api/image' && req.method === 'POST') {
+        if (memory) return json(res, 409, { error: 'a canvas held in memory makes no files' })
+        const bytes = await readBytes(req, 15_000_000)
+        const ext = Object.keys(PICTURES).find((k) => PICTURES[k](bytes))
+        if (!ext) return json(res, 415, { error: 'a PNG, JPEG, GIF, WebP or AVIF picture' })
+        const base = (url.searchParams.get('name') || 'image').replace(/\.[^.]*$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'image'
+        fs.mkdirSync(path.join(folder, 'images'), { recursive: true })
+        for (let n = 1; ; n++) {
+          const src = `images/${base}${n > 1 ? `-${n}` : ''}.${ext}`
+          const full = path.join(folder, src)
+          if (!fs.existsSync(full)) {
+            writeFileAtomic(full, bytes)
+            return json(res, 200, { src, saved: true })
+          }
+          if (fs.readFileSync(full).equals(bytes)) return json(res, 200, { src, saved: false })
+        }
+      }
       if (url.pathname === '/api/font' && req.method === 'POST') {
         const { file, family } = await readBody(req)
         if (!onCanvas(file)) return json(res, 404, { error: `${file} is not on this canvas` })

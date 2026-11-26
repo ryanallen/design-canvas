@@ -59,7 +59,8 @@
     let d = dir
     for (const p of parts.slice(0, -1)) {
       if (p === '..') throw new Error(`${rel} is outside the folder`)
-      d = await d.getDirectoryHandle(p)
+      // A file made in a folder not there yet (a first picture into images/) makes the folder.
+      d = await d.getDirectoryHandle(p, { create })
     }
     return d.getFileHandle(parts[parts.length - 1], { create })
   }
@@ -226,7 +227,7 @@
   const nameOf = (n) => String(n || 'someone').slice(0, 80)
   async function handle(url, init) {
     const u = new URL(url, location.href)
-    const body = init?.body ? JSON.parse(init.body) : {}
+    const body = typeof init?.body === 'string' ? JSON.parse(init.body) : {}
     const post = (init?.method ?? 'GET').toUpperCase() === 'POST'
     const known = (file) => raw.has(file)
     const locks = () => foldBoard(parseLines(lines.join('\n'), 'board')).locked
@@ -317,6 +318,30 @@
         return new Response(canvasText, { headers: { 'content-type': 'text/html' } })
       case '/api/refresh':
         return answer(409, { error: 'Rebuilding lays the prototypes out again, which needs node: node scripts/canvas.mjs build <folder>' })
+      case '/api/image': {
+        // A picture dropped or pasted, saved into the folder's images/, as the server does: known kinds by their
+        // bytes, the same picture again the file already there, another of the same name numbered.
+        if (play) return answer(409, { error: 'A picture is saved into the folder, so it needs the folder: download the canvas and open it with Edit here' })
+        const bytes = new Uint8Array(await init.body.arrayBuffer())
+        if (bytes.length > 15_000_000) return answer(413, { error: 'the picture is larger than 15 MB' })
+        const str = (a, b) => String.fromCharCode(...bytes.subarray(a, b))
+        const starts = (...b) => b.every((v, i) => bytes[i] === v)
+        const ext = starts(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a) ? 'png' : starts(0xff, 0xd8, 0xff) ? 'jpg' : str(0, 4) === 'GIF8' ? 'gif' : str(0, 4) === 'RIFF' && str(8, 12) === 'WEBP' ? 'webp' : str(4, 8) === 'ftyp' && /avi[fs]/.test(str(8, 12)) ? 'avif' : null
+        if (!ext) return answer(415, { error: 'a PNG, JPEG, GIF, WebP or AVIF picture' })
+        const base = (u.searchParams.get('name') || 'image').replace(/\.[^.]*$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'image'
+        for (let n = 1; ; n++) {
+          const src = `images/${base}${n > 1 ? `-${n}` : ''}.${ext}`
+          let have = null
+          try {
+            have = new Uint8Array(await (await (await fileHandle(src)).getFile()).arrayBuffer())
+          } catch {}
+          if (!have) {
+            await write(src, bytes)
+            return answer(200, { src, saved: true })
+          }
+          if (have.length === bytes.length && have.every((v, i) => v === bytes[i])) return answer(200, { src, saved: false })
+        }
+      }
       case '/api/artboard': {
         // Copies of prototypes on the board (Ctrl+D on screens): each file copied whole to <name>-copy.html.
         if (Array.isArray(body.copies)) {

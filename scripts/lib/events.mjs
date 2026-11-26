@@ -207,7 +207,13 @@ const colorOf = (value) => {
   if (c === '' || /^(#[0-9a-f]{3,8}|[a-z]{3,20}|(?:rgb|hsl)a?\([\d.,%\s/]+\))$/i.test(c)) return c
   throw new Error('color is not a colour')
 }
-const BOARD_KINDS = ['note', 'title', 'rect', 'ellipse', 'section', 'line', 'arrow', 'pencil', 'guide']
+const BOARD_KINDS = ['note', 'title', 'rect', 'ellipse', 'section', 'line', 'arrow', 'pencil', 'guide', 'image']
+/** An image on the board: a picture file in the canvas's folder, by its path there, never an address elsewhere. */
+const imageSrc = (value) => {
+  const s = typeof value === 'string' ? value.trim() : ''
+  if (/^(?:[\w-]+\/)*[\w-][\w.-]{0,120}\.(?:png|jpe?g|gif|webp|avif|svg)$/i.test(s) && !s.includes('..')) return s
+  throw new Error('src is not a picture in the folder')
+}
 const pageId = (value) => {
   if (typeof value !== 'string' || !/^[a-z0-9-]{1,40}$/.test(value)) throw new Error('page is not a page id')
   return value
@@ -237,6 +243,7 @@ export function makeBoardEvent(input, { now = new Date(), newId = randomId } = {
       if (input.text != null) event.text = String(input.text).slice(0, LIMITS.text)
       if (input.color != null) event.color = colorOf(input.color)
       if (input.frame != null) event.frame = text(input.frame, LIMITS.frame, 'frame')
+      if (input.src != null) event.src = imageSrc(input.src)
       // An end let go of is written as an empty string, so the fold drops what an earlier line bound.
       for (const k of ['from', 'to']) if (input[k] != null) event[k] = input[k] === '' ? '' : text(input[k], LIMITS.frame, k)
       // Objects grouped together share a group id; an empty string ungroups.

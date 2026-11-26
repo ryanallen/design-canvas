@@ -812,6 +812,59 @@
       { label: 'Keyboard shortcuts', key: '?', run: openKeys },
     ].filter(Boolean))
   })
+  // ── pictures dropped or pasted onto the board ──
+  // Each is saved into the folder's images/ and placed where it was dropped, at its own size (no wider than 1200),
+  // side by side when there are several, all in one undo step, and selected.
+  let lastPoint = null
+  viewport.addEventListener('pointermove', (e) => { lastPoint = { x: e.clientX, y: e.clientY } })
+  const PICTURE_TYPES = /^image\/(png|jpeg|gif|webp|avif)$/
+  async function placePictures(files, at) {
+    const pics = [...files].filter((f) => PICTURE_TYPES.test(f.type))
+    if (!pics.length) return false
+    if (!serve) return hint(readOnly, 4000), true
+    const saved = []
+    for (const file of pics) {
+      try {
+        const res = await fetch(`/api/image?name=${encodeURIComponent(file.name || 'image')}`, { method: 'POST', headers: { 'content-type': file.type }, body: file })
+        const body = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(body.error || `Saving the picture failed (${res.status})`)
+        const size = await new Promise((r) => { const img = new Image(); img.onload = () => r({ w: img.naturalWidth, h: img.naturalHeight }); img.onerror = () => r({ w: 400, h: 300 }); img.src = body.src })
+        const k = Math.min(1, 1200 / Math.max(1, size.w))
+        saved.push({ src: body.src, w: Math.max(1, Math.round(size.w * k)), h: Math.max(1, Math.round(size.h * k)) })
+      } catch (err) {
+        hint(err.message, 4000)
+      }
+    }
+    if (!saved.length) return true
+    const p = toWorld(at.x, at.y)
+    let x = Math.round(p.x - saved[0].w / 2)
+    const ids = []
+    for (const s of saved) {
+      const ev = await sendBoard({ op: 'item', kind: 'image', page: pageId, src: s.src, x, y: Math.round(p.y - s.h / 2), w: s.w, h: s.h })
+      ids.push(ev.id)
+      x += s.w + 24
+    }
+    renderItems()
+    chooseItems(ids)
+    hint(saved.length > 1 ? `Placed ${saved.length} pictures` : 'Placed the picture', 1200)
+    return true
+  }
+  viewport.addEventListener('dragover', (e) => {
+    if ([...(e.dataTransfer?.items ?? [])].some((i) => i.kind === 'file')) e.preventDefault()
+  })
+  viewport.addEventListener('drop', (e) => {
+    const files = e.dataTransfer?.files
+    if (!files?.length || ![...files].some((f) => PICTURE_TYPES.test(f.type))) return
+    e.preventDefault()
+    placePictures(files, { x: e.clientX, y: e.clientY })
+  })
+  document.addEventListener('paste', (e) => {
+    if (e.target.closest?.('input, textarea, [contenteditable="true"]') || document.body.classList.contains('playing')) return
+    const files = e.clipboardData?.files
+    if (!files?.length || ![...files].some((f) => PICTURE_TYPES.test(f.type))) return
+    e.preventDefault()
+    placePictures(files, lastPoint ?? { x: innerWidth / 2, y: innerHeight / 2 })
+  })
   /** The menu of the board objects selected: what their keys and bar do, in one place. */
   function itemMenu() {
     const ids = chosen ? [...chosen.items] : picked ? withGroup(picked) : []
@@ -1101,7 +1154,9 @@
     const cls = `item ${it.kind}${picked === it.id || chosen?.items.has(it.id) ? ' on' : ''}${isLocked(it.id) ? ' locked' : ''}`
     const box = `left:${it.x}px;top:${it.y}px;width:${it.w ?? 0}px;height:${it.h ?? 0}px`
     // The one object picked shows where it resizes from: its bottom-right corner.
-    const grip = serve && picked === it.id && !chosen && !isLocked(it.id) && ['note', 'rect', 'ellipse', 'section'].includes(it.kind) ? h('span', { class: 'grip', 'aria-hidden': 'true' }) : null
+    const grip = serve && picked === it.id && !chosen && !isLocked(it.id) && ['note', 'rect', 'ellipse', 'section', 'image'].includes(it.kind) ? h('span', { class: 'grip', 'aria-hidden': 'true' }) : null
+    // A picture from the canvas's folder, by its path there (the server serves it; a canvas.html beside it finds it).
+    if (it.kind === 'image') return h('div', { class: cls, 'data-id': it.id, style: box }, /^(?:[\w-]+\/)*[\w-][\w.-]*\.(?:png|jpe?g|gif|webp|avif|svg)$/i.test(String(it.src ?? '')) ? h('img', { src: it.src, alt: '', draggable: 'false' }) : null, grip)
     if (it.kind === 'note') return h('div', { class: cls, 'data-id': it.id, style: `${box};background:${it.color || NOTE_COLORS[0]}` }, it.text ?? '', grip)
     if (it.kind === 'title') return h('div', { class: cls, 'data-id': it.id, style: `left:${it.x}px;top:${it.y}px;${it.color ? `color:${it.color};` : ''}${it.size ? `font-size:${num(it.size)}px` : ''}` }, it.text || 'Title')
     if (it.kind === 'rect' || it.kind === 'ellipse') return h('div', { class: cls, 'data-id': it.id, style: `${box};--c:${it.color || SHAPE_COLORS[0]}` }, h('span', { class: 'txt' }, it.text ?? ''), grip)
@@ -1417,7 +1472,7 @@
   }
   /** One colour for every selected object that takes one. */
   async function colorChosen(color) {
-    const ids = [...(chosen?.items ?? [])].filter((id) => !isLocked(id) && board.items.find((i) => i.id === id)?.kind !== 'guide')
+    const ids = [...(chosen?.items ?? [])].filter((id) => !isLocked(id) && !['guide', 'image'].includes(board.items.find((i) => i.id === id)?.kind))
     for (const id of ids) Object.assign(board.items.find((i) => i.id === id), { color })
     renderItems()
     try {
@@ -1466,8 +1521,9 @@
       const its = [...chosen.items].map((id) => board.items.find((i) => i.id === id)).filter((i) => i && i.kind !== 'guide')
       // Every selected object takes the colour clicked; the swatches are those of the kind most of them are.
       const paletteOf = (k) => (k === 'note' ? NOTE_COLORS : k === 'section' ? SECTION_COLORS : SHAPE_COLORS)
-      const colors = its.length ? paletteOf(its.filter((i) => i.kind === 'note').length * 2 > its.length ? 'note' : its.every((i) => i.kind === 'section') ? 'section' : 'shape') : []
-      const same = its.length && its.every((i) => (i.color || paletteOf(i.kind)[0]) === (its[0].color || paletteOf(its[0].kind)[0])) ? its[0].color || paletteOf(its[0].kind)[0] : null
+      const tinted = its.filter((i) => i.kind !== 'image')
+      const colors = tinted.length ? paletteOf(tinted.filter((i) => i.kind === 'note').length * 2 > tinted.length ? 'note' : tinted.every((i) => i.kind === 'section') ? 'section' : 'shape') : []
+      const same = tinted.length && tinted.every((i) => (i.color || paletteOf(i.kind)[0]) === (tinted[0].color || paletteOf(tinted[0].kind)[0])) ? tinted[0].color || paletteOf(tinted[0].kind)[0] : null
       // A group may hold screens as well as objects.
       const frameGroups = [...chosen.frames].map((k) => board.moved?.[k]?.group ?? null)
       const g = its[0]?.group ?? frameGroups[0]
@@ -1506,7 +1562,7 @@
           : h('span', { class: 'count-note' }, icon('lock'), 'Locked by its owner'),
       )
     } else {
-    const colors = it.kind === 'note' ? NOTE_COLORS : it.kind === 'section' ? SECTION_COLORS : it.kind === 'guide' ? [] : SHAPE_COLORS
+    const colors = it.kind === 'note' ? NOTE_COLORS : it.kind === 'section' ? SECTION_COLORS : ['guide', 'image'].includes(it.kind) ? [] : SHAPE_COLORS
     itemBar.replaceChildren(...[
       ...colors.map((c) => h('button', { type: 'button', class: `swatch${(it.color || colors[0]) === c ? ' on' : ''}`, style: `background:${c}`, title: COLOR_NAMES[c] ?? c, 'aria-label': COLOR_NAMES[c] ?? c, 'aria-pressed': String((it.color || colors[0]) === c), onclick: () => updateItem(it.id, { color: c }) })),
       // A title's size: four steps, the middle one where a title starts.
@@ -1651,7 +1707,7 @@
     if (!group && isLocked(id)) return
     // Near the bottom-right corner it resizes; anywhere else it moves.
     const p = toWorld(e.clientX, e.clientY)
-    const resize = !group && ['note', 'rect', 'ellipse', 'section'].includes(it.kind) && p.x > it.x + it.w - 24 / view.z && p.y > it.y + it.h - 24 / view.z
+    const resize = !group && ['note', 'rect', 'ellipse', 'section', 'image'].includes(it.kind) && p.x > it.x + it.w - 24 / view.z && p.y > it.y + it.h - 24 / view.z
     const w0 = it.w
     const h0 = it.h
     // What moves with it: everything a drag box took in, or everything inside a section.
@@ -1675,7 +1731,11 @@
     drag = {
       kind: 'item', id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false,
       move: (ev, dx, dy) => {
-        if (resize) Object.assign(it, { w: Math.max(40, Math.round(w0 + dx)), h: Math.max(30, Math.round(h0 + dy)) })
+        // A picture keeps its proportions, as a placed image does in FigJam; Shift lets them go.
+        if (resize && it.kind === 'image' && !ev.shiftKey) {
+          const w = Math.max(40, Math.round(w0 + dx))
+          Object.assign(it, { w, h: Math.max(20, Math.round((w * h0) / Math.max(1, w0))) })
+        } else if (resize) Object.assign(it, { w: Math.max(40, Math.round(w0 + dx)), h: Math.max(30, Math.round(h0 + dy)) })
         else {
           // Edges and centres catch on other objects' and frames' edges and centres; Ctrl or ⌘ held lets go.
           ;({ dx, dy } = snap && !(ev.ctrlKey || ev.metaKey) ? snap(dx, dy) : (clearSnap(), { dx, dy }))

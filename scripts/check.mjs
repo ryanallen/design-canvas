@@ -626,7 +626,7 @@ export async function check(options, { buildCanvas, serveCanvas } = {}) {
     await new Promise((r) => disk.listen(0, '127.0.0.1', r))
     const diskUrl = `http://127.0.0.1:${disk.address().port}/canvas.html?local`
     const p2 = await browser.newPage({ viewport: { width: 1440, height: 900 } })
-    p2.on('pageerror', (e) => problems.push(`from disk, thrown: ${e.message} (${(e.stack || '').split(/\n/).slice(1, 3).join(' ').trim()})`))
+    p2.on('pageerror', (e) => problems.push(`from disk, thrown: ${e.message} (${(e.stack || '').split(/\n/).slice(1, process.env.STACK ? 12 : 3).join(' ').trim()})`))
     let p2answer = 'canvas check'
     p2.on('dialog', (d) => d.accept(p2answer))
     await answerDialogs(p2, () => p2answer)
@@ -749,6 +749,41 @@ export async function check(options, { buildCanvas, serveCanvas } = {}) {
         const seen = await p2.evaluate(() => ({ hint: document.querySelector('#hint').textContent, loose: (window.designCanvas.data.loose || []).map((l) => l.file), all: window.designCanvas.allFrames.map((f) => `${f.file}@${f.page}`), page: window.designCanvas.page }))
         must(await p2.evaluate(() => window.designCanvas.frames.some((f) => f.file === 'new-board.html')), `no frame for the new file: ${JSON.stringify(seen)}`)
         must(/<main /.test(await opfs('new-board.html')), 'new-board.html was not written')
+      })
+
+      await step('From disk: a picture dropped on the board is saved into images/ and placed', async () => {
+        await p2.keyboard.press('Escape')
+        const at = await p2.evaluate(() => {
+          for (let y = 700; y > 160; y -= 40) for (let x = 120; x < 1100; x += 40) {
+            const e = document.elementFromPoint(x, y)
+            if (e && !e.closest('.item, .frame, .frame-label, .label, #toolbar, #float, .pin, header, #item-bar')) return { x, y }
+          }
+          return null
+        })
+        must(at, 'no empty board to drop on')
+        await p2.evaluate(async (at) => {
+          const c = document.createElement('canvas')
+          c.width = 120
+          c.height = 80
+          c.getContext('2d').fillRect(0, 0, 120, 80)
+          const dt = new DataTransfer()
+          dt.items.add(new File([await new Promise((r) => c.toBlob(r, 'image/png'))], 'Dropped.png', { type: 'image/png' }))
+          const target = document.elementFromPoint(at.x, at.y)
+          for (const type of ['dragover', 'drop']) target.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt, clientX: at.x, clientY: at.y }))
+        }, at)
+        await p2.waitForTimeout(1500)
+        const saved = await p2.evaluate(async () => {
+          try {
+            const names = []
+            for await (const [n] of (await (await navigator.storage.getDirectory()).getDirectoryHandle('images')).entries()) names.push(n)
+            return names
+          } catch {
+            return []
+          }
+        })
+        must(saved.includes('dropped.png'), `images/ holds ${saved.join(', ') || 'nothing'}`)
+        must((await opfs('canvas.html')).includes('"src":"images/dropped.png"'), 'no picture line in canvas.html')
+        must(await p2.evaluate(() => window.designCanvas.items.some((i) => i.kind === 'image' && i.src === 'images/dropped.png')), 'the picture is not on the board')
       })
     } finally {
       await p2.close().catch(() => {})

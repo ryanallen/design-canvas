@@ -186,3 +186,13 @@ test('an empty title size or guide setting is the default again', () => {
   assert.equal(board({ op: 'item', id: t.id, cols: '' }).cols, '')
   assert.throws(() => board({ op: 'item', id: t.id, size: 'big' }), /size is not a number/)
 })
+
+test('a picture on the board: a file in the folder by its path, never an address elsewhere', () => {
+  const pic = makeBoardEvent({ op: 'item', kind: 'image', page: 'p1', src: 'images/swell-chart.png', x: 0, y: 0, w: 300, h: 200 })
+  assert.equal(pic.kind, 'image')
+  assert.equal(pic.src, 'images/swell-chart.png')
+  assert.equal(foldBoard([pic]).items[0].src, 'images/swell-chart.png')
+  for (const bad of ['https://example.com/a.png', '../secret.png', '/etc/a.png', 'javascript:alert(1).png', 'images/a.html', 'images/../a.png', '']) {
+    assert.throws(() => makeBoardEvent({ op: 'item', kind: 'image', src: bad }), /src is not a picture in the folder/, bad)
+  }
+})

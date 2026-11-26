@@ -324,8 +324,15 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
   // sheets did not have when it was sent (one linked since, as a web font's) goes in as a <style> of its own, named
   // by its file as the page names the sheets it swaps in, since the page would drop a link to a sheet it has no copy of.
   let sentAssets = new Set(Object.keys(payload.assets))
-  const servedFile = (file) => inlineFile(folder, file, tag(readShown(file)), payload.assets, [], { keepMedia: !file.includes('/') })
-    .replace(/<link\b[^>]*__RC_ASSET__\(([^)]+)\)[^>]*>/g, (all, a) => (sentAssets.has(a) || !payload.assets[a] ? all : `<style data-dc-sheet="${esc(a)}">${payload.assets[a].text.replace(/<\/style/gi, '<\\/style')}</style>`))
+  // The file as a page draws it, marked with the version of the file it was drawn from (data-dc-v on <html>): an
+  // edit names its element by its place in that version, so one made from an older version is refused, not
+  // written into the wrong element.
+  const servedFile = (file) => {
+    const src = readShown(file)
+    return inlineFile(folder, file, tag(src), payload.assets, [], { keepMedia: !file.includes('/') })
+      .replace(/<link\b[^>]*__RC_ASSET__\(([^)]+)\)[^>]*>/g, (all, a) => (sentAssets.has(a) || !payload.assets[a] ? all : `<style data-dc-sheet="${esc(a)}">${payload.assets[a].text.replace(/<\/style/gi, '<\\/style')}</style>`))
+      .replace(/<html\b/i, (m) => `${m} data-dc-v="${sha(src)}"`)
+  }
   const servedPage = () => renderPage({ ...payload, serve: true, memory, webFonts: memory ? [] : WEB_FONTS, canvas: path.basename(out), files: Object.fromEntries(Object.keys(payload.files).map((f) => [f, servedFile(f)])) }, lines)
   // Rebuild from the prototypes and the layout, keeping every line, and tell every open page.
   const rebuild = async () => {
@@ -609,7 +616,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         return json(res, 200, { sheet, text })
       }
       if (url.pathname === '/api/edit' && req.method === 'POST') {
-        const { file, edit, name, files } = await readBody(req)
+        const { file, edit, name, files, v } = await readBody(req)
         // Replace all: the words replaced on every screen asked for, in one undo step; a locked screen is left as it is.
         if (edit?.op === 'replaceText' && Array.isArray(files)) {
           const lockedFiles = foldBoard(lines.flatMap((l) => parseLines(l, 'board'))).locked
@@ -636,6 +643,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         }
         if (!onCanvas(file)) return json(res, 404, { error: `${file} is not on this canvas` })
         const before = readFile(file)
+        if (v && v !== sha(before)) return json(res, 409, { error: `${file} changed outside the canvas just before this; it is drawn again as it is now, so do it once more` })
         const frameLocked = foldBoard(lines.flatMap((l) => parseLines(l, 'board'))).locked.some((k) => k === file || k.startsWith(`${file}#`))
         const refused = frameLocked ? 'This artboard is locked: unlock it on the board first' : lockedFor(before, edit, { owner: true })
         if (refused) return json(res, 403, { error: refused })

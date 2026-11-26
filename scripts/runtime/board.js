@@ -104,7 +104,7 @@
     return fileHtml[file]
   }
   /** The prototype as a file of its own: what Download gives, with nothing the canvas added. */
-  const plainFile = (file) => withAssets(file).replace(/\s+data-cv="\d+"/g, '')
+  const plainFile = (file) => withAssets(file).replace(/\s+data-cv="\d+"/g, '').replace(/\s+data-dc-v="[^"]*"/, '')
   /** What a frame draws: the file, the screen it shows, and the script that turns its links into moves on the board. */
   const docFor = (f) => {
     const html = withAssets(f.file)

@@ -518,14 +518,19 @@
   // ── writing ──
   let busy = false
   /** One edit to the selected frame's file. The answer redraws every frame of that file and the selection returns. */
-  async function send(edit, { file = sel?.frame.file, key = sel?.frame.key, copies = false, then } = {}) {
+  async function send(edit, { file = sel?.frame.file, key = sel?.frame.key, copies = false, then, v } = {}) {
     if (!dc.serve) return
     if (!file) return
     if (fileLocked(file)) return hint('This artboard is locked', 2000)
     if (busy) return hint('Still saving the last change', 1200)
     busy = true
+    // The version of the file the element was picked in: the server refuses the edit if the file has changed since.
+    if (v === undefined) {
+      const shown = sel?.frame.file === file && sel.frame.doc ? sel.frame : dc.allFrames?.find((f) => f.file === file && f.doc)
+      v = shown?.doc.documentElement.getAttribute('data-dc-v') ?? undefined
+    }
     try {
-      const res = await fetch('/api/edit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ file, edit, name: dc.me || 'someone' }) })
+      const res = await fetch('/api/edit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ file, edit, name: dc.me || 'someone', v }) })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(body.error || `Saving failed (${res.status})`)
       // Nothing to write (a sheet already linked): what was to follow the redraw follows now.
@@ -841,6 +846,8 @@
         return
       }
     }
+    // Placed in the file as it now is, the edit carries that version.
+    const v = held != null ? (held.match(/data-dc-v="([^"]+)"/) ?? [])[1] : undefined
     if (chain) {
       // Split by Enter: the element first typed in is replaced by it and the ones made after it, in one edit.
       for (const [k, fn] of [['keydown', editKeys], ['input', onEditInput], ['paste', plainPaste]]) el.removeEventListener(k, fn)
@@ -851,7 +858,7 @@
       const html = chain.map((x) => x.outerHTML.replace(/\s+data-cv="\d+"/g, '').replace(/^(<[^>]*?)\s+style=""/, '$1')).join('')
       const at = chain.indexOf(el)
       send({ op: 'outer', cv, html }, {
-        file: frame.file, key: frame.key,
+        file: frame.file, key: frame.key, v,
         then: then ?? ((f, first) => {
           let x = first
           for (let i = 0; i < at && x; i++) x = x.nextElementSibling
@@ -869,7 +876,7 @@
     frame.el?.classList.remove('editing')
     frame.doc.getSelection()?.removeAllRanges()
     const after = el.innerHTML
-    if (save && after !== before) send({ op: 'inner', cv, html: after }, { file: frame.file, key: frame.key, then })
+    if (save && after !== before) send({ op: 'inner', cv, html: after }, { file: frame.file, key: frame.key, then, v })
     else if (now) select(frame, [now])
     draw()
     renderFloat()

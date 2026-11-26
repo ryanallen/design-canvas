@@ -497,9 +497,11 @@
         return
       }
       dc.noteFileEdit?.()
-      if (body.linked) hint(`Made in all ${body.linked + 1} copies of the component`, 1600)
+      if (body.linked) hint(`Made in all ${body.linked + 1} copies of the component${body.screens ? ` on ${body.screens + 1} screens` : ''}`, 1600)
       pendingSelect = { file, key, cv: body.select, copies, then }
       dc.reloadFile(file, body.html)
+      // The component's copies on other screens took the change too.
+      for (const [other, html] of Object.entries(body.others ?? {})) dc.reloadFile(other, html)
     } catch (err) {
       hint(err.message, 4000)
       // A refused edit may already show in the frame: draw the file as it is.
@@ -602,6 +604,7 @@
     const keep = sel && sel.frame.file === body.file ? { file: body.file, key: sel.frame.key, cv: cvOf(primary()), copies: sel.els.length > 1 } : null
     pendingSelect = keep
     dc.reloadFile(body.file, body.html)
+    for (const [other, html] of Object.entries(body.others ?? {})) dc.reloadFile(other, html)
     hint(redo ? 'Redone' : 'Undone', 900)
   }
 
@@ -1199,7 +1202,11 @@
     const boxy = !text || cs(el).backgroundColor !== 'rgba(0, 0, 0, 0)' || ['a', 'button'].includes(el.localName) && cs(el).display !== 'inline'
     // Inside a component's copy: its name and how many copies a change here reaches; a click selects the copy whole.
     const comp = sel.els.length === 1 ? componentOf(el) : null
-    if (comp) parts.push(h('button', { type: 'button', class: 'fbtn wide comp', title: `A copy of the component ${comp.name}${comp.variant ? `, variant ${comp.variant}` : ''}: a style changed here reaches the ${comp.alike.length} ${comp.variant ? `${comp.variant} ` : ''}cop${comp.alike.length === 1 ? 'y' : 'ies'}, a part added or removed all ${comp.copies.length}; text typed stays this copy's own. Click to select the copy whole.`, onclick: () => select(sel.frame, [comp.root]) }, h('span', { class: 'comp-mark', 'aria-hidden': 'true' }, '◇'), `${comp.name}${comp.variant ? ` / ${comp.variant}` : ''} · ${comp.alike.length}`))
+    // Served by node, a change also reaches the component's copies on the other screens that have it.
+    const mark = comp ? `data-component="${comp.name.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"` : ''
+    const screens = comp && dc.serve && !dc.local ? 1 + Object.entries(dc.data.files).filter(([f, html]) => f !== sel.frame.file && html.includes(mark)).length : 1
+    const onScreens = screens > 1 ? `, on this screen and ${screens - 1} other${screens === 2 ? '' : 's'}` : ''
+    if (comp) parts.push(h('button', { type: 'button', class: 'fbtn wide comp', title: `A copy of the component ${comp.name}${comp.variant ? `, variant ${comp.variant}` : ''}: a style changed here reaches the ${comp.alike.length} ${comp.variant ? `${comp.variant} ` : ''}cop${comp.alike.length === 1 ? 'y' : 'ies'}, a part added or removed all ${comp.copies.length}${onScreens}; text typed stays this copy's own. Click to select the copy whole.`, onclick: () => select(sel.frame, [comp.root]) }, h('span', { class: 'comp-mark', 'aria-hidden': 'true' }, '◇'), `${comp.name}${comp.variant ? ` / ${comp.variant}` : ''} · ${comp.alike.length}${screens > 1 ? ` · ${screens} screens` : ''}`))
     if (text && canEdit) {
       const cls = el.classList[0]
       const label = cls ? `.${cls}` : `${shared('font-family').split(',')[0].replace(/["']/g, '')} · ${shared('font-size')}`

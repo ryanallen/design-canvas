@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { applyEdit, canvasRules, cssDecl, lockedFor, parse, tag, untag } from './html.mjs'
+import { applyComponentEdit, applyEdit, canvasRules, componentEdit, cssDecl, lockedFor, parse, tag, untag } from './html.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const fixture = `<!doctype html>
@@ -309,6 +309,23 @@ test('decl changes a declaration of the prototype\'s own rule where it is writte
   assert.equal(e.src, src.replace('color: red;', 'color: green;'))
   assert.throws(() => applyEdit(src, { op: 'decl', selector: '.nope', prop: 'color', value: 'red' }), /no rule .nope/)
   assert.throws(() => applyEdit(src, { op: 'decl', selector: '.x', prop: 'color: red; x', value: 'red' }), /not a property/)
+})
+
+test("a component's edit reaches its copies in another file, by place, variant and lock", () => {
+  const a = '<body><header data-component="H"><b>T</b><nav><a>1</a></nav></header></body>'
+  const b = '<body><header data-component="H"><b>T</b><nav><a>1</a></nav></header><header data-component="H" data-variant="dark"><b>T</b><nav><a>1</a></nav></header><div data-component="H" data-locked="true"><b>T</b><nav><a>1</a></nav></div></body>'
+  const style = { op: 'style', cv: a.indexOf('<b>'), props: { color: 'red' } }
+  const link = componentEdit(a, style)
+  assert.deepEqual([link.name, link.variant], ['H', ''])
+  const r = applyComponentEdit(b, link, style)
+  assert.equal(r.count, 1)
+  assert.equal(r.src.split('style="color: red"').length, 2)
+  const dup = { op: 'duplicate', cv: a.indexOf('<a>') }
+  const d = applyComponentEdit(b, componentEdit(a, dup), dup)
+  assert.equal(d.count, 2)
+  assert.equal(d.src.split('<a>1</a>').length - 1, 5)
+  assert.equal(componentEdit(a, { op: 'delete', cv: a.indexOf('<header') }), null)
+  assert.equal(componentEdit(a, { op: 'attr', cv: a.indexOf('<b>'), name: 'id', value: 'x' }), null)
 })
 
 test("the page's html, head and body are never copied, removed, wrapped or moved", () => {

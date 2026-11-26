@@ -30,7 +30,7 @@ import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { applyEdit, cssDecl, lockedFor, parse, tag } from './lib/html.mjs'
+import { applyComponentEdit, applyEdit, componentEdit, cssDecl, lockedFor, parse, tag } from './lib/html.mjs'
 import { inlineCss, inlineFile } from './lib/inline.mjs'
 import { writeFileAtomic } from './lib/write.mjs'
 import { cropToOption } from './lib/crop.mjs'
@@ -615,15 +615,33 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         const frameLocked = foldBoard(lines.flatMap((l) => parseLines(l, 'board'))).locked.some((k) => k === file || k.startsWith(`${file}#`))
         const refused = frameLocked ? 'This artboard is locked: unlock it on the board first' : lockedFor(before, edit, { owner: true })
         if (refused) return json(res, 403, { error: refused })
+        const link = componentEdit(before, edit)
         const result = applyEdit(before, edit)
         if (result.src === before) return json(res, 200, { select: result.select, html: servedFile(file), same: true })
         writeFile(file, result.src)
-        undo.push({ file, before, after: result.src })
+        // A component's copies on the other screens take the same change (a header used on many screens), in the
+        // same undo step; a locked screen is left as it is.
+        const also = []
+        if (link) {
+          const lockedFiles = foldBoard(lines.flatMap((l) => parseLines(l, 'board'))).locked
+          for (const other of Object.keys(payload.files)) {
+            if (other === file || lockedFiles.some((k) => k === other || k.startsWith(`${other}#`))) continue
+            const was = readFile(other)
+            if (!was.includes('data-component=')) continue
+            const r = applyComponentEdit(was, link, edit)
+            if (!r.count || r.src === was) continue
+            writeFile(other, r.src)
+            also.push({ file: other, before: was, after: r.src, count: r.count })
+          }
+        }
+        undo.push({ file, before, after: result.src, also: also.map(({ file, before, after }) => ({ file, before, after })) })
         redo.length = 0
-        record({ op: edit.op, id: randomId('e'), at: new Date().toISOString(), name: String(name || 'someone').slice(0, 80), file, summary: summarize(before, edit).slice(0, 600), sha: sha(result.src) })
+        const elsewhere = also.length ? ` (and on ${also.length} other screen${also.length === 1 ? '' : 's'})` : ''
+        record({ op: edit.op, id: randomId('e'), at: new Date().toISOString(), name: String(name || 'someone').slice(0, 80), file, summary: `${summarize(before, edit)}${elsewhere}`.slice(0, 600), sha: sha(result.src) })
         refresh(file)
+        for (const a of also) refresh(a.file)
         writeOut()
-        return json(res, 200, { select: result.select, linked: result.linked ?? 0, count: result.count, html: servedFile(file) })
+        return json(res, 200, { select: result.select, linked: (result.linked ?? 0) + also.reduce((n, a) => n + a.count, 0), screens: also.length, count: result.count, html: servedFile(file), others: Object.fromEntries(also.map((a) => [a.file, servedFile(a.file)])) })
       }
       if ((url.pathname === '/api/undo' || url.pathname === '/api/redo') && req.method === 'POST') {
         const { name } = await readBody(req)
@@ -631,12 +649,15 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         const to = url.pathname === '/api/undo' ? redo : undo
         const step = from.pop()
         if (!step) return json(res, 200, { none: true })
-        const now = readFile(step.file)
-        const want = url.pathname === '/api/undo' ? step.before : step.after
-        if (now !== (url.pathname === '/api/undo' ? step.after : step.before)) {
-          return json(res, 409, { error: `${step.file} changed outside the canvas since; nothing was undone` })
+        const back = url.pathname === '/api/undo'
+        const want = back ? step.before : step.after
+        // Every file the step changed (a component's copies on other screens too) is checked before any is written.
+        const parts = [{ file: step.file, before: step.before, after: step.after }, ...(step.also ?? [])]
+        const moved = parts.find((p) => readFile(p.file) !== (back ? p.after : p.before))
+        if (moved) {
+          return json(res, 409, { error: `${moved.file} changed outside the canvas since; nothing was undone` })
         }
-        writeFile(step.file, want)
+        for (const p of parts) writeFile(p.file, back ? p.before : p.after)
         to.push(step)
         record({ op: url.pathname.slice(5), id: randomId('e'), at: new Date().toISOString(), name: String(name || 'someone').slice(0, 80), file: step.file, summary: url.pathname === '/api/undo' ? 'undid the last edit' : 'redid an edit', sha: sha(want) })
         if (step.sheet) {
@@ -644,9 +665,9 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
           writeOut()
           return json(res, 200, { sheet: step.file, text })
         }
-        refresh(step.file)
+        for (const p of parts) refresh(p.file)
         writeOut()
-        return json(res, 200, { file: step.file, html: servedFile(step.file) })
+        return json(res, 200, { file: step.file, html: servedFile(step.file), others: Object.fromEntries((step.also ?? []).map((p) => [p.file, servedFile(p.file)])) })
       }
       if (url.pathname === '/api/selection') {
         if (req.method === 'POST') {

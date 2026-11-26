@@ -393,6 +393,41 @@ function withKeyframes(src, frames) {
   return { src: src.slice(0, at) + block + src.slice(at), at, shift: block.length }
 }
 
+/**
+ * What makes an edit a component's: the component's name, the part's path inside its copy, and the copy's variant;
+ * null when the edit is a copy's own (no component, a copy removed or duplicated whole, an own attribute, `only`).
+ * Read from the file the edit is made in, before it is made.
+ */
+export function componentEdit(src, edit) {
+  const cvs = [edit.cv].flat()
+  if (!LINKED.has(edit.op) || edit.only || cvs.length !== 1 || (edit.op === 'attr' && OWN_ATTRS.has(String(edit.name).toLowerCase()))) return null
+  const el = parse(src).byStart.get(Number(cvs[0]))
+  const comp = el && componentOf(el)
+  if (!comp || (comp.root === el && ['delete', 'duplicate'].includes(edit.op))) return null
+  return { name: comp.name, path: pathIn(comp.root, el), variant: variantOf(comp.root) }
+}
+
+/**
+ * The same edit made at the same place in every copy of a component in another prototype (a header used on many
+ * screens): style and attribute changes reach copies of the same variant, parts added or removed reach all; a locked
+ * part is skipped. Returns the new source and how many copies it reached.
+ */
+export function applyComponentEdit(src, link, edit) {
+  const targets = copiesOfComponent(src, link.name)
+    .filter((r) => !LOOKS.has(edit.op) || variantOf(r) === link.variant)
+    .map((r) => atPath(r, link.path)).filter(Boolean)
+    .sort((a, b) => b.start - a.start)
+  let out = src
+  let count = 0
+  for (const t of targets) {
+    const one = { ...edit, cv: t.start }
+    if (lockedFor(out, one, { owner: true })) continue
+    out = applyOne(out, one).src
+    count++
+  }
+  return { src: out, count }
+}
+
 function applyLinked(src, edit) {
   const cvs = [edit.cv].flat()
   const skip = !LINKED.has(edit.op) || edit.only || cvs.length !== 1 || (edit.op === 'attr' && OWN_ATTRS.has(String(edit.name).toLowerCase()))

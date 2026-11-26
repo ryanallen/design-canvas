@@ -97,6 +97,25 @@
   .byhand .steps { margin-top: 24px; }
   @media (max-width: 640px) { .paste { flex-direction: column; align-items: stretch; } }
 
+  /* Beside the others: a table that scrolls sideways on its own on a phone, the canvas's column first and marked. */
+  .compare { width: min(var(--wide), 100%); margin: 48px auto 0; overflow-x: auto; -webkit-overflow-scrolling: touch; text-align: left; border-radius: 12px; background: var(--paper); box-shadow: 0 0 0 1px #e2e2e4; }
+  .compare table { width: 100%; min-width: 980px; border-collapse: collapse; font-size: 14px; line-height: 1.4; }
+  .compare th, .compare td { padding: 12px 14px; vertical-align: top; border-bottom: 1px solid #ececee; }
+  .compare tr:last-child th, .compare tr:last-child td { border-bottom: 0; }
+  .compare thead th { position: sticky; top: 0; background: var(--paper); font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+  .compare tbody th { width: clamp(116px, 15vw, 180px); font-weight: 600; color: var(--ink); background: var(--paper); position: sticky; left: 0; }
+  .compare td { color: var(--ink-2); }
+  .compare .us { background: #f0f4fe; color: var(--ink); }
+  .compare thead .us { background: #e4ebfc; }
+  .compare td::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; vertical-align: 1px; background: #c9cacd; }
+  .compare td.y::before { background: #2f9e5b; }
+  .compare td.p::before { background: #e0a526; }
+  .compare td.n::before { background: #d4d5d8; box-shadow: inset 0 0 0 2px #fff; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .key { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 20px; margin: 16px auto 0; font-size: 13px; color: var(--ink-3); }
+  .key span::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; vertical-align: 1px; }
+  .key .y::before { background: #2f9e5b; } .key .p::before { background: #e0a526; } .key .n::before { background: #d4d5d8; }
+
   footer { padding: 40px 20px 48px; text-align: center; font-size: 13px; color: var(--ink-3); background: var(--paper); }
   footer a { margin: 0 10px; text-decoration: none; }
   footer a:hover { text-decoration: underline; }
@@ -192,7 +211,34 @@
     </div>
   </section>
 
-  <section class="panel paper short" id="get" aria-labelledby="get-it">
+  <section class="panel paper short" id="compare" aria-labelledby="beside">
+    <h2 id="beside">Beside the others</h2>
+    <p class="say">What each one does with a design, from its makers' own pages. Where a page says nothing, the table says so rather than guess.</p>
+    <div class="compare" role="region" aria-labelledby="beside" tabindex="0">
+      <table>
+        <thead>
+          <tr><th scope="col"><span class="sr">Feature</span></th><th scope="col" class="us">Design canvas</th><th scope="col">Figma</th><th scope="col">FigJam</th><th scope="col">Claude Design</th><th scope="col">Claude artifacts</th><th scope="col">Canva</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">What you work on</th><td class="us y">Your folder of HTML prototypes, each change written into its own file</td><td class="p">Figma's own files; code layers in open beta</td><td class="n">A board in Figma's cloud</td><td class="p">Designs Claude builds as live HTML, exported as HTML</td><td class="p">A web page Claude writes and republishes</td><td class="p">Canva designs; HTML imported through Canva Code</td></tr>
+          <tr><th scope="row">Change it by hand</th><td class="us y">Click any element: retype, restyle, drag, resize</td><td class="y">Yes</td><td class="p">Board objects</td><td class="p">Text in place, drag, resize, align, and sliders Claude makes</td><td class="n">No: you ask Claude</td><td class="y">Yes</td></tr>
+          <tr><th scope="row">Fills and effects</th><td class="us y">Gradients, point and grid mesh gradients, stacked shadows, blur, blend, rotation</td><td class="y">Yes; mesh gradients by plugin</td><td class="p">Colours</td><td class="p">Spacing and colour sliders</td><td class="n">No</td><td class="y">Yes</td></tr>
+          <tr><th scope="row">Whiteboard</th><td class="us y">Notes, shapes, sections, pencil, connectors that stay attached</td><td class="n">In FigJam</td><td class="y">Notes, shapes, elbowed connectors, stamps, templates</td><td class="p">A separate product, Claude Whiteboards (beta, paid plans)</td><td class="n">No</td><td class="y">Whiteboards with sticky notes</td></tr>
+          <tr><th scope="row">Comments on an element</th><td class="us y">Pinned to the element; replies, reactions, @mentions</td><td class="y">Yes</td><td class="y">Yes</td><td class="y">Yes</td><td class="y">Yes</td><td class="y">Yes</td></tr>
+          <tr><th scope="row">An agent acts on them</th><td class="us y">Your own agent reads the comments from the folder and changes the files</td><td class="p">Figma's agent, and coding agents through its MCP server</td><td class="p">Coding agents through Figma's MCP server</td><td class="y">Claude, in the same canvas</td><td class="y">Claude</td><td class="p">Canva AI, by prompt</td></tr>
+          <tr><th scope="row">Click through it</th><td class="us y">Play: the prototypes themselves, links and all</td><td class="y">Prototypes</td><td class="n">No</td><td class="y">Clickable flows</td><td class="y">It is a live page</td><td class="p">Sites and apps from Canva Code</td></tr>
+          <tr><th scope="row">Version history</th><td class="us y">Every change, who made it, undo across board and files</td><td class="y">Yes</td><td class="y">Yes</td><td class="n">None documented</td><td class="y">Each publish is a version</td><td class="p">Paid plans</td></tr>
+          <tr><th scope="row">Several people at once</th><td class="us p">One computer edits; comments can be shared through a host, and the built file sent to anyone</td><td class="y">Live, with cursors</td><td class="y">Live, with cursors</td><td class="p">Basic, within your organisation</td><td class="p">Viewers, and editors on Team plans</td><td class="y">Live</td></tr>
+          <tr><th scope="row">Where it lives</th><td class="us y">On your computer. No account, no requests of its own</td><td class="n">Figma's cloud, with an account</td><td class="n">Figma's cloud, with an account</td><td class="n">Anthropic's cloud, with an account</td><td class="n">Anthropic's cloud, with an account</td><td class="n">Canva's cloud, with an account</td></tr>
+          <tr><th scope="row">Take it with you</th><td class="us y">One .html file that opens anywhere; PNG of any element</td><td class="y">PNG, SVG, PDF</td><td class="y">PNG, PDF</td><td class="y">PDF, PPTX, HTML, Canva, a handoff to Claude Code</td><td class="p">A link</td><td class="y">PNG, PDF, video and more</td></tr>
+          <tr><th scope="row">Price</th><td class="us y">Free and open source</td><td class="p">Free plan, then paid seats</td><td class="p">Free plan, then paid seats</td><td class="y">On every Claude plan, Free included</td><td class="y">On Claude plans</td><td class="p">Free plan, then paid</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="key"><span class="y">Does it</span><span class="p">In part, or another way</span><span class="n">Does not</span></p>
+  </section>
+
+  <section class="panel plain short" id="get" aria-labelledby="get-it">
     <h2 id="get-it">Get it</h2>
     <p class="say">Paste this into your agent. The link tells it everything: it installs the canvas and opens your prototypes, or walks you through it.</p>
     <div class="paste">

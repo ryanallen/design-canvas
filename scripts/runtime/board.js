@@ -3346,9 +3346,35 @@
           f ? h('button', { type: 'button', class: 'mini', onclick: () => { historySheet.close(); showFrame(f) } }, 'Show') : null),
         h('div', { class: 'hist-what' }, e.summary || e.op))
     })
+    historySheet.setAttribute('aria-label', 'History')
     historySheet.replaceChildren(
       h('header', {}, h('b', {}, `History · ${list.length} edit${list.length === 1 ? '' : 's'}`), h('button', { type: 'button', class: 'tool', 'aria-label': 'Close', onclick: () => historySheet.close() }, '✕')),
       h('div', { class: 'hist-list' }, rows.length ? rows : h('p', { class: 'empty' }, 'No edits recorded yet.')),
+    )
+    historySheet.showModal()
+  }
+  // The stamps on this page counted, as a FigJam vote's results and Canva's sort by reactions: each note, shape or
+  // picture with stamps on it, most first, each kind of stamp with how many; Show goes to it.
+  function openStampCount() {
+    const on = new Map()
+    for (const st of items().filter((i) => i.kind === 'stamp' && i.to)) {
+      const it = board.items.find((i) => i.id === st.to)
+      if (!it) continue
+      const c = on.get(it.id) ?? { it, n: 0, by: new Map() }
+      c.n++
+      c.by.set(st.text, (c.by.get(st.text) ?? 0) + 1)
+      on.set(it.id, c)
+    }
+    const list = [...on.values()].sort((a, b) => b.n - a.n)
+    const label = (it) => `${{ note: 'Note', rect: 'Rectangle', ellipse: 'Ellipse', diamond: 'Diamond', triangle: 'Triangle', section: 'Section', image: 'Picture' }[it.kind] ?? it.kind}${it.text ? ` "${String(it.text).slice(0, 40)}${String(it.text).length > 40 ? '…' : ''}"` : ''}`
+    const rows = list.map((c) => h('div', { class: 'hist-row stamp-row' },
+      h('div', { class: 'hist-head' }, h('b', {}, String(c.n)), h('span', {}, label(c.it)),
+        h('button', { type: 'button', class: 'mini', onclick: () => { historySheet.close(); pickItem(c.it.id); zoomToSelection() } }, 'Show')),
+      h('div', { class: 'hist-what' }, [...c.by.entries()].sort((a, b) => b[1] - a[1]).map(([g, n]) => `${g} ${n}`).join('   '))))
+    historySheet.setAttribute('aria-label', 'Stamps, counted')
+    historySheet.replaceChildren(
+      h('header', {}, h('b', {}, `Stamps, counted · ${list.length} with stamps`), h('button', { type: 'button', class: 'tool', 'aria-label': 'Close', onclick: () => historySheet.close() }, '✕')),
+      h('div', { class: 'hist-list' }, rows.length ? rows : h('p', { class: 'empty' }, 'Nothing on this page has a stamp on it yet: E takes the stamp tool.')),
     )
     historySheet.showModal()
   }
@@ -3363,6 +3389,7 @@
       sel ? { label: `Download ${sel}`, icon: 'download', run: () => downloadFile(sel) } : null,
       serve ? { label: 'Rename', run: rename } : null,
       { label: 'History', run: openHistory },
+      items().some((i) => i.kind === 'stamp') ? { label: 'Stamps, counted', run: openStampCount } : null,
       // A board laid out for a retro, a kanban, a journey map or a flowchart.
       serve ? { label: 'Templates…', run: () => setTimeout(() => templateMenu($('#title-btn')), 0) } : null,
       // Which element a click in a prototype picks: the one under the pointer, or the outermost block (as Figma), a

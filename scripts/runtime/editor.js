@@ -438,6 +438,23 @@
     return { frame: sel.frame, file: sel.frame.file, anchor: a, wx: sel.frame.x + b.left * sel.frame.s, wy: sel.frame.y + b.top * sel.frame.s, label: `${nameOf(el).text} in ${sel.frame.file}` }
   }
   hooks.onOutsideChange = () => {}
+  // The file being typed in changed (an agent wrote it): kept, and drawn when the typing ends, so the words go on.
+  hooks.holdFile = (file, html) => {
+    if (editing?.frame.file !== file) return false
+    editing.held = html
+    return true
+  }
+  /** Where the element typed in is in the file as it now is, after a change from outside while it was typed in: of
+   *  the elements with its tag that held the words it held, the one at its place among them. Null when it is not
+   *  there: that element itself was changed. */
+  function cvIn(html, el, before) {
+    const norm = (s) => s.replace(/\s+data-cv="\d+"/g, '')
+    const doc = new DOMParser().parseFromString(html, 'text/html')
+    const was = [...el.ownerDocument.querySelectorAll(el.localName)].filter((x) => x === el || norm(x.innerHTML) === norm(before))
+    const now = [...doc.querySelectorAll(el.localName)].filter((x) => norm(x.innerHTML) === norm(before))
+    const x = now[Math.min(was.indexOf(el), now.length - 1)]
+    return x?.hasAttribute('data-cv') ? Number(x.getAttribute('data-cv')) : null
+  }
 
   // ── comment anchors: a path from the nearest element with an id or a data-name ──
   function anchorFor(f, el, dx, dy) {
@@ -803,9 +820,27 @@
   }
   function stopEditing(save, { now = null, then = null } = {}) {
     if (!editing) return
-    const { frame, el, before, chain } = editing
+    const { frame, el, before, chain, held } = editing
     editing = null
     frame.doc.removeEventListener('pointerdown', pressAway, true)
+    // The file changed outside while this was typed in: the words go where the element now is in it. When the
+    // element itself was changed there, nothing is written over it: the words are put on the clipboard instead.
+    let cv = cvOf(chain ? chain[0] : el)
+    if (held != null) {
+      cv = cvIn(held, chain ? chain[0] : el, before)
+      const changed = save && (chain || el.innerHTML !== before)
+      if (cv == null || !changed) {
+        for (const [k, fn] of [['keydown', editKeys], ['input', onEditInput], ['paste', plainPaste], ['dblclick', wordOnly]]) el.removeEventListener(k, fn)
+        frame.el?.classList.remove('editing')
+        const words = (chain ?? [el]).map((x) => x.innerText).join('\n')
+        dc.reloadFile(frame.file, held)
+        if (changed) {
+          navigator.clipboard?.writeText(words).catch(() => {})
+          hint(`That line was changed outside the canvas while you typed, so your words were not written over it: they are copied, to paste where they belong`, 6000)
+        }
+        return
+      }
+    }
     if (chain) {
       // Split by Enter: the element first typed in is replaced by it and the ones made after it, in one edit.
       for (const [k, fn] of [['keydown', editKeys], ['input', onEditInput], ['paste', plainPaste]]) el.removeEventListener(k, fn)
@@ -815,7 +850,7 @@
       frame.doc.getSelection()?.removeAllRanges()
       const html = chain.map((x) => x.outerHTML.replace(/\s+data-cv="\d+"/g, '').replace(/^(<[^>]*?)\s+style=""/, '$1')).join('')
       const at = chain.indexOf(el)
-      send({ op: 'outer', cv: cvOf(chain[0]), html }, {
+      send({ op: 'outer', cv, html }, {
         file: frame.file, key: frame.key,
         then: then ?? ((f, first) => {
           let x = first
@@ -834,7 +869,7 @@
     frame.el?.classList.remove('editing')
     frame.doc.getSelection()?.removeAllRanges()
     const after = el.innerHTML
-    if (save && after !== before) send({ op: 'inner', cv: cvOf(el), html: after }, { file: frame.file, key: frame.key, then })
+    if (save && after !== before) send({ op: 'inner', cv, html: after }, { file: frame.file, key: frame.key, then })
     else if (now) select(frame, [now])
     draw()
     renderFloat()

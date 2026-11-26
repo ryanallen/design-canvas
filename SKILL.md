@@ -61,7 +61,7 @@ A right-click opens the menu of what is under it, never the browser's: in a prot
 
 ## Typing in place
 
-Enter (or double-click) on a selected text element types in it. Enter while typing goes on in a new element after it, as a text editor does: the same tag and attributes but the id (a paragraph after a heading), never a `<div>` inside the paragraph. Shift+Enter is a line break inside it; Escape, or Enter in a one-line element, ends typing. Everything typed, however many elements Enter made, is one edit for Ctrl+Z.
+Enter (or double-click) on a selected text element types in it. Enter while typing goes on in a new element after it, as a text editor does: the same tag and attributes but the id (a paragraph after a heading), never a `<div>` inside the paragraph. Shift+Enter is a line break inside it; Escape, or Enter in a one-line element, ends typing. Everything typed, however many elements Enter made, is one edit for Ctrl+Z. When the file changes outside the canvas while someone types in it (an agent writing it), the typing goes on and the screen redraws when it ends; the words go into the element typed in, wherever the change moved it in the file, and if the change rewrote that element itself, nothing is written over it: the words are copied, with a hint, to paste where they belong.
 
 ## History
 

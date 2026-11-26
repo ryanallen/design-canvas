@@ -620,11 +620,15 @@
     call('onView')
   }
   /** A file changed: every frame drawing it is redrawn from the new HTML. */
+  /** The file drawn again in every frame showing it. Not while someone is typing in one of them: the editor keeps the
+   *  new file and draws it when the typing ends (false then). */
   function reloadFile(file, html) {
+    if (call('holdFile', file, html)) return false
     data.files[file] = html
     delete fileHtml[file]
     for (const f of allFrames.values()) if (f.file === file && f.loaded && f.el) loadFrame(f)
     if (playing?.file === file) playFrame.srcdoc = docFor(playing)
+    return true
   }
   /** A stylesheet the prototypes link, changed: every file that links it redraws. False when nothing changed. */
   function reloadSheet(sheet, text) {
@@ -3270,10 +3274,10 @@
       const res = await fetch(`/api/file?f=${encodeURIComponent(file)}`, { cache: 'no-store' })
       const body = await res.json()
       if (res.ok) {
-        reloadFile(file, body.html)
+        const drawn = reloadFile(file, body.html)
         if (quiet) return
         call('onOutsideChange', file)
-        hint(`${file} changed outside the canvas; redrawn`, 2000)
+        hint(drawn ? `${file} changed outside the canvas; redrawn` : `${file} changed outside the canvas; it redraws when you finish typing`, drawn ? 2000 : 3000)
       }
     } catch {}
   }

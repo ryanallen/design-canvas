@@ -1693,8 +1693,12 @@
       el.removeEventListener('blur', done)
       el.contentEditable = 'false'
       const text = el.innerText.replace(/\n$/, '')
-      // A note given more words than it holds grows down to hold them all, so none is hidden under its edge.
-      const over = it.kind === 'note' ? box.scrollHeight - box.clientHeight : 0
+      // A note or shape given more words than it holds grows down to hold them all, so none is hidden under its edge
+      // or spills over what is beside it; an ellipse holds its words in the box inside its curve.
+      const over = it.kind === 'note' ? box.scrollHeight - box.clientHeight
+        : it.kind === 'rect' ? el.scrollHeight - box.clientHeight
+        : it.kind === 'ellipse' ? Math.ceil(el.scrollHeight * 1.42) - box.clientHeight
+        : 0
       const grow = over > 1 ? { h: Math.ceil(it.h + over + 8) } : {}
       if (text !== (it.text ?? '') || grow.h) updateItem(id, { text, ...grow })
       else renderItems()

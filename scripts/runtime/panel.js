@@ -672,6 +672,23 @@
         field('Shadow colour', color(col, (v) => write({ col: withAlpha(v) }), () => set({ 'box-shadow': 'none' }))),
       ]
     }
+    // Figma's Layer blur and Background blur: the blur() in filter and in backdrop-filter, in px. Only the blur is
+    // changed, so a filter's other parts (a brightness, a grayscale) stay as they are, element by element.
+    function blurFields() {
+      const blurIn = (v) => Number(/blur\(([\d.]+)px\)/.exec(v ?? '')?.[1] ?? 0)
+      const withBlur = (v, n) => {
+        const rest = String(v === 'none' ? '' : v ?? '').replace(/\s*blur\([^)]*\)\s*/g, ' ').trim()
+        const all = [rest, n > 0 ? `blur(${n}px)` : ''].filter(Boolean).join(' ')
+        return all || 'none'
+      }
+      return [['filter', 'Layer blur', 'Blurs the element and what it holds'], ['backdrop-filter', 'Background blur', 'Blurs what shows through behind it, as frosted glass: give it a see-through fill to see it']].map(([prop, label, tip]) => {
+        const now = across((x, k) => blurIn(k.getPropertyValue(prop)))
+        const write = (n) => eachOwn((k) => ({ [prop]: withBlur(k.getPropertyValue(prop), n) }))
+        return now === '0'
+          ? field(label, h('span', { class: 'val' }, 'None'), h('button', { type: 'button', class: 'mini', title: `Add ${label.toLowerCase()}: ${tip}`, onclick: () => write(prop === 'filter' ? 4 : 12) }, '+'))
+          : field(label, input(now, (v) => { const n = Number(String(v).replace(/px$/, '')); if (Number.isFinite(n) && n >= 0) write(n) }, { class: 'n', title: `${tip}, in px`, 'aria-label': label }), h('span', { class: 'val unit' }, 'px'), h('button', { type: 'button', class: 'mini', title: `Remove ${label.toLowerCase()}`, onclick: () => write(0) }, '−'))
+      })
+    }
     host.append(section('Appearance',['background', 'box-shadow', 'filter', 'backdrop-filter', 'mix-blend-mode', 'outline', 'cursor', 'overflow'],
       field('Fill', color(bg, (v) => set({ 'background-color': v }), bg !== 'rgba(0, 0, 0, 0)' ? () => set({ 'background-color': '', background: '' }) : null, lever(el, 'background-color') ?? lever(el, 'background')), grad || mesh || lattice ? null : h('button', { type: 'button', class: 'mini', title: 'Gradient: fade this colour into another', onclick: startGradient }, '◐'), grad || mesh || lattice ? null : h('button', { type: 'button', class: 'mini', title: 'Mesh: colours blended from points you drag', onclick: startMesh }, '◍'), grad || mesh || lattice ? null : h('button', { type: 'button', class: 'mini', title: 'Grid mesh: a lattice of colours whose points bend them, as an Illustrator gradient mesh', onclick: startGrid }, '◫')),
       ...gradFields,
@@ -684,6 +701,7 @@
       field('Border', seg([['none', 'None'], ['solid', 'Solid'], ['dashed', 'Dash'], ['dotted', 'Dot']], c.borderTopStyle, (v) => (v === 'none' ? set({ border: 'none' }) : eachOwn((k) => ({ 'border-style': v, 'border-width': num(k.borderTopWidth) > 0 ? k.borderTopWidth : '1px', 'border-color': k.borderTopStyle === 'none' ? '#d1d5db' : k.borderTopColor }))))),
       c.borderTopStyle !== 'none' ? field('Width · Color', input(across((x, k) => num(k.borderTopWidth)),(v) => set({ 'border-width': px(v) }), { class: 'n' }), color(c.borderTopColor, (v) => set({ 'border-color': v }))) : null,
       ...shadowFields(),
+      ...blurFields(),
       motionField(el, c),
       ...entranceFields(el, c)))
   }

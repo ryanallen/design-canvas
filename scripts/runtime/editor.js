@@ -1507,7 +1507,19 @@
       const d = shared('display')
       // A group with no box of its own (display: contents) draws no fill, corners or padding: only its layout is offered.
       const flat = d === 'contents'
-      if (!flat) parts.push(colorButton('Fill', 'background-color', shared('background-color'), (v) => setStyle({ 'background-color': v })))
+      if (!flat) {
+        // Over a gradient a fill colour would change nothing seen: the chip shows the gradient, and a colour picked
+        // takes its place.
+        const image = shared('background-image')
+        const graded = /gradient\(/.test(image ?? '')
+        const fill = colorButton('Fill', 'background-color', shared('background-color'), (v) => setStyle(graded ? { 'background-color': v, 'background-image': 'none' } : { 'background-color': v }))
+        if (graded) {
+          fill.title = 'Fill: a colour picked replaces the gradient'
+          fill.querySelector('.chip').style.background = image
+          fill.querySelector('input').addEventListener('input', () => { if (!editing) for (const x of sel?.els.filter(live) ?? []) x.style.setProperty('background-image', 'none') })
+        }
+        parts.push(fill)
+      }
       parts.push(h('button', { type: 'button', class: 'fbtn', title: `Layout: ${d}`, onclick: (e) => dc.openMenu(e.currentTarget, [
         ...(flat ? [{ label: 'Group: no box, its parts keep their places', tick: true, run: () => {} }] : []),
         { label: 'Block', tick: d === 'block', run: () => setStyle({ display: 'block' }) },

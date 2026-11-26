@@ -783,6 +783,54 @@
     drag = { kind: 'pan', id: e.pointerId, sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false, forced: panning }
     capture(e.pointerId)
   }
+  // A right-click opens the menu of what is under it, as in Figma: an element in a prototype, a board object (picked
+  // first if it is not in the selection, with its group), or the board itself. Text being typed keeps the browser's
+  // own menu, for its spelling.
+  viewport.addEventListener('contextmenu', (e) => {
+    if (e.target.closest('[contenteditable="true"], input, textarea')) return
+    e.preventDefault()
+    const at = { x: e.clientX, y: e.clientY }
+    const itemEl = e.target.closest('.item')
+    const f = itemEl ? null : frameAt(e.clientX, e.clientY)
+    if (f && call('onContextMenu', e, { frame: f, point: toWorld(e.clientX, e.clientY) })) return
+    if (itemEl && serve) {
+      const id = itemEl.dataset.id
+      if (!selectedItems().some((i) => i.id === id) && !chosen?.items.has(id)) {
+        const g = withGroup(id)
+        g.length > 1 ? chooseItems(g) : pickItem(id)
+      }
+      return openMenu(at, itemMenu())
+    }
+    if (!f) openMenu(at, [
+      serve && boardClip ? { label: 'Paste', key: 'Ctrl+V', run: pasteItems } : null,
+      serve ? { label: 'Select all', key: 'Ctrl+A', run: () => chooseItems(board.items.filter((i) => (i.page ?? firstPage()) === pageId && i.kind !== 'guide').map((i) => i.id), frames().map((f) => f.key)) } : null,
+      { label: 'Zoom to fit', key: 'Shift+1', run: fitAll },
+      { label: 'Keyboard shortcuts', key: '?', run: openKeys },
+    ].filter(Boolean))
+  })
+  /** The menu of the board objects selected: what their keys and bar do, in one place. */
+  function itemMenu() {
+    const ids = chosen ? [...chosen.items] : picked ? withGroup(picked) : []
+    const free = ids.some((id) => !isLocked(id))
+    const many = chosen && chosen.items.size > 1
+    const grouped = ids.some((id) => board.items.find((i) => i.id === id)?.group)
+    return [
+      { label: 'Copy', key: 'Ctrl+C', run: copyItems },
+      boardClip ? { label: 'Paste', key: 'Ctrl+V', run: pasteItems } : null,
+      { label: 'Duplicate', key: 'Ctrl+D', run: duplicateItems },
+      free ? '-' : null,
+      free ? { label: 'Bring to front', key: 'Ctrl+]', run: () => restack(true) } : null,
+      free ? { label: 'Send to back', key: 'Ctrl+[', run: () => restack(false) } : null,
+      free && many ? { label: 'Group', key: 'Ctrl+G', run: () => groupChosen(true) } : null,
+      free && grouped && chosen ? { label: 'Ungroup', key: 'Ctrl+Shift+G', run: () => groupChosen(false) } : null,
+      { label: 'Zoom to selection', key: 'Shift+2', run: zoomToSelection },
+      '-',
+      owner() && free ? { label: 'Lock', run: () => setLock(ids, true) } : null,
+      owner() && ids.some(isLocked) ? { label: 'Unlock', run: () => setLock(ids.filter(isLocked), false) } : null,
+      '-',
+      free ? { label: 'Delete', key: 'Del', danger: true, run: () => (chosen ? removeChosen() : removeItem(picked)) } : null,
+    ].filter(Boolean).reduce((out, m) => (m === '-' && (!out.length || out.at(-1) === '-') ? out : [...out, m]), []).filter((m, i, all) => m !== '-' || i < all.length - 1)
+  }
   viewport.addEventListener('pointermove', (e) => {
     if (e.pointerType === 'touch' && touches.has(e.pointerId)) {
       touches.set(e.pointerId, { x: e.clientX, y: e.clientY })

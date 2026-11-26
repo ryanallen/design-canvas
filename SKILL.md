@@ -57,6 +57,8 @@ Everything people do is a line before `</body>`, one JSON event each, never rewr
 
 In a prototype a click picks the element under the pointer (the line), Esc climbs to what holds it and Enter goes in. The canvas menu on the title has **Clicks pick the card** instead, as Figma: a click picks the outermost block holding what is under the pointer, passing over wrappers nearly as big as the page, and each click inside the selection goes one level in (the grid, then the card, then the line), while a drag that starts anywhere inside it moves the selection itself. Hover outlines what a click would pick. The choice is kept in that browser; **Clicks pick the line** goes back.
 
+A right-click opens the menu of what is under it, never the browser's: in a prototype the element is picked as a click would pick it, unless it is already in the selection (so a right-click on one of several keeps them all), and its menu (the toolbar's **…**) opens there; on a board object it is picked with its group and gets Copy, Paste, Duplicate, Bring to front, Send to back, Group, Ungroup, Zoom to selection, Lock and Delete; on empty board, Paste, Select all, Zoom to fit and the keyboard shortcuts. Text being typed keeps the browser's own menu, for its spelling.
+
 ## Typing in place
 
 Enter (or double-click) on a selected text element types in it. Enter while typing goes on in a new element after it, as a text editor does: the same tag and attributes but the id (a paragraph after a heading), never a `<div>` inside the paragraph. Shift+Enter is a line break inside it; Escape, or Enter in a one-line element, ends typing. Everything typed, however many elements Enter made, is one edit for Ctrl+Z.

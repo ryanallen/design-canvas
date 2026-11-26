@@ -313,6 +313,23 @@
     if (!e.shiftKey && sel && editable(primary()) && sel.els.length === 1 && primary().localName !== 'body') startMove(e, frame, point)
     return true
   }
+  // A right-click in a prototype: what is under it is selected unless it is already in the selection (so a right-click
+  // on one of several keeps them all), and its menu opens there.
+  hooks.onContextMenu = (e, { frame, point }) => {
+    if (!frame?.doc || dc.tool !== 'select') return false
+    if (editing) stopEditing(true)
+    const deep = elementAt(frame, point)
+    if (!deep) return false
+    const inside = sel?.frame === frame && sel.els.some((x) => x === deep || x.contains(deep))
+    if (!inside) {
+      const el = byDepth(frame, deep)
+      if (!el) return false
+      pick(frame, el)
+    }
+    if (!sel) return false
+    more({ x: e.clientX, y: e.clientY })
+    return true
+  }
   /** With "Clicks pick the card" (as Figma): a click outside the selection picks the outermost block holding the
       element under the pointer, passing over wrappers that fill the page; a click inside the selection picks the
       next one in on the way to it. Otherwise the element under the pointer, as before. */

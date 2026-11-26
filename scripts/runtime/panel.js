@@ -284,7 +284,29 @@
   }
   /** The rule a style change goes to while a state is shown, or null for the element itself. */
   dc.stateRuleFor = (el) => (state !== 'default' && shownIn?.el === el && stateSelector(el) ? `${stateSelector(el)}:${state}` : null)
+  /** A layer hidden from its eye is read as it is when shown, as Figma's panel shows a hidden layer's own values (not
+   *  a width of 0 and a layout of none): it is shown for the moment Properties is drawn, then hidden again, and a
+   *  line at the top says it is hidden, with Show. */
   function renderProps() {
+    const el = ed.primary()
+    const hidden = el && el.style.getPropertyValue('display') === 'none' && ed.cvOf(el) != null
+    if (!hidden) return drawProps()
+    const priority = el.style.getPropertyPriority('display')
+    const kept = el.getAttribute('data-display')
+    if (kept) el.style.setProperty('display', kept)
+    else {
+      el.style.removeProperty('display')
+      if (cs(el).display === 'none') el.style.setProperty('display', 'revert')
+    }
+    try {
+      drawProps()
+    } finally {
+      el.style.setProperty('display', 'none', priority)
+    }
+    const sel = ed.sel
+    $('#props').querySelector('.ptitle')?.after(h('div', { class: 'note' }, 'Hidden on the page. ', h('button', { type: 'button', class: 'btn', onclick: () => ed.setHidden(sel.frame, sel.els, false) }, 'Show'), ' (Ctrl+Shift+H)'))
+  }
+  function drawProps() {
     const host = $('#props')
     host.replaceChildren()
     const el = ed.primary()

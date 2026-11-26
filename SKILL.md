@@ -77,7 +77,7 @@ Play shows a screen at full size; ← and → step through the page's screens. W
 
 ## Layers
 
-The panel's Layers list the page's board objects and frames, and an open frame's elements, each named by its `data-name` or `aria-label`, else what it is and what it says. Served, a layer dragged onto another goes before it or after it (by the half it is dropped on), or inside it on the middle of one that holds others: one move in the file. Double-click names a layer, written as `data-name` (empty takes it off). The eye on a layer, or Ctrl+Shift+H, hides it (the whole selection when the layer is in it), as `display: none` on the element so Play hides it too, and shows it again, in one undo step; a display of its own (`flex` written by Layout) is kept in `data-display` while it is hidden and comes back with it. A hidden layer's row is dimmed.
+The panel's Layers list the page's board objects and frames, and an open frame's elements, each named by its `data-name` or `aria-label`, else what it is and what it says. Served, a layer dragged onto another goes before it or after it (by the half it is dropped on), or inside it on the middle of one that holds others: one move in the file. Double-click names a layer, written as `data-name` (empty takes it off). The eye on a layer, or Ctrl+Shift+H, hides it (the whole selection when the layer is in it), as `display: none` on the element so Play hides it too, and shows it again, in one undo step; a display of its own (`flex` written by Layout) is kept in `data-display` while it is hidden and comes back with it. A hidden layer's row is dimmed; selected, Properties shows its values as they are when shown, says it is hidden, and has Show.
 
 ## Copy and paste
 

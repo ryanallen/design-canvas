@@ -908,6 +908,7 @@
     const many = chosen && chosen.items.size > 1
     const grouped = ids.some((id) => board.items.find((i) => i.id === id)?.group)
     return [
+      free ? { label: 'Cut', key: 'Ctrl+X', run: cutItems } : null,
       { label: 'Copy', key: 'Ctrl+C', run: copyItems },
       boardClip ? { label: 'Paste', key: 'Ctrl+V', run: pasteItems } : null,
       { label: 'Duplicate', key: 'Ctrl+D', run: duplicateItems },
@@ -1402,6 +1403,16 @@
     if (!list.length) return false
     boardClip = { items: list.map((i) => ({ ...i })), times: 0 }
     hint(`Copied ${list.length === 1 ? 'it' : list.length}`, 900)
+    return true
+  }
+  /** Ctrl+X, as Figma's Cut: copied, then deleted; the first paste puts them back where they were. */
+  function cutItems() {
+    const list = selectedItems().filter((i) => !isLocked(i.id))
+    if (!list.length) return false
+    boardClip = { items: list.map((i) => ({ ...i })), times: -1 }
+    hint(`Cut ${list.length === 1 ? 'it' : list.length}`, 900)
+    if (chosen) removeChosen()
+    else removeItem(picked)
     return true
   }
   function pasteItems() {
@@ -3152,8 +3163,8 @@
   const SHORTCUTS = [
     ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['R', 'Rectangle'], ['S', 'Section'], ['A', 'Artboard'], ['C', 'Comment']]],
     ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['+ and −, Ctrl+= and Ctrl+−', 'Zoom in and out'], ['0 or Ctrl+0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+\\', 'Panel']]],
-    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+V', 'Copy, paste'], ['Ctrl+], Ctrl+[', 'Front, back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Delete', 'Delete']]],
-    ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+Shift+H', 'Hide or show'], ['Shift+A', 'Add auto layout'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
+    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+], Ctrl+[', 'Front, back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Delete', 'Delete']]],
+    ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste after it'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+Shift+H', 'Hide or show'], ['Shift+A', 'Add auto layout'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
     ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['C', 'Comment on it, then click where'], ['Esc', 'Back to the canvas']]],
     ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+?', 'This sheet']]],
   ]
@@ -3513,7 +3524,7 @@
         return restack(k === ']')
       }
       const screens = k === 'd' && chosen?.frames.size ? frames().filter((f) => chosen.frames.has(f.key)) : []
-      const done = k === 'd' ? (selectedItems().length || screens.length ? (selectedItems().length && duplicateItems(), screens.length && duplicateScreens(screens), true) : false) : k === 'c' ? copyItems() : k === 'v' ? !call('selectedFile') && pasteItems() : false
+      const done = k === 'd' ? (selectedItems().length || screens.length ? (selectedItems().length && duplicateItems(), screens.length && duplicateScreens(screens), true) : false) : k === 'c' ? copyItems() : k === 'x' ? cutItems() : k === 'v' ? !call('selectedFile') && pasteItems() : false
       if (done) return e.preventDefault()
     }
     // Figma's align keys, by the key's place so a Mac's Option characters do not matter.

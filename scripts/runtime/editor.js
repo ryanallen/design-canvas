@@ -1192,6 +1192,13 @@
       try { await navigator.clipboard.writeText(clip.html) } catch {}
       hint(els.length > 1 ? `Copied ${els.length}` : 'Copied', 900)
     },
+    // Ctrl+X, as Figma's Cut: copied, then deleted in one step; Ctrl+V puts it after what is selected then.
+    cut: async () => {
+      if (!sel || !needEditable()) return
+      if (sel.els.some((x) => x.localName === 'body')) return hint('The body stays', 1500)
+      await ops.copy()
+      ops.remove()
+    },
     paste: () => {
       if (!clip) return hint('Nothing copied yet', 1200)
       if (!needEditable()) return
@@ -1370,6 +1377,7 @@
     else if (mod && k === 'g') e.shiftKey ? ops.ungroup() : ops.group()
     else if (mod && e.shiftKey && k === 'c') ops.copyPng()
     else if (mod && k === 'c') ops.copy()
+    else if (mod && k === 'x') ops.cut()
     // With nothing copied here, Ctrl+V is left to the page: a picture on the clipboard goes into the prototype.
     else if (mod && k === 'v' && clip) ops.paste()
     // Everything alongside the selection, as Figma's Ctrl+A: the selected element's siblings.
@@ -1758,6 +1766,7 @@
                 })()
               : []),
             sel.els.length === 1 && componentOf(primary())?.root === primary() ? { label: 'Detach from component', run: ops.detach } : null,
+            { label: 'Cut', key: 'Ctrl+X', run: ops.cut },
             { label: 'Copy', key: 'Ctrl+C', run: ops.copy },
             clip ? { label: 'Paste after it', key: 'Ctrl+V', run: ops.paste } : null,
             { label: 'Copy properties', key: 'Ctrl+Alt+C', run: ops.copyProps },

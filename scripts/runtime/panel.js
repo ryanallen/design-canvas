@@ -545,6 +545,25 @@
     if (!flex) layout.push(h('div', { class: 'wraps' }, ...[['row', 'Wrap in flex row'], ['column', 'Wrap in flex column'], ['grid', 'Wrap in grid']].map(([k, l]) => h('button', { type: 'button', class: 'chipbtn', onclick: () => ed.ops.wrapIn(k) }, l))))
     host.append(section('Layout', ['margin', 'flex-basis', 'order', 'justify-items', 'align-content', 'grid-template-rows', 'grid-column', 'grid-row'], ...layout))
 
+    // Figma's image scale modes, for a picture or a video: how it fills its box (object-fit), where a crop keeps its
+    // middle (object-position), and the words read out in its place (alt).
+    if (['img', 'video'].includes(el.localName)) {
+      const fit = across((x, k) => k.objectFit)
+      const SPOTS = [['0% 0%', 'Top left'], ['50% 0%', 'Top'], ['100% 0%', 'Top right'], ['0% 50%', 'Left'], ['50% 50%', 'Centre'], ['100% 50%', 'Right'], ['0% 100%', 'Bottom left'], ['50% 100%', 'Bottom'], ['100% 100%', 'Bottom right']]
+      const spot = across((x, k) => k.objectPosition)
+      const spotName = spot === MIXED ? 'Mixed' : SPOTS.find(([v]) => v === spot)?.[1] ?? spot
+      const pics = ed.sel.els.filter((x) => x.localName === el.localName && ed.editable(x) && ed.cvOf(x) != null)
+      const alt = across((x) => x.getAttribute('alt') ?? '')
+      host.append(section(el.localName === 'img' ? 'Image' : 'Video', ['object-fit', 'object-position', 'image-rendering', 'aspect-ratio'],
+        field('Fit', seg([['cover', 'Fill', 'Fill the box, cropping what is over'], ['contain', 'Fit', 'All of it inside the box'], ['fill', 'Stretch', 'Stretched to the box'], ['none', 'Original', 'At its own size, cropped by the box']], fit === MIXED ? '' : fit, (v) => set({ 'object-fit': v }))),
+        fit === 'cover' || fit === 'none' || fit === 'contain' || spot !== '50% 50%'
+          ? field('Focus', select(SPOTS.map(([, n]) => n), spotName, (n) => { const v = SPOTS.find(([, x]) => x === n)?.[0]; if (v) set({ 'object-position': v }) }))
+          : null,
+        el.localName === 'img'
+          ? field('Alt text', input(alt === MIXED ? '' : alt, (v) => ed.send({ op: 'styles', items: pics.map((x) => ({ cv: ed.cvOf(x), props: {}, attrs: { alt: String(v) } })) }, { then: ed.reselect() }), { class: 'w', placeholder: alt === MIXED ? 'Mixed' : 'Said in its place', 'aria-label': 'Alt text' }))
+          : null))
+    }
+
     // Text
     if (ed.isText(el) || ['input', 'textarea', 'select', 'button'].includes(el.localName)) {
       const fams = [...new Set([...el.ownerDocument.querySelectorAll('body *')].slice(0, 400).map((x) => cs(x).fontFamily))]

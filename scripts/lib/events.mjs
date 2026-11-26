@@ -141,8 +141,11 @@ export function makeEvent(input, { now = new Date(), newId = randomId } = {}) {
       return { op: 'delete', to: id(input.to, 'to'), at, name }
     case 'agent':
       return { op: 'agent', to: id(input.to, 'to'), at, name, agent: input.agent !== false }
+    // New words for a comment or reply; the fold takes them only from whoever wrote it.
+    case 'edit':
+      return { op: 'edit', to: id(input.to, 'to'), at, name, text: text(input.text, LIMITS.text, 'text') }
     default:
-      throw new Error('op must be add, reply, resolve, delete or agent')
+      throw new Error('op must be add, reply, resolve, delete, agent or edit')
   }
 }
 
@@ -168,6 +171,10 @@ export function foldEvents(events) {
       t.resolvedBy = t.resolved ? e.name : null
     } else if (e.op === 'agent' && threads.has(e.to)) {
       threads.get(e.to).agent = e.agent !== false
+    } else if (e.op === 'edit') {
+      // As in Figma, a comment is edited only by the one who wrote it; anyone else's edit line changes nothing.
+      const m = threads.get(e.to) ?? threads.get(owner.get(e.to))?.replies.find((r) => r.id === e.to)
+      if (m && m.name === e.name) Object.assign(m, { text: e.text, edited: e.at })
     } else if (e.op === 'delete') {
       if (threads.has(e.to)) threads.delete(e.to)
       else if (owner.has(e.to)) {

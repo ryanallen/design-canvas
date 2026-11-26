@@ -196,3 +196,19 @@ test('a picture on the board: a file in the folder by its path, never an address
     assert.throws(() => makeBoardEvent({ op: 'item', kind: 'image', src: bad }), /src is not a picture in the folder/, bad)
   }
 })
+
+test('a comment or reply is edited only by the one who wrote it, and says it was', () => {
+  const ids = ['c-aaaaaa1', 'r-aaaaaa1']
+  const make = (input) => makeEvent(input, { newId: () => ids.shift() })
+  const add = make({ op: 'add', name: 'Ana', text: 'Make this brighter', frame: 'home.html', x: 1, y: 2 })
+  const reply = make({ op: 'reply', to: add.id, name: 'Ben', text: 'Agreed' })
+  const mine = makeEvent({ op: 'edit', to: add.id, name: 'Ana', text: 'Make this the one bright thing' })
+  const notMine = makeEvent({ op: 'edit', to: add.id, name: 'Ben', text: 'Leave it' })
+  const replyFixed = makeEvent({ op: 'edit', to: reply.id, name: 'Ben', text: 'Agreed, brighter' })
+  const [t] = foldEvents([add, reply, mine, notMine, replyFixed])
+  assert.equal(t.text, 'Make this the one bright thing')
+  assert.equal(t.edited, mine.at)
+  assert.equal(t.replies[0].text, 'Agreed, brighter')
+  assert.ok(t.replies[0].edited)
+  assert.throws(() => makeEvent({ op: 'edit', to: add.id, name: 'Ana', text: '' }), /text/)
+})

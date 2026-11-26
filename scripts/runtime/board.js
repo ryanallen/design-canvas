@@ -2606,8 +2606,31 @@
     })
     if (t) {
       for (const m of [{ ...t, root: true }, ...t.replies]) {
+        const words = h('p', {}, m.text)
+        // As in Figma, what someone wrote they can edit: its words become a field, kept with Save or Ctrl+Enter.
+        const edit = () => {
+          const field = h('textarea', { class: 'edit-msg', 'aria-label': 'Edit the comment' })
+          field.value = m.text
+          const save = async () => {
+            const text = field.value.trim()
+            if (!text || text === m.text) return showThread({ id: t.id })
+            try {
+              await send({ op: 'edit', to: m.id, text, name: me || 'someone' })
+              renderPins()
+              showThread({ id: t.id })
+            } catch (err) { error.textContent = err.message }
+          }
+          field.addEventListener('keydown', (e) => {
+            e.stopPropagation()
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) save()
+            if (e.key === 'Escape') showThread({ id: t.id })
+          })
+          words.replaceWith(h('div', { class: 'editing-msg' }, field, h('div', { class: 'row' }, h('button', { type: 'button', class: 'btn quiet', onclick: () => showThread({ id: t.id }) }, 'Cancel'), h('button', { type: 'button', class: 'btn', onclick: save }, 'Save'))))
+          field.focus()
+        }
         msgs.append(h('div', { class: 'msg' },
-          h('div', { class: 'who' }, h('b', {}, m.name), h('span', {}, when(m.at)),
+          h('div', { class: 'who' }, h('b', {}, m.name), h('span', {}, when(m.at), m.edited ? ' · edited' : ''),
+            api && me && m.name === me ? h('button', { type: 'button', title: 'Edit what you wrote', onclick: edit }, 'Edit') : null,
             // As in Figma, people delete what they wrote; the owner deletes anything.
             api && (owner() || (me && m.name === me)) ? h('button', { type: 'button', title: m.root ? 'Delete the whole thread' : 'Delete this reply', onclick: async () => {
               if (!(await sure(m.root ? 'Delete this thread and its replies for everyone?' : 'Delete this reply for everyone?', 'Delete', true))) return
@@ -2617,7 +2640,7 @@
                 else { renderPins(); showThread({ id: t.id }) }
               } catch (err) { error.textContent = err.message }
             } }, 'Delete') : null),
-          h('p', {}, m.text),
+          words,
           m.root && t.file ? h('div', { class: 'on' }, `On ${t.file}${t.anchor ? ` · ${t.anchor.text ? `“${t.anchor.text.length > 40 ? `${t.anchor.text.slice(0, 40)}…` : t.anchor.text}”` : t.anchor.path}` : ''}`) : null))
       }
     }

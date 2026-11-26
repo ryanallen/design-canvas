@@ -378,6 +378,9 @@ body.panel-open #panel { display: flex; }
 .msg .who button:hover { color: var(--danger); }
 .msg p { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .msg .on { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+.msg .editing-msg { display: grid; gap: 6px; margin-top: 4px; }
+.msg .edit-msg { width: 100%; min-height: 56px; border: 1px solid var(--accent); border-radius: var(--r-sm); background: var(--panel-2); padding: 7px 10px; resize: vertical; font: inherit; color: inherit; }
+.msg .editing-msg .row { display: flex; justify-content: flex-end; gap: 6px; }
 .composer { border-top: 1px solid var(--line); padding: 8px; display: grid; gap: 6px; }
 .composer input, .composer textarea {
   width: 100%; border: 1px solid transparent; border-radius: var(--r-sm); background: var(--panel-2); padding: 7px 10px; resize: none;

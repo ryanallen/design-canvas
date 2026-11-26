@@ -557,8 +557,9 @@
     const sameR = radii.every((r) => r === radii[0])
     // A gradient over the fill, as Figma's linear fill: two colours and an angle are edited here; one with more stops,
     // or of another kind, is named and left to the Code tab.
-    const mesh = ed.meshOf(c.backgroundImage)
-    const grad = mesh ? null : gradientOf(c.backgroundImage)
+    const lattice = ed.gridOf(el)
+    const mesh = lattice ? null : ed.meshOf(c.backgroundImage)
+    const grad = lattice || mesh ? null : gradientOf(c.backgroundImage)
     const gradCss = (g) => `linear-gradient(${g.angle}deg, ${g.from}, ${g.to})`
     const gradFields = !grad
       ? []
@@ -592,6 +593,30 @@
             input(Math.round(pt.spread), (v) => { if (Number.isFinite(Number(v)) && Number(v) > 0) setMesh(mesh.map((q, j) => (j === k ? { ...q, spread: Math.min(150, Number(v)) } : q))) }, { class: 'n s', title: 'How far its colour reaches, in % of the element' }),
             mesh.length > 1 ? h('button', { type: 'button', class: 'mini', title: 'Remove this point', onclick: () => setMesh(mesh.filter((_, j) => j !== k)) }, '×') : null)),
         ]
+    // A grid mesh: how many rows and columns its lattice has (the look kept when they change), each point's colour laid
+    // out as the lattice is, and − to take it off. Its points are dragged, or clicked for a colour, on the element.
+    const hexOf = (v) => { const x = document.createElement('canvas').getContext('2d'); x.fillStyle = v; return x.fillStyle }
+    const gridFields = !lattice
+      ? []
+      : [
+          field('Grid mesh',
+            input(lattice.rows, (v) => { const n = Math.round(Number(v)); if (n >= 2 && n <= 6) ed.writeGrid(el, ed.regrid(lattice, n, lattice.cols)) }, { class: 'n s', title: 'Rows, 2 to 6' }),
+            h('span', { class: 'val' }, '×'),
+            input(lattice.cols, (v) => { const n = Math.round(Number(v)); if (n >= 2 && n <= 6) ed.writeGrid(el, ed.regrid(lattice, lattice.rows, n)) }, { class: 'n s', title: 'Columns, 2 to 6' }),
+            h('button', { type: 'button', class: 'mini', title: 'Remove the mesh', onclick: () => ed.writeGrid(el, null) }, '−')),
+          field('Colours', h('div', { class: 'meshgrid', style: `grid-template-columns: repeat(${lattice.cols}, 22px)` }, ...lattice.pts.map((pt, k) => {
+            const sw = h('input', { type: 'color', value: hexOf(pt[2]), title: `Row ${Math.floor(k / lattice.cols) + 1}, column ${(k % lattice.cols) + 1}`, 'aria-label': `Mesh colour ${k + 1}` })
+            sw.addEventListener('change', () => ed.writeGrid(el, { ...lattice, pts: lattice.pts.map((q, j) => (j === k ? [q[0], q[1], sw.value] : q)) }))
+            return sw
+          }))),
+        ]
+    // Starting one: a 3 × 3 lattice, evenly spread, its colours round the fill's own hue.
+    const startGrid = () => {
+      const hue = hueOf(bg === 'rgba(0, 0, 0, 0)' ? 'rgb(255, 255, 255)' : bg)
+      const pts = []
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) pts.push([j / 2, i / 2, hexOf(`hsl(${(hue + (i * 3 + j) * 47) % 360} 72% ${i === 1 && j === 1 ? 80 : 64}%)`)])
+      ed.writeGrid(el, { rows: 3, cols: 3, pts })
+    }
     // Starting one: four colours round the fill's own hue, in the corners, over the fill (a pale one where it has none).
     const startMesh = () => {
       const base = bg === 'rgba(0, 0, 0, 0)' ? null : bg
@@ -638,9 +663,10 @@
       ]
     }
     host.append(section('Appearance',['background', 'box-shadow', 'filter', 'backdrop-filter', 'mix-blend-mode', 'outline', 'cursor', 'overflow'],
-      field('Fill', color(bg, (v) => set({ 'background-color': v }), bg !== 'rgba(0, 0, 0, 0)' ? () => set({ 'background-color': '', background: '' }) : null, lever(el, 'background-color') ?? lever(el, 'background')), grad || mesh ? null : h('button', { type: 'button', class: 'mini', title: 'Gradient: fade this colour into another', onclick: startGradient }, '◐'), grad || mesh ? null : h('button', { type: 'button', class: 'mini', title: 'Mesh: colours blended from points you drag', onclick: startMesh }, '◍')),
+      field('Fill', color(bg, (v) => set({ 'background-color': v }), bg !== 'rgba(0, 0, 0, 0)' ? () => set({ 'background-color': '', background: '' }) : null, lever(el, 'background-color') ?? lever(el, 'background')), grad || mesh || lattice ? null : h('button', { type: 'button', class: 'mini', title: 'Gradient: fade this colour into another', onclick: startGradient }, '◐'), grad || mesh || lattice ? null : h('button', { type: 'button', class: 'mini', title: 'Mesh: colours blended from points you drag', onclick: startMesh }, '◍'), grad || mesh || lattice ? null : h('button', { type: 'button', class: 'mini', title: 'Grid mesh: a lattice of colours whose points bend them, as an Illustrator gradient mesh', onclick: startGrid }, '◫')),
       ...gradFields,
       ...meshFields,
+      ...gridFields,
       field('Opacity', slider, h('span', { class: 'val' }, across((x, k) => Math.round(Number(k.opacity) * 100)) === MIXED ? 'Mixed' : `${op}%`)),
       radiusCorners || !sameR
         ? field('Radius', ...['top-left', 'top-right', 'bottom-right', 'bottom-left'].map((k) => input(across((x, s) => num(s.getPropertyValue(`border-${k}-radius`))), (v) =>set({ [`border-${k}-radius`]: px(v) }), { class: 'n s', title: k })), h('button', { type: 'button', class: 'mini', onclick: () => { radiusCorners = false; renderProps() } }, '▢'))

@@ -20,6 +20,8 @@
 .handle.se { right: -5px; bottom: -5px; cursor: nwse-resize; }
 .handle.e { right: -5px; top: calc(50% - 4px); cursor: ew-resize; }
 .handle.s { bottom: -5px; left: calc(50% - 4px); cursor: ns-resize; }
+.mesh-lines { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.mesh-lines line { stroke: #fff; stroke-width: 1; stroke-opacity: 0.8; filter: drop-shadow(0 0 1px rgb(0 0 0 / 0.6)); }
 .mesh-pt { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35), 0 2px 6px rgb(0 0 0 / 0.3); pointer-events: auto; cursor: move; }
 .frame.editing iframe { pointer-events: auto; }
 .frame.editing { outline: calc(2px / var(--z, 1)) solid var(--accent); }
@@ -190,3 +192,8 @@ body.measuring .ov-tag, body.measuring #float { visibility: hidden; }
 #panel .state-row .seg { align-self: stretch; display: flex; }
 #panel .state-row .seg button { flex: 1; }
 #panel .state-note { font-size: 11px; color: var(--ink-3); overflow-wrap: anywhere; }
+.mesh-pt.grid { width: 12px; height: 12px; margin: -6px 0 0 -6px; }
+.meshgrid { display: grid; gap: 4px; }
+.meshgrid input[type=color] { width: 22px; height: 22px; padding: 0; border: 1px solid var(--line, #444); border-radius: 50%; overflow: hidden; background: none; cursor: pointer; }
+.meshgrid input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+.meshgrid input[type=color]::-webkit-color-swatch { border: 0; border-radius: 50%; }

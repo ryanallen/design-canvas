@@ -215,7 +215,25 @@
           if (sel.els.length === 1 && editable(el) && !editing) {
             for (const hd of ['nw', 'ne', 'sw', 'se', 'e', 's']) one.append(h('div', { class: `handle ${hd}`, 'data-h': hd, onpointerdown: (e) => startResize(e, hd) }))
             // A mesh fill's points, each where its colour sits, to drag.
-            const mesh = meshOf(cs(el).backgroundImage)
+            const grid = gridOf(el)
+            if (grid) {
+              // Its lattice drawn: the lines between points, then the points.
+              const at = (p) => [p[0] * b.w, p[1] * b.h]
+              const segs = []
+              for (let i = 0; i < grid.rows; i++) for (let j = 0; j < grid.cols; j++) {
+                const k = i * grid.cols + j
+                if (j < grid.cols - 1) segs.push([at(grid.pts[k]), at(grid.pts[k + 1])])
+                if (i < grid.rows - 1) segs.push([at(grid.pts[k]), at(grid.pts[k + grid.cols])])
+              }
+              const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+              svg.setAttribute('class', 'mesh-lines')
+              svg.setAttribute('width', b.w)
+              svg.setAttribute('height', b.h)
+              svg.innerHTML = segs.map(([p, q]) => `<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}"/>`).join('')
+              one.append(svg)
+              grid.pts.forEach((p, k) => one.append(h('div', { class: 'mesh-pt grid', 'data-i': k, title: 'Drag to bend the colour; click to pick its colour', style: `left:${p[0] * 100}%;top:${p[1] * 100}%;background:${p[2]}`, onpointerdown: (e) => startGridDrag(e, el, k) })))
+            }
+            const mesh = grid ? null : meshOf(cs(el).backgroundImage)
             if (mesh) mesh.forEach((p, k) => one.append(h('div', { class: 'mesh-pt', 'data-i': k, title: 'Drag to move this colour', style: `left:${p.x}%;top:${p.y}%;background:${p.color}`, onpointerdown: (e) => startMeshDrag(e, el, k) })))
           }
         }
@@ -1449,6 +1467,123 @@
   }
   const round1 = (n) => Math.round(n * 10) / 10
   const meshCss = (points) => points.map((p) => `radial-gradient(at ${round1(p.x)}% ${round1(p.y)}%, ${p.color} 0px, transparent ${round1(p.spread)}%)`).join(', ')
+  // A grid mesh, as Illustrator's gradient mesh: a lattice of points, each a colour, whose colours and places blend
+  // along smooth curves (Catmull-Rom through the lattice, for colour and place alike), so moving a point bends the
+  // colour around it. The web draws no mesh of its own: the canvas draws it as a small picture, smooth enough to be
+  // stretched over the element, kept in the element's own CSS; the lattice is kept in its data-mesh attribute
+  // ({ rows, cols, pts: [[x, y, colour], …] }, x and y from 0 to 1) to edit again.
+  const gridOf = (el) => {
+    try {
+      const g = JSON.parse(el?.getAttribute('data-mesh') ?? 'null')
+      return g && g.rows >= 2 && g.cols >= 2 && Array.isArray(g.pts) && g.pts.length === g.rows * g.cols ? g : null
+    } catch { return null }
+  }
+  const rgbOf = (c) => {
+    const ctx = rgbOf.ctx ?? (rgbOf.ctx = document.createElement('canvas').getContext('2d'))
+    ctx.fillStyle = '#000'
+    ctx.fillStyle = c
+    const v = ctx.fillStyle
+    if (v.startsWith('#')) return [1, 3, 5].map((i) => parseInt(v.slice(i, i + 2), 16))
+    return (/(\d+),\s*(\d+),\s*(\d+)/.exec(v) ?? [0, 0, 0, 0]).slice(1, 4).map(Number)
+  }
+  const cr = (p0, p1, p2, p3, t) => 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t)
+  /** The lattice's surface at (row, col) given as fractions: [x, y, r, g, b]. */
+  function gridAt(g, rgb, row, col) {
+    const val = (i, j) => { const k = Math.min(g.rows - 1, Math.max(0, i)) * g.cols + Math.min(g.cols - 1, Math.max(0, j)); return [g.pts[k][0], g.pts[k][1], ...rgb[k]] }
+    const i = Math.min(g.rows - 2, Math.floor(row))
+    const j = Math.min(g.cols - 2, Math.floor(col))
+    const v = row - i
+    const u = col - j
+    const across = (ii) => { const q = [-1, 0, 1, 2].map((d) => val(ii, j + d)); return q[0].map((_, n) => cr(q[0][n], q[1][n], q[2][n], q[3][n], u)) }
+    const rowsAt = [-1, 0, 1, 2].map((d) => across(i + d))
+    return rowsAt[0].map((_, n) => cr(rowsAt[0][n], rowsAt[1][n], rowsAt[2][n], rowsAt[3][n], v))
+  }
+  /** The lattice drawn w × h, as a WebP data URL. */
+  function drawGrid(g, w, h) {
+    const c = document.createElement('canvas')
+    c.width = w
+    c.height = h
+    const ctx = c.getContext('2d')
+    const rgb = g.pts.map((p) => rgbOf(p[2]))
+    const S = 18
+    const clamp = (n) => Math.max(0, Math.min(255, Math.round(n)))
+    for (let pi = 0; pi < g.rows - 1; pi++) for (let pj = 0; pj < g.cols - 1; pj++) {
+      const V = []
+      for (let a = 0; a <= S; a++) { V.push([]); for (let b = 0; b <= S; b++) V[a].push(gridAt(g, rgb, pi + a / S, pj + b / S)) }
+      for (let a = 0; a < S; a++) for (let b = 0; b < S; b++) {
+        const q = [V[a][b], V[a][b + 1], V[a + 1][b + 1], V[a + 1][b]]
+        const col = `rgb(${clamp((q[0][2] + q[1][2] + q[2][2] + q[3][2]) / 4)}, ${clamp((q[0][3] + q[1][3] + q[2][3] + q[3][3]) / 4)}, ${clamp((q[0][4] + q[1][4] + q[2][4] + q[3][4]) / 4)})`
+        ctx.beginPath()
+        q.forEach((p, n) => (n ? ctx.lineTo(p[0] * w, p[1] * h) : ctx.moveTo(p[0] * w, p[1] * h)))
+        ctx.closePath()
+        ctx.fillStyle = ctx.strokeStyle = col
+        ctx.lineWidth = 1
+        ctx.fill()
+        ctx.stroke()
+      }
+    }
+    return c.toDataURL('image/webp', 0.92)
+  }
+  /** The picture's size: 160 across, its height as the element's, so it stretches evenly. */
+  const gridSize = (el, across = 160) => { const r = boxOf(el); return [across, Math.max(8, Math.min(across * 3, Math.round((across * r.height) / Math.max(1, r.width))))] }
+  const gridProps = (el, g, across) => ({ 'background-image': `url("${drawGrid(g, ...gridSize(el, across))}")`, 'background-size': '100% 100%', 'background-repeat': 'no-repeat' })
+  const gridJson = (g) => JSON.stringify({ rows: g.rows, cols: g.cols, pts: g.pts.map(([x, y, c]) => [Math.round(x * 1000) / 1000, Math.round(y * 1000) / 1000, c]) })
+  /** A lattice written: its picture and itself in one edit, one undo step; null takes the mesh off. */
+  function writeGrid(el, g) {
+    send({ op: 'styles', items: [{ cv: cvOf(el), props: g ? gridProps(el, g) : { 'background-image': '', 'background-size': '', 'background-repeat': '' }, attrs: { 'data-mesh': g ? gridJson(g) : '' } }] })
+  }
+  /** The lattice resampled to rows × cols from the surface it draws now, so its look holds. */
+  function regrid(g, rows, cols) {
+    const rgb = g.pts.map((p) => rgbOf(p[2]))
+    const pts = []
+    for (let i = 0; i < rows; i++) for (let j = 0; j < cols; j++) {
+      const v = gridAt(g, rgb, (i / (rows - 1)) * (g.rows - 1), (j / (cols - 1)) * (g.cols - 1))
+      const hex = '#' + v.slice(2).map((n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0')).join('')
+      pts.push([Math.max(0, Math.min(1, v[0])), Math.max(0, Math.min(1, v[1])), hex])
+    }
+    return { rows, cols, pts }
+  }
+  /** A lattice point dragged: those on an edge keep to it, so the mesh still covers the element. */
+  function startGridDrag(e, el, k) {
+    e.stopPropagation()
+    e.preventDefault()
+    const g = gridOf(el)
+    if (!g) return
+    const f = sel.frame
+    const r = boxOf(el)
+    const i = Math.floor(k / g.cols)
+    const j = k % g.cols
+    const start = { x: e.clientX, y: e.clientY, px: g.pts[k][0], py: g.pts[k][1] }
+    let moved = false
+    let frame = 0
+    const move = (ev) => {
+      const dx = (ev.clientX - start.x) / dc.view.z / f.s
+      const dy = (ev.clientY - start.y) / dc.view.z / f.s
+      if (Math.abs(dx) + Math.abs(dy) > 1) moved = true
+      if (j !== 0 && j !== g.cols - 1) g.pts[k][0] = Math.min(1, Math.max(0, start.px + dx / r.width))
+      if (i !== 0 && i !== g.rows - 1) g.pts[k][1] = Math.min(1, Math.max(0, start.py + dy / r.height))
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        for (const [p, v] of Object.entries(gridProps(el, g, 64))) el.style.setProperty(p, v)
+        el.setAttribute('data-mesh', gridJson(g))
+        draw()
+      })
+    }
+    const up = () => {
+      removeEventListener('pointermove', move, true)
+      removeEventListener('pointerup', up, true)
+      cancelAnimationFrame(frame)
+      if (moved) return writeGrid(el, g)
+      // A click on a point without moving it: its colour, picked there.
+      const pickr = h('input', { type: 'color', value: rgbHex(g.pts[k][2]), style: 'position:fixed;left:-99px;top:0;opacity:0' })
+      document.body.append(pickr)
+      pickr.addEventListener('change', () => { g.pts[k][2] = pickr.value; pickr.remove(); writeGrid(el, g) })
+      pickr.addEventListener('blur', () => setTimeout(() => pickr.remove(), 500))
+      try { pickr.showPicker() } catch { pickr.click() }
+    }
+    addEventListener('pointermove', move, true)
+    addEventListener('pointerup', up, true)
+  }
   /** A mesh point dragged on the element: seen as it moves, written once on letting go, one undo step. */
   function startMeshDrag(e, el, i) {
     e.stopPropagation()
@@ -1575,10 +1710,13 @@
         // Over a gradient a fill colour would change nothing seen: the chip shows the gradient, and a colour picked
         // takes its place.
         const image = shared('background-image')
-        const graded = /gradient\(/.test(image ?? '') && !meshOf(image)
-        const fill = colorButton('Fill', 'background-color', shared('background-color'), (v) => setStyle(graded ? { 'background-color': v, 'background-image': 'none' } : { 'background-color': v }))
+        const gridded = sel.els.filter(live).some((x) => gridOf(x))
+        const graded = gridded || (/gradient\(/.test(image ?? '') && !meshOf(image))
+        const fill = colorButton('Fill', 'background-color', shared('background-color'), (v) => (gridded
+          ? send({ op: 'styles', items: sel.els.filter(live).filter((x) => editable(x) && cvOf(x) != null).map((x) => ({ cv: cvOf(x), props: { 'background-color': v, 'background-image': '', 'background-size': '', 'background-repeat': '' }, attrs: { 'data-mesh': '' } })) })
+          : setStyle(graded ? { 'background-color': v, 'background-image': 'none' } : { 'background-color': v })))
         if (graded) {
-          fill.title = 'Fill: a colour picked replaces the gradient'
+          fill.title = `Fill: a colour picked replaces the ${gridded ? 'mesh' : 'gradient'}`
           fill.querySelector('.chip').style.background = image
           fill.querySelector('input').addEventListener('input', () => { if (!editing) for (const x of sel?.els.filter(live) ?? []) x.style.setProperty('background-image', 'none') })
         }
@@ -1855,7 +1993,7 @@
   const api = {
     get sel() { return sel },
     get editing() { return editing },
-    primary, select, pick, setStyle, send, sendSheet, everyCopy, reselect, setHidden, refreshFloat: () => renderFloat(), ops, undo, climb, cvOf, editable, nameOf, isText, cs, boxOf, copiesOf, copiesSelector, rgbHex, meshOf, meshCss, shared, notEditable, anchorFor,
+    primary, select, pick, setStyle, send, sendSheet, everyCopy, reselect, setHidden, refreshFloat: () => renderFloat(), ops, undo, climb, cvOf, editable, nameOf, isText, cs, boxOf, copiesOf, copiesSelector, rgbHex, meshOf, meshCss, gridOf, writeGrid, regrid, shared, notEditable, anchorFor,
     hover: (frame, el) => {
       hover = el ? { frame, el } : null
       draw()

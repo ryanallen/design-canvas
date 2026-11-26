@@ -1363,7 +1363,12 @@
     // With nothing copied here, Ctrl+V is left to the page: a picture on the clipboard goes into the prototype.
     else if (mod && k === 'v' && clip) ops.paste()
     // Everything alongside the selection, as Figma's Ctrl+A: the selected element's siblings.
-    else if (mod && k === 'a' && !e.shiftKey && !e.altKey) {
+    // Figma's Select matching layers: every copy like it on the screen (what Alt+click picks).
+    else if (mod && e.altKey && !e.shiftKey && e.code === 'KeyA') {
+      const all = copiesOf(el)
+      if (all.length < 2) hint('Nothing else on this screen is like it', 1600)
+      else select(sel.frame, [el, ...all.filter((x) => x !== el)])
+    } else if (mod && k === 'a' && !e.shiftKey && !e.altKey) {
       const all = [...(el.parentElement?.children ?? [])].filter((c) => !SKIP.has(c.localName))
       if (el.localName === 'body' || all.length < 2) return false
       select(sel.frame, all)
@@ -1735,7 +1740,7 @@
       dc.serve && !dc.local ? { label: 'Copy as PNG', key: 'Ctrl+Shift+C', run: ops.copyPng } : null,
       dc.serve && !dc.local ? { label: 'Export PNG', run: ops.exportPng } : null,
       sel.els.length > 1 ? { label: 'Select this one alone', run: () => select(sel.frame, [primary()]) } : null,
-      copiesOf(primary()).length > 1 && sel.els.length === 1 ? { label: 'Select every copy', run: () => select(sel.frame, copiesOf(primary())) } : null,
+      copiesOf(primary()).length > 1 && sel.els.length === 1 ? { label: 'Select every copy', key: 'Ctrl+Alt+A', run: () => select(sel.frame, copiesOf(primary())) } : null,
       componentOf(primary())?.copies.length > 1 && sel.els.length === 1 ? { label: `Select all ${componentOf(primary()).copies.length} ${componentOf(primary()).name}`, run: () => { const c = componentOf(primary()); select(sel.frame, [c.root, ...c.copies.filter((x) => x !== c.root)]) } } : null,
       dc.commenting || can ? '-' : null,
       dc.commenting ? { label: 'Ask agent about it', run: () => dc.openAsk() } : null,

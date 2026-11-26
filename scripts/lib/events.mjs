@@ -230,7 +230,7 @@ const colorOf = (value) => {
   if (c === '' || /^(#[0-9a-f]{3,8}|[a-z]{3,20}|(?:rgb|hsl)a?\([\d.,%\s/]+\))$/i.test(c)) return c
   throw new Error('color is not a colour')
 }
-const BOARD_KINDS = ['note', 'title', 'rect', 'ellipse', 'diamond', 'triangle', 'section', 'line', 'arrow', 'pencil', 'guide', 'image']
+const BOARD_KINDS = ['note', 'title', 'rect', 'ellipse', 'diamond', 'triangle', 'stamp', 'section', 'line', 'arrow', 'pencil', 'guide', 'image']
 /** An image on the board: a picture file in the canvas's folder, by its path there, never an address elsewhere. */
 const imageSrc = (value) => {
   const s = typeof value === 'string' ? value.trim() : ''
@@ -263,6 +263,8 @@ export function makeBoardEvent(input, { now = new Date(), newId = randomId } = {
       }
       if (input.page != null) event.page = pageId(input.page)
       for (const k of ['x', 'y', 'w', 'h', 'z']) if (input[k] != null) event[k] = coord(input[k], k)
+      // A stamp's place on the object it sits on (its \`to\`), so it moves with that object.
+      for (const k of ['dx', 'dy']) if (input[k] != null) event[k] = coord(input[k], k)
       if (input.text != null) event.text = String(input.text).slice(0, LIMITS.text)
       if (input.color != null) event.color = colorOf(input.color)
       if (input.frame != null) event.frame = text(input.frame, LIMITS.frame, 'frame')

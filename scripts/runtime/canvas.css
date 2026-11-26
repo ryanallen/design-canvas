@@ -55,7 +55,7 @@ button { cursor: pointer; }
 }
 body.tool-hand #viewport, body.space #viewport { cursor: grab; }
 #viewport.panning { cursor: grabbing !important; }
-body.tool-comment #viewport, body.tool-note #viewport, body.tool-rect #viewport, body.tool-ellipse #viewport, body.tool-diamond #viewport, body.tool-triangle #viewport,
+body.tool-comment #viewport, body.tool-note #viewport, body.tool-rect #viewport, body.tool-ellipse #viewport, body.tool-stamp #viewport, body.tool-diamond #viewport, body.tool-triangle #viewport,
 body.tool-line #viewport, body.tool-arrow #viewport, body.tool-pencil #viewport, body.tool-artboard #viewport,
 body.tool-guide #viewport { cursor: crosshair; }
 body.tool-text #viewport { cursor: text; }
@@ -164,6 +164,10 @@ body.tiny .item.locked::after { display: none; }
 .item.rect { border: 4px solid var(--c, #8a8a96); border-radius: 6px; }
 .item.ellipse { border: 4px solid var(--c, #8a8a96); border-radius: 50%; }
 .item.rect, .item.ellipse { display: grid; place-items: center; padding: 12px; overflow: hidden; }
+/* A stamp, as FigJam's: a glyph in a round badge, over what it is put on. */
+.item.stamp { display: grid; place-items: center; border-radius: 50%; background: #fff; box-shadow: 0 2px 8px rgb(0 0 0 / 0.25); font-size: 28px; line-height: 1; z-index: 5; user-select: none; }
+.item.stamp.on { outline: 2px solid var(--accent); outline-offset: 2px; }
+#stamp-bar .tool { width: 36px; font-size: 18px; }
 /* A diamond or triangle: its outline drawn to its box, its words in the part of it wide enough to hold them. */
 .item.diamond, .item.triangle { display: grid; place-items: center; padding: 25%; }
 .item.triangle { padding: 42% 22% 6%; }
@@ -258,7 +262,7 @@ a.tool { text-decoration: none; font-size: 13px; }
 .tool[aria-pressed='true'] .count { background: rgb(0 0 0 / 0.12); color: inherit; }
 
 /* The toolbar: one floating plane, every tool a circle on it. */
-#artboard-sizes {
+#artboard-sizes, #stamp-bar {
   position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 10;
   display: flex; align-items: center; gap: 2px; padding: 4px 6px; border-radius: 999px;
   background: var(--panel); box-shadow: var(--chrome-shadow), var(--edge); white-space: nowrap; font-size: 13px;

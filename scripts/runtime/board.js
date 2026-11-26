@@ -48,6 +48,7 @@
     artboard: '<path d="M5 1.5v13M11 1.5v13M1.5 5h13M1.5 11h13" stroke-linecap="round"/>',
     note: '<path d="M2.5 2.5h11v7l-4 4h-7z M13.5 9.5h-4v4" stroke-linejoin="round"/>',
     pencil: '<path d="M10.5 2.5l3 3-8 8H2.5v-3z M9 4l3 3" stroke-linejoin="round"/>',
+    stamp: '<path d="M6 2.5h4v3.5l-.8 2.5H13.5v2.5h-11V8.5h4.3L6 6z M3 13.5h10" stroke-linejoin="round" stroke-linecap="round"/>',
     rect: '<rect x="2.5" y="3.5" width="11" height="9" rx="1"/>',
     ellipse: '<ellipse cx="8" cy="8" rx="5.8" ry="4.8"/>',
     diamond: '<path d="M8 2l6 6-6 6-6-6z" stroke-linejoin="round"/>',
@@ -91,7 +92,17 @@
   }
   // The lines sit after this script in the file, so they are read once the page is parsed.
   let boardEvents = []
-  let board = foldBoard(boardEvents)
+  /** The board the lines say, with each stamp at its place on the object it sits on, wherever that object now is. */
+  function foldPlaced(events) {
+    const b = foldBoard(events)
+    const byId = new Map(b.items.map((i) => [i.id, i]))
+    for (const it of b.items) {
+      const on = it.kind === 'stamp' && it.to ? byId.get(it.to) : null
+      if (on && on.kind !== 'stamp' && on.x != null) Object.assign(it, { x: on.x + (Number(it.dx) || 0), y: on.y + (Number(it.dy) || 0), ...(on.page ? { page: on.page } : {}) })
+    }
+    return b
+  }
+  let board = foldPlaced(boardEvents)
   let editLines = []
 
   // ── files: each prototype is stored once and written into its frames as srcdoc ──
@@ -680,7 +691,7 @@
   let tool = 'select'
   let shapeKind = store.get('shape') || 'rect'
   let spaceHeld = false
-  const DRAW = ['note', 'rect', 'ellipse', 'diamond', 'triangle', 'section', 'line', 'arrow', 'pencil', 'artboard']
+  const DRAW = ['note', 'rect', 'ellipse', 'diamond', 'triangle', 'section', 'line', 'arrow', 'pencil', 'artboard', 'stamp']
   const SHAPES = ['rect', 'ellipse', 'diamond', 'triangle', 'section', 'line', 'arrow', 'guide']
   function setTool(t) {
     tool = t
@@ -693,6 +704,7 @@
     if (t !== 'comment' && draft) closeThread()
     if (t !== 'select') pickItem(null)
     sizesBar.hidden = t !== 'artboard'
+    stampBar.hidden = t !== 'stamp'
     call('onTool', t)
   }
   // The artboard tool's sizes, as Figma's frame presets: a click on the board makes the one chosen; a drag, any size.
@@ -707,6 +719,25 @@
   }
   renderSizes()
   document.body.append(sizesBar)
+  // FigJam's stamps: the one to put down, chosen on a bar over the toolbar while the stamp tool is in hand.
+  const STAMPS = [['👍', 'Thumbs up'], ['❤️', 'Love'], ['⭐', 'Star'], ['✅', 'Done'], ['❓', 'Question'], ['🔥', 'Hot'], ['+1', 'Plus one']]
+  const stampNow = () => STAMPS.find(([g]) => g === store.get('stamp'))?.[0] ?? STAMPS[0][0]
+  const stampBar = h('div', { id: 'stamp-bar', hidden: true, role: 'toolbar', 'aria-label': 'Stamp' })
+  function renderStamps() {
+    stampBar.replaceChildren(...STAMPS.map(([g, name]) => h('button', { type: 'button', class: 'tool', title: name, 'aria-label': name, 'aria-pressed': String(stampNow() === g), onclick: () => { store.set('stamp', g); renderStamps() } }, g)))
+  }
+  renderStamps()
+  document.body.append(stampBar)
+  /** What a stamp at a point sits on: the topmost note, shape or picture there (a section only where nothing else is). */
+  function stampTarget(x, y) {
+    const under = items().filter((i) => ['note', 'rect', 'ellipse', 'diamond', 'triangle', 'image', 'section'].includes(i.kind) && x >= i.x && x <= i.x + (i.w ?? 0) && y >= i.y && y <= i.y + (i.h ?? 0))
+    return under.filter((i) => i.kind !== 'section').pop() ?? under.pop() ?? null
+  }
+  /** A stamp's fields for where it now stands: held by what is under its middle, at its place on that. */
+  function stampAt(x, y) {
+    const on = stampTarget(x + 24, y + 24)
+    return on ? { x, y, to: on.id, dx: Math.round(x - on.x), dy: Math.round(y - on.y) } : { x, y, to: '', dx: 0, dy: 0 }
+  }
   const SHAPE_NAMES = { rect: 'Rectangle (R)', ellipse: 'Ellipse', diamond: 'Diamond', triangle: 'Triangle', section: 'Section (S)', line: 'Line', arrow: 'Arrow', guide: 'Layout guide' }
   function setShape(kind) {
     shapeKind = kind
@@ -1219,6 +1250,7 @@
     if (it.kind === 'note') return h('div', { class: cls, 'data-id': it.id, style: `${box};background:${it.color || NOTE_COLORS[0]}` }, it.text ?? '', grip)
     if (it.kind === 'title') return h('div', { class: cls, 'data-id': it.id, style: `left:${it.x}px;top:${it.y}px;${it.color ? `color:${it.color};` : ''}${it.size ? `font-size:${num(it.size)}px` : ''}` }, it.text || 'Title')
     if (it.kind === 'rect' || it.kind === 'ellipse') return h('div', { class: cls, 'data-id': it.id, style: `${box};--c:${it.color || SHAPE_COLORS[0]}` }, h('span', { class: 'txt' }, it.text ?? ''), grip)
+    if (it.kind === 'stamp') return h('div', { class: cls, 'data-id': it.id, style: box, title: `${it.text ?? ''} from ${it.name || 'someone'}`, 'aria-label': `${STAMPS.find(([g]) => g === it.text)?.[1] ?? 'Stamp'} from ${it.name || 'someone'}` }, it.text === '+1' ? h('b', { style: 'font-size:20px' }, '+1') : it.text ?? '')
     if (FORMS[it.kind]) {
       const form = s('svg', { class: 'form', viewBox: '0 0 100 100', preserveAspectRatio: 'none', 'aria-hidden': 'true' })
       form.append(s('polygon', { points: FORMS[it.kind].map((q) => q.join(',')).join(' ') }))
@@ -1373,7 +1405,7 @@
   /** What is selected on the board: a drag box's or Shift's objects, or the one picked with its group. */
   const selectedItems = () => (chosen ? [...chosen.items] : picked ? withGroup(picked) : []).map((id) => board.items.find((i) => i.id === id)).filter((i) => i && i.kind !== 'guide')
   // Everything an object is, but where it is bound and which group it is in, which a copy is given anew; a guide's frame stays its own.
-  const COPIED = ['kind', 'x', 'y', 'w', 'h', 'text', 'color', 'points', 'from', 'to', 'group', 'size', 'z', 'cols', 'gutter', 'margin', 'frame', 'src', 'route']
+  const COPIED = ['kind', 'x', 'y', 'w', 'h', 'text', 'color', 'points', 'from', 'to', 'group', 'size', 'z', 'cols', 'gutter', 'margin', 'frame', 'src', 'route', 'dx', 'dy']
   /** New objects like these, moved by dx, dy: a group copied is a new group, and a line holding an
    * object copied with it holds the copy; one holding something left behind lets go where it is. */
   async function placeCopies(list, dx, dy) {
@@ -1428,7 +1460,7 @@
       // Served by node, the server rebuilds and every page reloads; from disk, the frames are added here.
       if (body.events?.length) {
         boardEvents.push(...body.events)
-        board = foldBoard(boardEvents)
+        board = foldPlaced(boardEvents)
         layoutAll()
         renderPage()
         loadVisible()
@@ -1665,7 +1697,7 @@
           : h('span', { class: 'count-note' }, icon('lock'), 'Locked by its owner'),
       )
     } else {
-    const colors = it.kind === 'note' ? NOTE_COLORS : it.kind === 'section' ? SECTION_COLORS : ['guide', 'image'].includes(it.kind) ? [] : SHAPE_COLORS
+    const colors = it.kind === 'note' ? NOTE_COLORS : it.kind === 'section' ? SECTION_COLORS : ['guide', 'image', 'stamp'].includes(it.kind) ? [] : SHAPE_COLORS
     itemBar.replaceChildren(...[
       ...colors.map((c) => h('button', { type: 'button', class: `swatch${(it.color || colors[0]) === c ? ' on' : ''}`, style: `background:${c}`, title: COLOR_NAMES[c] ?? c, 'aria-label': COLOR_NAMES[c] ?? c, 'aria-pressed': String((it.color || colors[0]) === c), onclick: () => updateItem(it.id, { color: c }) })),
       // A title's size: four steps, the middle one where a title starts.
@@ -1875,7 +1907,8 @@
         try {
           for (const m of moving) {
             const change = { x: m.x, y: m.y }
-            if (m.from === '' || m.to === '') Object.assign(change, { w: m.w, h: m.h, points: m.points, from: '', to: '' })
+            if (m.kind !== 'stamp' && (m.from === '' || m.to === '')) Object.assign(change, { w: m.w, h: m.h, points: m.points, from: '', to: '' })
+            if (m.kind === 'stamp') Object.assign(change, stampAt(m.x, m.y))
             await sendBoard({ op: 'item', id: m.id, ...change })
           }
           await sendAll(frameList.map((f) => ({ op: 'move', key: f.key, x: f.x, y: f.y, page: pageId })))
@@ -1944,6 +1977,12 @@
   function startDraw(e, p, f) {
     if (!serve) return
     const kind = tool
+    if (kind === 'stamp') {
+      const x = Math.round(p.x - 24)
+      const y = Math.round(p.y - 24)
+      addItem({ kind: 'stamp', w: 48, h: 48, text: stampNow(), ...stampAt(x, y) }).then(() => renderItems())
+      return
+    }
     if (kind === 'guide') {
       if (!f) return hint('Click a frame to lay a 12-column guide over it.')
       addItem({ kind: 'guide', frame: f.key, x: f.x, y: f.y, cols: 12, gutter: 24, margin: 80 }).then((id) => {
@@ -2032,7 +2071,7 @@
       // Served by node, the server rebuilds and every page reloads; from disk, the frame is added here.
       if (body.event) {
         boardEvents.push(body.event)
-        board = foldBoard(boardEvents)
+        board = foldPlaced(boardEvents)
         layoutAll()
         renderPage()
         loadVisible()
@@ -2082,7 +2121,7 @@
   }
   /** After a change was refused: draw the board as its lines say again. */
   function takeBoardAgain() {
-    board = foldBoard(boardEvents)
+    board = foldPlaced(boardEvents)
     relayout()
     placeItemBar()
   }
@@ -2162,7 +2201,7 @@
       const body = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(body.error || `Saving failed (${res.status})`)
       boardEvents.push(body.event)
-      board = foldBoard(boardEvents)
+      board = foldPlaced(boardEvents)
       if (was) remember(was, stateOf(board, body.event))
       // What is drawn ahead of lines still being saved (the rest of a group) stays drawn; this line's part is saved.
       ahead.delete(body.event.op === 'move' ? `frame:${body.event.key}` : `item:${body.event.id}`)
@@ -2315,7 +2354,7 @@
   const future = []
   let openStep = null
   let replaying = false
-  const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points', 'size', 'src', 'route']
+  const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points', 'size', 'src', 'route', 'dx', 'dy']
   /** The one thing a line touches, as a board says it is: an object's fields, a frame's place, or null for nothing there. */
   function stateOf(b, ev) {
     if (ev.op === 'item' || ev.op === 'remove') {
@@ -3207,7 +3246,7 @@
 
   // ── keyboard shortcuts (Shift+?): every key the canvas answers, in one sheet ──
   const SHORTCUTS = [
-    ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['R', 'Rectangle'], ['S', 'Section'], ['A', 'Artboard'], ['C', 'Comment']]],
+    ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['E', 'Stamp'], ['R', 'Rectangle'], ['S', 'Section'], ['A', 'Artboard'], ['C', 'Comment']]],
     ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['+ and −, Ctrl+= and Ctrl+−', 'Zoom in and out'], ['0 or Ctrl+0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+\\', 'Panel']]],
     ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+], Ctrl+[', 'Front, back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Delete', 'Delete']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste after it'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+Shift+H', 'Hide or show'], ['Shift+A', 'Add auto layout'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
@@ -3523,7 +3562,7 @@
   // ── keys ──
   // A tool that cannot work where the canvas is open is hidden, and its key does nothing.
   const usable = (t) => (t === 'select' || t === 'hand' ? true : t === 'comment' ? !!api : serve)
-  const TOOL_KEYS = { v: 'select', h: 'hand', t: 'text', a: 'artboard', n: 'note', p: 'pencil', c: 'comment' }
+  const TOOL_KEYS = { v: 'select', h: 'hand', t: 'text', a: 'artboard', n: 'note', p: 'pencil', e: 'stamp', c: 'comment' }
   addEventListener('keydown', (e) => {
     if (e.target.closest?.('input, textarea, select, [contenteditable="true"], [contenteditable="plaintext-only"]')) return
     if (play.classList.contains('open')) return playKey(e)
@@ -3645,7 +3684,7 @@
       const body = await res.json()
       if (!res.ok || !Array.isArray(body.events) || body.events.length === boardEvents.length) return
       boardEvents = body.events
-      board = foldBoard(boardEvents)
+      board = foldPlaced(boardEvents)
       // The canvas's name is a board line too: a rename made elsewhere, or kept by a visitor's browser, shows.
       setTitle()
       relayout()
@@ -3730,7 +3769,7 @@
     }
     asBuilt = asBuilt.replace(/<\/body>\s*<\/html>\s*$/, `${after.join('\n')}\n</body>\n</html>\n`)
     boardEvents = ownLines('board')
-    board = foldBoard(boardEvents)
+    board = foldPlaced(boardEvents)
     editLines = ownLines('edit')
     events = ownLines('comment')
     threads = foldEvents(events)

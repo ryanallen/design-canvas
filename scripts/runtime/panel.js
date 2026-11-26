@@ -32,7 +32,7 @@
     }
     const rows = []
     for (const it of dc.items) {
-      const label = { note: 'Note', title: 'Title', rect: 'Rectangle', ellipse: 'Ellipse', diamond: 'Diamond', triangle: 'Triangle', section: 'Section', line: 'Line', arrow: 'Arrow', pencil: 'Drawing', guide: 'Layout guide' }[it.kind] ?? it.kind
+      const label = { note: 'Note', title: 'Title', rect: 'Rectangle', ellipse: 'Ellipse', diamond: 'Diamond', triangle: 'Triangle', stamp: 'Stamp', section: 'Section', line: 'Line', arrow: 'Arrow', pencil: 'Drawing', guide: 'Layout guide' }[it.kind] ?? it.kind
       rows.push(h('button', { type: 'button', class: 'lrow board', style: '--d:0', onclick: () => { ed.select(null, []); dc.pickItem(it.id) } },
         h('span', { class: 'tw' }), h('span', { class: 'lk' }, '◇'), h('span', { class: 'ln' }, `${label}${it.text ? ` "${it.text.slice(0, 18)}${it.text.length > 18 ? '…' : ''}"` : ''}`)))
     }

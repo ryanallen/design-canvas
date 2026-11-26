@@ -1025,6 +1025,39 @@
       const html = clip.file === sel.frame.file ? clip.html : lookedIn(el, where) ?? clip.styled
       send({ op: 'insert', cv: cvOf(el), where, html })
     },
+    // Figma's Copy and Paste properties: the look alone (fill, border, radius, shadow, opacity, text), never the size,
+    // place or content. A picture fill is left out: its URL as read is the served address, not the file's own path.
+    copyProps: () => {
+      if (!sel) return
+      const c = cs(primary())
+      look = Object.fromEntries(PROPS.map((p) => [p, propOf(c, p)]).filter(([p, v]) => !(p === 'background-image' && /url\(/.test(v))))
+      hint('Copied its properties', 900)
+    },
+    pasteProps: () => {
+      if (!look) return hint('No properties copied yet', 1200)
+      if (!needEditable()) return
+      const differ = (x, keys) => Object.fromEntries(keys.filter((p) => propOf(cs(x), p) !== look[p]).map((p) => [p, look[p]]))
+      const keys = Object.keys(look)
+      // Every copy of something selected: one change to the rule they share.
+      if (everyCopy()) {
+        const props = Object.fromEntries(keys.filter((p) => sel.els.some((x) => propOf(cs(x), p) !== look[p])).map((p) => [p, look[p]]))
+        return Object.keys(props).length ? setStyle(props) : hint('It already looks like that', 1200)
+      }
+      // A box that holds text (a card) takes the fill, border and the rest itself, and every line of text in it takes
+      // the type and text colour, over any of its own, as a text colour on a Figma group reaches every text in it.
+      const items = []
+      for (const x of sel.els) {
+        const inner = isText(x) ? [] : [...x.querySelectorAll('*')].filter((t) => ownText(t) && editable(t) && cvOf(t) != null && !['script', 'style'].includes(t.localName))
+        const own = differ(x, inner.length ? keys.filter((p) => !TEXT_PROPS.has(p)) : keys)
+        if (Object.keys(own).length) items.push({ cv: cvOf(x), props: own })
+        for (const t of inner) {
+          const props = differ(t, keys.filter((p) => TEXT_PROPS.has(p)))
+          if (Object.keys(props).length) items.push({ cv: cvOf(t), props })
+        }
+      }
+      if (!items.length) return hint('It already looks like that', 1200)
+      send({ op: 'styles', items }, { then: reselect() })
+    },
     nudge: (dx, dy, alt) => {
       if (!needEditable()) return
       const el = primary()
@@ -1041,6 +1074,15 @@
     },
   }
   let clip = null
+  let look = null
+  const PROPS = ['background-color', 'background-image', 'border-top', 'border-right', 'border-bottom', 'border-left', 'border-radius', 'box-shadow', 'opacity',
+    'color', 'font-family', 'font-size', 'font-weight', 'font-style', 'line-height', 'letter-spacing', 'text-transform', 'text-decoration-line', 'text-align']
+  const TEXT_PROPS = new Set(PROPS.slice(PROPS.indexOf('color')))
+  /** A property as read for copying: a side with no border is `none`, whatever colour it would have. */
+  const propOf = (c, p) => {
+    const v = c.getPropertyValue(p)
+    return /^border-(top|right|bottom|left)$/.test(p) && /\bnone\b/.test(v) ? 'none' : v
+  }
   /** The properties that make an element look as it does, carried onto it when it goes to another prototype. Sizes
       that come from its place (width, height) stay out, so it fits where it lands. */
   const LOOK = ['display', 'flex-direction', 'flex-wrap', 'flex-grow', 'flex-shrink', 'flex-basis', 'align-items', 'justify-content', 'gap', 'grid-template-columns', 'grid-template-rows',
@@ -1137,6 +1179,9 @@
     const el = primary()
     if (!sel || !el) return false
     if (mod && e.altKey && k === 'k') ops.makeComponent()
+    // By the key's place, so a layout where Ctrl+Alt types a character still reaches them.
+    else if (mod && e.altKey && e.code === 'KeyC') ops.copyProps()
+    else if (mod && e.altKey && e.code === 'KeyV') ops.pasteProps()
     // The whole screen selected (its label clicked): Ctrl+D copies the screen, as Figma duplicates a frame.
     else if (mod && k === 'd') el.localName === 'body' ? dc.duplicateScreens([sel.frame]) : ops.duplicate()
     else if (mod && k === 'g') e.shiftKey ? ops.ungroup() : ops.group()
@@ -1500,6 +1545,8 @@
             sel.els.length === 1 && componentOf(primary())?.root === primary() ? { label: 'Detach from component', run: ops.detach } : null,
             { label: 'Copy', key: 'Ctrl+C', run: ops.copy },
             clip ? { label: 'Paste after it', key: 'Ctrl+V', run: ops.paste } : null,
+            { label: 'Copy properties', key: 'Ctrl+Alt+C', run: ops.copyProps },
+            look ? { label: 'Paste properties', key: 'Ctrl+Alt+V', run: ops.pasteProps } : null,
           ]
         : []),
       sel.els.length > 1 ? { label: 'Select this one alone', run: () => select(sel.frame, [primary()]) } : null,

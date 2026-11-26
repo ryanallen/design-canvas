@@ -388,9 +388,10 @@
     // Sizes are shown as the box is drawn, padding and border included, as the label on the board
     // shows them; a content-box element's CSS width is that less its padding and border.
     const n = (v) => parseFloat(v) || 0
-    const extra = (dim) => (c.boxSizing === 'border-box' ? 0 : dim === 'width'
-      ? n(c.paddingLeft) + n(c.paddingRight) + n(c.borderLeftWidth) + n(c.borderRightWidth)
-      : n(c.paddingTop) + n(c.paddingBottom) + n(c.borderTopWidth) + n(c.borderBottomWidth))
+    const extraOf = (k, dim) => (k.boxSizing === 'border-box' ? 0 : dim === 'width'
+      ? n(k.paddingLeft) + n(k.paddingRight) + n(k.borderLeftWidth) + n(k.borderRightWidth)
+      : n(k.paddingTop) + n(k.paddingBottom) + n(k.borderTopWidth) + n(k.borderBottomWidth))
+    const extra = (dim) => extraOf(c, dim)
     const drawn = (dim) => Math.round((ed.boxOf?.(el) ?? el.getBoundingClientRect())[dim])
     const cssSize = (dim, outer) => `${Math.max(0, Math.round(Number(outer) - extra(dim)))}px`
     const sizeMode = (dim) => {
@@ -406,6 +407,17 @@
     const setMode = (dim, mode) => {
       const along = dim === 'width' ? parentRow : parentFlex && !parentRow
       if (mode === 'hug') set({ [dim]: 'fit-content', ...(along ? { flex: '' } : {}) })
+      else if (mode === 'fixed' && state === 'default' && ed.sel.els.length > 1 && !ed.everyCopy()) {
+        // Several, each its own: every one fixed at the size it is drawn, as Figma keeps each layer's own size.
+        const items = ed.sel.els.filter((x) => ed.cvOf(x) != null && ed.editable(x)).map((x) => {
+          const pk = x.parentElement ? cs(x.parentElement) : null
+          const row = pk?.display.includes('flex') && !pk.flexDirection.startsWith('column')
+          const on = dim === 'width' ? row : pk?.display.includes('flex') && !row
+          const size = Math.max(0, Math.round((ed.boxOf?.(x) ?? x.getBoundingClientRect())[dim] - extraOf(cs(x), dim)))
+          return { cv: ed.cvOf(x), props: { [dim]: `${size}px`, ...(on ? { flex: '' } : {}) } }
+        })
+        ed.send({ op: 'styles', items }, { then: ed.reselect() })
+      }
       else if (mode === 'fixed') set({ [dim]: cssSize(dim, drawn(dim)), ...(along ? { flex: '' } : {}) })
       else if (along) set({ flex: '1 1 0', [dim]: '' })
       else set({ [dim]: '100%' })

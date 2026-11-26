@@ -555,12 +555,13 @@
   const textsIn = () => [...new Set(sel.els.flatMap((x) => [x, ...x.querySelectorAll('*')]))].filter((x) => ownText(x) && editable(x) && cvOf(x) != null && !['script', 'style'].includes(x.localName))
   /** A text colour for a selection that is not itself text (a group, a card): every line in it takes it, over any
    *  colour of its own, in one edit, as a text colour on a Figma group colours every text in it. */
-  function colourTexts(value) {
+  function styleTexts(props) {
     const texts = textsIn()
     if (!texts.length) return
-    for (const x of texts) x.style.setProperty('color', value)
-    send({ op: 'styles', items: texts.map((x) => ({ cv: cvOf(x), props: { color: value } })) }, { then: reselect() })
+    for (const x of texts) for (const [k, v] of Object.entries(props)) x.style.setProperty(k, v)
+    send({ op: 'styles', items: texts.map((x) => ({ cv: cvOf(x), props })) }, { then: reselect() })
   }
+  const colourTexts = (value) => styleTexts({ color: value })
   /** Whether the selection is every copy of one kind (Alt + click, Select every copy), whose style is one rule. */
   function everyCopy() {
     if (!sel || sel.els.length < 2) return false
@@ -1241,6 +1242,11 @@
       if (texts.length) {
         const seen = new Set(texts.map((x) => cs(x).color))
         parts.push(colorButton('Text colour', 'color', seen.size === 1 ? [...seen][0] : 'Mixed', colourTexts, textsIn))
+        // Bold and italic for every line in it: on when every line already is.
+        const bold = texts.every((x) => Number(cs(x).fontWeight) >= 600)
+        parts.push(h('button', { type: 'button', class: 'fbtn', title: 'Bold, every line in it', 'aria-pressed': String(bold), onclick: () => styleTexts({ 'font-weight': bold ? '400' : '700' }) }, h('b', {}, 'B')))
+        const italic = texts.every((x) => cs(x).fontStyle === 'italic')
+        parts.push(h('button', { type: 'button', class: 'fbtn', title: 'Italic, every line in it', 'aria-pressed': String(italic), onclick: () => styleTexts({ 'font-style': italic ? 'normal' : 'italic' }) }, h('i', {}, 'I')))
       }
     }
     // A list selected whole is not text, but the List button is how it becomes numbers or a paragraph again.

@@ -1509,6 +1509,10 @@
   }
   // A drag box: from empty board, with the select tool, while editing.
   function startMarquee(e, p) {
+    // Shift held, as in Figma: what the box takes in is added to what is selected, and a Shift+click on empty board
+    // leaves the selection as it is.
+    const adding = e.shiftKey
+    const had = adding ? { items: chosen ? [...chosen.items] : picked ? withGroup(picked) : [], frames: chosen ? [...chosen.frames] : [] } : null
     const ghost = h('div', { class: 'draft-shape marquee' })
     world.append(ghost)
     let last = p
@@ -1522,7 +1526,11 @@
       },
       end: (ev, moved) => {
         ghost.remove()
-        if (!moved) return emptyClick(ev)
+        if (!moved) return adding ? undefined : emptyClick(ev)
+        if (adding) {
+          const got = inside(box())
+          return chooseItems([...new Set([...had.items, ...got.items])], [...new Set([...had.frames, ...got.frames])])
+        }
         choose(box())
       },
     }

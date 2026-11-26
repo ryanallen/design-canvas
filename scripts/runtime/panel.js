@@ -663,26 +663,42 @@
       const asText = () => [field('Shadow', input(raw, (v) => set({ 'box-shadow': v.trim() || 'none' }), { placeholder: '0 2px 8px rgba(0,0,0,.15)' }),
         raw ? null : h('button', { type: 'button', class: 'mini', title: 'Add a drop shadow', onclick: () => set({ 'box-shadow': '0px 4px 12px 0px rgba(0, 0, 0, 0.15)' }) }, '+'))]
       if (!raw || raw === MIXED) return asText()
-      const one = /^(rgba?\([^)]*\)|#[0-9a-f]{3,8})\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+([\d.]+)px\s+(-?[\d.]+)px(\s+inset)?$/i.exec(raw)
-      if (!one) return asText()
-      const [, col, x, y, b, s, inset] = one
+      // Every shadow, as Figma stacks effects: split where a comma stands outside brackets.
+      const parts = []
+      let depth = 0
+      let at = 0
+      for (let i = 0; i < raw.length; i++) {
+        if (raw[i] === '(') depth++
+        else if (raw[i] === ')') depth--
+        else if (raw[i] === ',' && depth === 0) { parts.push(raw.slice(at, i).trim()); at = i + 1 }
+      }
+      parts.push(raw.slice(at).trim())
+      const RE = /^(rgba?\([^)]*\)|#[0-9a-f]{3,8})\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+([\d.]+)px\s+(-?[\d.]+)px(\s+inset)?$/i
+      const list = parts.map((t) => RE.exec(t))
+      if (list.some((m) => !m)) return asText()
+      const shadows = list.map(([, col, x, y, b, s, inset]) => ({ col, x, y, b, s, inset: inset ? ' inset' : '' }))
       const n0 = (v) => Math.round((Number(String(v).replace(/px$/, '')) || 0) * 100) / 100
-      const write = (parts) => {
-        const p = { col, x, y, b, s, inset: inset ?? '', ...parts }
-        set({ 'box-shadow': `${n0(p.x)}px ${n0(p.y)}px ${Math.max(0, n0(p.b))}px ${n0(p.s)}px ${p.col}${p.inset ? ' inset' : ''}` })
-      }
-      // A colour picked keeps the shadow's see-through (a picker has none of its own).
-      const alpha = /rgba\([^)]*,\s*([\d.]+)\)/.exec(col)?.[1] ?? '1'
-      const withAlpha = (v) => {
-        const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(v).trim())
-        return m ? `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${alpha})` : String(v).trim()
-      }
-      return [
-        // Figma's Drop shadow and Inner shadow: the same shadow, cast outside or inside the element.
-        field('Shadow type', seg([['drop', 'Drop'], ['inner', 'Inner']], inset ? 'inner' : 'drop', (v) => write({ inset: v === 'inner' ? ' inset' : '' }))),
-        field('Shadow', ...[['x', 'X', x], ['y', 'Y', y], ['b', 'Blur', b], ['s', 'Spread', s]].map(([k, title, v]) => h('label', { class: 'cap' }, input(n0(v), (nv) => write({ [k]: nv }), { class: 'n s', title, 'aria-label': `Shadow ${title}` }), h('small', {}, title)))),
-        field('Shadow colour', color(col, (v) => write({ col: withAlpha(v) }), () => set({ 'box-shadow': 'none' }))),
-      ]
+      const text = (p) => `${n0(p.x)}px ${n0(p.y)}px ${Math.max(0, n0(p.b))}px ${n0(p.s)}px ${p.col}${p.inset ? ' inset' : ''}`
+      const writeAll = (list) => set({ 'box-shadow': list.length ? list.map(text).join(', ') : 'none' })
+      const rows = []
+      shadows.forEach((sh, k) => {
+        const write = (change) => writeAll(shadows.map((q, j) => (j === k ? { ...q, ...change } : q)))
+        // A colour picked keeps the shadow's see-through (a picker has none of its own).
+        const alpha = /rgba\([^)]*,\s*([\d.]+)\)/.exec(sh.col)?.[1] ?? '1'
+        const withAlpha = (v) => {
+          const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(v).trim())
+          return m ? `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${alpha})` : String(v).trim()
+        }
+        const name = k ? `Shadow ${k + 1}` : 'Shadow'
+        const last = k === shadows.length - 1
+        rows.push(
+          // Figma's Drop shadow and Inner shadow: the same shadow, cast outside or inside the element; + stacks another.
+          field(`${name} type`, seg([['drop', 'Drop'], ['inner', 'Inner']], sh.inset ? 'inner' : 'drop', (v) => write({ inset: v === 'inner' ? ' inset' : '' })),
+            last ? h('button', { type: 'button', class: 'mini', title: 'Add another shadow', onclick: () => writeAll([...shadows, { col: 'rgba(0, 0, 0, 0.12)', x: 0, y: 12, b: 32, s: 0, inset: '' }]) }, '+') : null),
+          field(name, ...[['x', 'X', sh.x], ['y', 'Y', sh.y], ['b', 'Blur', sh.b], ['s', 'Spread', sh.s]].map(([key, title, v]) => h('label', { class: 'cap' }, input(n0(v), (nv) => write({ [key]: nv }), { class: 'n s', title, 'aria-label': `${name} ${title}` }), h('small', {}, title)))),
+          field(`${name} colour`, color(sh.col, (v) => write({ col: withAlpha(v) }), () => writeAll(shadows.filter((_, j) => j !== k)))))
+      })
+      return rows
     }
     // Figma's Layer blur and Background blur: the blur() in filter and in backdrop-filter, in px. Only the blur is
     // changed, so a filter's other parts (a brightness, a grayscale) stay as they are, element by element.

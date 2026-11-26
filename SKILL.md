@@ -103,7 +103,7 @@ Properties › Font lists the fonts the prototype already uses, the ones on this
 
 ## Find and replace
 
-Ctrl+F opens Find: it counts the words wherever they appear in the text of the page's artboards and its board objects, any case; Enter and Shift+Enter step through them, each selected and zoomed to. **Replace all** puts the new words in every place, through `replaceText` in `scripts/lib/html.mjs`, which changes only text between tags (never a tag, an attribute, a comment, a script, a style or a locked part); Ctrl+Z takes it back.
+Ctrl+F opens Find: it counts the words wherever they appear in the text of the page's artboards and its board objects, any case; Enter and Shift+Enter step through them, each selected and zoomed to. **Replace all** puts the new words in every place, through `replaceText` in `scripts/lib/html.mjs`, which changes only text between tags (never a tag, an attribute, a comment, a script, a style or a locked part), on a locked screen nothing; one Ctrl+Z takes all of it back, every screen and board object at once.
 
 ## Components
 

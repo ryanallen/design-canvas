@@ -2029,16 +2029,21 @@
     const put = replaceIn.value
     const files = [...new Set(found.filter((m) => m.frame).map((m) => m.frame.file))]
     let n = 0
+    // Every screen and every board object it reaches is one step: one Ctrl+Z takes the whole replacing back.
+    let fileStep = null
     try {
-      for (const file of files) {
-        const res = await fetch('/api/edit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ file, edit: { op: 'replaceText', find, with: put }, name: me || 'someone' }) })
+      if (files.length) {
+        const res = await fetch('/api/edit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ files, edit: { op: 'replaceText', find, with: put }, name: me || 'someone' }) })
         const body = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(body.error || `Replacing failed (${res.status})`)
-        if (body.same) continue
-        n += body.count ?? 0
-        noteFileEdit()
-        reloadFile(file, body.html)
+        if (!body.same) {
+          n += body.count ?? 0
+          noteFileEdit()
+          fileStep = history.at(-1)
+          for (const [file, html] of Object.entries(body.files ?? {})) reloadFile(file, html)
+        }
       }
+      openStep = null
       const re = new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
       for (const id of [...new Set(found.filter((m) => m.item).map((m) => m.item))]) {
         const it = board.items.find((i) => i.id === id)
@@ -2046,6 +2051,13 @@
         const text = String(it.text ?? '').replace(re, () => (n++, put))
         it.text = text
         await sendBoard({ op: 'item', id, text })
+      }
+      // The notes' step rides on the screens' one.
+      const last = history.at(-1)
+      if (fileStep && last !== fileStep && last?.kind === 'board') {
+        history.pop()
+        if (openStep === last) openStep = null
+        fileStep.board = last
       }
       renderItems()
       hint(n ? `Replaced ${n}` : 'Nothing replaced', 1600)
@@ -2183,7 +2195,13 @@
     from.pop()
     to.push(top)
     if (top === openStep) openStep = null
-    if (top.kind === 'file') return false
+    // A prototype edit that changed board objects too (Replace all): those go back here, the files by the server.
+    if (top.kind === 'file') {
+      if (top.board) {
+        try { await replay(top.board, !redo) } catch (err) { hint(err.message, 3000) }
+      }
+      return false
+    }
     try {
       await replay(top, !redo)
       hint(redo ? 'Redone' : 'Undone', 900)

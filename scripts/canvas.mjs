@@ -609,7 +609,31 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         return json(res, 200, { sheet, text })
       }
       if (url.pathname === '/api/edit' && req.method === 'POST') {
-        const { file, edit, name } = await readBody(req)
+        const { file, edit, name, files } = await readBody(req)
+        // Replace all: the words replaced on every screen asked for, in one undo step; a locked screen is left as it is.
+        if (edit?.op === 'replaceText' && Array.isArray(files)) {
+          const lockedFiles = foldBoard(lines.flatMap((l) => parseLines(l, 'board'))).locked
+          const parts = []
+          let count = 0
+          for (const f of [...new Set(files)]) {
+            if (!onCanvas(f) || lockedFiles.some((k) => k === f || k.startsWith(`${f}#`))) continue
+            const was = readFile(f)
+            if (lockedFor(was, edit, { owner: true })) continue
+            const r = applyEdit(was, edit)
+            if (r.src === was) continue
+            writeFile(f, r.src)
+            parts.push({ file: f, before: was, after: r.src })
+            count += r.count ?? 0
+          }
+          if (!parts.length) return json(res, 200, { same: true, count: 0, files: {} })
+          undo.push({ ...parts[0], also: parts.slice(1) })
+          redo.length = 0
+          const elsewhere = parts.length > 1 ? ` (and on ${parts.length - 1} other screen${parts.length === 2 ? '' : 's'})` : ''
+          record({ op: edit.op, id: randomId('e'), at: new Date().toISOString(), name: String(name || 'someone').slice(0, 80), file: parts[0].file, summary: `${summarize(parts[0].before, edit)}${elsewhere}`.slice(0, 600), sha: sha(parts[0].after) })
+          for (const p of parts) refresh(p.file)
+          writeOut()
+          return json(res, 200, { count, files: Object.fromEntries(parts.map((p) => [p.file, servedFile(p.file)])) })
+        }
         if (!onCanvas(file)) return json(res, 404, { error: `${file} is not on this canvas` })
         const before = readFile(file)
         const frameLocked = foldBoard(lines.flatMap((l) => parseLines(l, 'board'))).locked.some((k) => k === file || k.startsWith(`${file}#`))

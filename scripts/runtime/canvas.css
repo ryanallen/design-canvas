@@ -517,7 +517,9 @@ body.has-banner #panel { top: 88px; }
 /* A board object's own bar */
 #itembar {
   position: fixed; z-index: 15; display: none; align-items: center; gap: 4px; padding: 4px;
-  background: var(--panel); border-radius: 999px; box-shadow: var(--chrome-shadow), var(--edge); padding: 4px 6px;
+  background: var(--panel); border-radius: 22px; box-shadow: var(--chrome-shadow), var(--edge); padding: 4px 6px;
+  /* On a narrow screen it goes on to a second row rather than off the edge. */
+  max-width: calc(100vw - 16px); flex-wrap: wrap; justify-content: center;
 }
 #itembar.open { display: flex; }
 #itembar .swatch { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--panel-3); padding: 0; }

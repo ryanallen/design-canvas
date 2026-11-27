@@ -1889,7 +1889,7 @@
       // Shown first, so its own width keeps it on the screen (hidden, it measures nothing).
       itemBar.classList.add('open')
       itemBar.style.left = `${Math.max(8, Math.min(innerWidth - itemBar.offsetWidth - 8, top.x))}px`
-      itemBar.style.top = `${Math.max(56, top.y - 46)}px`
+      itemBar.style.top = `${Math.max(56, top.y - itemBar.offsetHeight - 8)}px`
       return
     }
     const it = picked && board.items.find((i) => i.id === picked)
@@ -1922,7 +1922,7 @@
       ...(it.kind === 'line' || it.kind === 'arrow' ? [h('span', { class: 'sep' }), ...[['line', '', 'No heads', '—'], ['arrow', '', 'Head at the end', '→'], ['arrow', 'both', 'Heads at both ends', '↔']].map(([kind, ends, label, glyph]) => {
         const on = it.kind === kind && (kind === 'line' || (it.ends || '') === ends)
         return h('button', { type: 'button', class: `tool${on ? ' on' : ''}`, title: label, 'aria-label': label, 'aria-pressed': String(on), onclick: () => updateItem(it.id, { kind, ends }) }, glyph)
-      }), ...[['', 'Solid line', '━'], ['dash', 'Dashed line', '┅']].map(([dash, label, glyph]) => {
+      }), ...[['', 'Solid line', 'Solid'], ['dash', 'Dashed line', 'Dashed']].map(([dash, label, glyph]) => {
         const on = (it.dash || '') === dash
         return h('button', { type: 'button', class: `tool${on ? ' on' : ''}`, title: label, 'aria-label': label, 'aria-pressed': String(on), onclick: () => updateItem(it.id, { dash }) }, glyph)
       })] : []),
@@ -1945,7 +1945,7 @@
     const top = toScreen(f ? f.x : it.x, f ? f.y : it.y)
     itemBar.classList.add('open')
     itemBar.style.left = `${Math.max(8, Math.min(innerWidth - itemBar.offsetWidth - 8, top.x))}px`
-    itemBar.style.top = `${Math.max(56, top.y - 46)}px`
+    itemBar.style.top = `${Math.max(56, top.y - itemBar.offsetHeight - 8)}px`
   }
   async function updateItem(id, change) {
     const it = board.items.find((i) => i.id === id)

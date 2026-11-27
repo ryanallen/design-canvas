@@ -132,8 +132,14 @@
     const rule = id ? `.screen-page{display:none!important}.screen-page[id="${id}"]{display:block!important}` : ''
     const go = `<style id="rc-screen">${rule}</style><script>document.addEventListener('click',(e)=>{const a=e.target.closest&&e.target.closest('a[href]');if(!a||e.defaultPrevented)return;const href=a.getAttribute('href');if(href.startsWith('#')){e.preventDefault();const id=decodeURIComponent(href.slice(1));const t=id?document.getElementById(id):document.querySelector('.screen-page.is-start');if(!t)return;if(t.classList.contains('screen-page')){document.getElementById('rc-screen').textContent='.screen-page{display:none!important}#'+CSS.escape(t.id)+'{display:block!important}';scrollTo(0,0)}else t.scrollIntoView();return}if(/^[^:?]+\\.html(#.*)?$/i.test(href)){e.preventDefault();parent.postMessage({dc:'go',href},'*')}})</script>`
     const cut = f.crop ? `<script>addEventListener('DOMContentLoaded',()=>(${data.crop})(${JSON.stringify(f.crop)}))</script>` : ''
-    const at = html.search(/<\/head>/i)
-    return at < 0 ? go + cut + html : html.slice(0, at) + go + cut + html.slice(at)
+    // Nor can it take an address in history.replaceState or pushState (a prototype keeping its state in a #), which
+    // throws there and stops the prototype's handler half way; the state is kept and the address left as it is, and
+    // pushState replaces, so a screen adds nothing to the canvas tab's Back. First in <head>, before its own scripts.
+    const hist = `<script>{const h=History.prototype,r=h.replaceState;h.replaceState=function(s,t,u){try{return r.call(this,s,t,u)}catch(e){return r.call(this,s,t)}};h.pushState=function(s,t,u){return h.replaceState.call(this,s,t,u)}}</script>`
+    const top = html.match(/<head\b[^>]*>/i)
+    const withHist = top ? html.slice(0, top.index + top[0].length) + hist + html.slice(top.index + top[0].length) : html
+    const at = withHist.search(/<\/head>/i)
+    return at < 0 ? (top ? '' : hist) + go + cut + withHist : withHist.slice(0, at) + (top ? '' : hist) + go + cut + withHist.slice(at)
   }
   const save = (name, text, type = 'text/html') => {
     const a = h('a', { href: URL.createObjectURL(new Blob([text], { type })), download: name })

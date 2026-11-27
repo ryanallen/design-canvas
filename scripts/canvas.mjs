@@ -681,6 +681,8 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
           const tall = Math.min(20000, Math.max(200, Math.round(Number(url.searchParams.get('h')) || 900)))
           page = await (await shooter).newPage({ viewport: { width: w, height: tall }, deviceScaleFactor: 2 })
           await page.goto(`http://127.0.0.1:${server.address().port}/${file.split('/').map(encodeURIComponent).join('/')}${hash ? `#${hash}` : ''}`, { waitUntil: 'load', timeout: 20000 })
+          const scheme = url.searchParams.get('scheme')
+          if (scheme === 'dark' || scheme === 'light') await page.emulateMedia({ colorScheme: scheme })
           await page.evaluate(() => document.fonts?.ready)
           const el = cv != null && cv !== '' ? await page.$(`[data-cv="${Number(cv)}"]`) : null
           if (cv != null && cv !== '' && !el) return json(res, 404, { error: 'that element is not in the file as it is now' })
@@ -707,7 +709,8 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
           const drawn = Math.min(20000, Math.max(200, Math.round(Number(url.searchParams.get('h')) || 900)))
           page = await (await shooter).newPage({ viewport: { width: w, height: drawn } })
           await page.goto(`http://127.0.0.1:${server.address().port}/${file.split('/').map(encodeURIComponent).join('/')}${hash ? `#${hash}` : ''}`, { waitUntil: 'load', timeout: 20000 })
-          await page.emulateMedia({ media: 'screen' })
+          const scheme = url.searchParams.get('scheme')
+          await page.emulateMedia({ media: 'screen', ...(scheme === 'dark' || scheme === 'light' ? { colorScheme: scheme } : {}) })
           await page.evaluate(() => document.fonts?.ready)
           const tall = await page.evaluate(() => Math.ceil(Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight ?? 0)))
           const pdf = await page.pdf({ width: `${w}px`, height: `${Math.min(20000, Math.max(drawn, tall))}px`, printBackground: true, pageRanges: '1', margin: { top: 0, right: 0, bottom: 0, left: 0 } })

@@ -399,6 +399,44 @@
   }
   /** A prototype's width on the board is its `<meta name="canvas-width">`, written into the file (one edit, so Ctrl+Z
       takes it back); every frame of that file is drawn at the new width and measured again for its height. */
+  // A screen seen in its light or dark mode, as a Figma frame is set to a variable mode: its own
+  // `prefers-color-scheme` rules are switched on or off for this screen alone, whatever this computer is set to.
+  // Only what is seen changes, never the file; kept per screen in this browser.
+  const schemeOf = (f) => store.get(`scheme:${f.key}`) || 'auto'
+  const schemeText = new WeakMap()
+  function applyScheme(f) {
+    const doc = f.doc
+    if (!doc) return
+    const mode = schemeOf(f)
+    const walk = (rules) => {
+      for (const r of rules) {
+        if (r.media && /prefers-color-scheme/.test(r.media.mediaText + (schemeText.get(r) ?? ''))) {
+          if (!schemeText.has(r)) schemeText.set(r, r.media.mediaText)
+          const was = schemeText.get(r)
+          // The feature is swapped for one always true (or never true) at a screen's width, so a query joined to others
+          // (\`screen and (prefers-color-scheme: dark)\`) still reads.
+          const now = mode === 'auto' ? was : was.replace(/\(\s*prefers-color-scheme\s*:\s*(dark|light)\s*\)/g, (_, k) => (k === mode ? '(min-width: 0px)' : '(min-width: 99999px)'))
+          if (r.media.mediaText !== now) r.media.mediaText = now
+        }
+        if (r.cssRules) try { walk(r.cssRules) } catch {}
+      }
+    }
+    for (const sh of doc.styleSheets) { try { walk(sh.cssRules) } catch {} }
+    // Form controls and scroll bars follow the mode too.
+    let tag = doc.head?.querySelector('style[data-dc-scheme]')
+    if (mode === 'auto') tag?.remove()
+    else {
+      if (!tag && doc.head) { tag = doc.createElement('style'); tag.setAttribute('data-dc-scheme', ''); doc.head.append(tag) }
+      if (tag) tag.textContent = `:root { color-scheme: ${mode} }`
+    }
+  }
+  function setScheme(f, mode) {
+    store.set(`scheme:${f.key}`, mode === 'auto' ? null : mode)
+    applyScheme(f)
+    // Seen anew, not loaded anew: the selection stays, and what is drawn over the screen and the panel follow.
+    call('onView')
+    call('onScheme', f)
+  }
   async function setFrameWidth(f, w) {
     if (!f.doc || w === f.w) return
     const cvOf = (el) => (el?.hasAttribute('data-cv') ? Number(el.getAttribute('data-cv')) : null)
@@ -615,6 +653,7 @@
           relayout()
         }
       }
+      applyScheme(f)
       call('onFrameLoad', f)
       renderPins()
     })
@@ -3841,7 +3880,7 @@
     get pages() { return pages() },
     get threads() { return threads },
     overlay, viewport, world,
-    toWorld, toScreen, frameAt, findFrame, showFrame, docFor, plainFile, reloadFile, reloadSheet, duplicateScreens, setFrameWidth, ARTBOARD_SIZES, relayout, downloadFile,
+    toWorld, toScreen, frameAt, findFrame, showFrame, docFor, plainFile, reloadFile, reloadSheet, duplicateScreens, setFrameWidth, schemeOf, setScheme, ARTBOARD_SIZES, relayout, downloadFile,
     setTool, openPanel, setPanel, currentTab, openMenu, closeMenu, question, sure, openPlay, goPage, moveFrameToPage,
     startComment, commentOn, openAsk, renderPins, pickItem, apply, sendBoard, showEmpty,
     setName: (n) => setName(n),

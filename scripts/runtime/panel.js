@@ -594,7 +594,9 @@
     }
     if (screen) host.append(section('Screen', [],
       field('Width', input(String(screen.w), setScreenWidth, { class: 'n' }), seg(dc.ARTBOARD_SIZES.map(([name, w]) => [w, String(w), name]), screen.w, setScreenWidth)),
-      field('Height', h('span', { class: 'val' }, `${Math.round(screen.h)} · from what it holds`))))
+      field('Height', h('span', { class: 'val' }, `${Math.round(screen.h)} · from what it holds`)),
+      // Figma's variable modes, for a screen with light and dark styles: seen in either, here alone; the file unchanged.
+      field('Mode', seg([['auto', 'Auto', 'As this computer is set'], ['light', 'Light'], ['dark', 'Dark']], dc.schemeOf(screen), (v) => dc.setScheme(screen, v)))))
     // Figma's rotation and flips: the CSS rotate and scale properties, apart from any transform the element has, so
     // an entrance or a hover's transform still plays on top; 90° turns it a quarter, ⇋ and ⇵ mirror it.
     function turnRow() {
@@ -1489,6 +1491,7 @@
     if (ed.sel?.frame === f || openFrames.has(f.key) || dc.currentTab() === 'tweaks') render()
   }
   hooks.onTab = render
+  hooks.onScheme = render
   hooks.onPanel = render
   hooks.onTweaks = (f) => {
     tweaksFrame = f

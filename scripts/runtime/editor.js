@@ -657,7 +657,8 @@
     const el = primary()
     const f = sel.frame
     hint('Making the picture…', 6000)
-    const q = new URLSearchParams({ f: f.file, w: String(Math.round(f.w)), h: String(Math.round(f.h)), ...(f.hash ? { hash: f.hash } : {}), ...(el.localName === 'body' || cvOf(el) == null ? {} : { cv: String(cvOf(el)) }) })
+    // In the mode the screen is seen in on the board.
+    const q = new URLSearchParams({ f: f.file, w: String(Math.round(f.w)), h: String(Math.round(f.h)), ...(dc.schemeOf?.(f) !== 'auto' ? { scheme: dc.schemeOf(f) } : {}), ...(f.hash ? { hash: f.hash } : {}), ...(el.localName === 'body' || cvOf(el) == null ? {} : { cv: String(cvOf(el)) }) })
     const res = await fetch(`/api/png?${q}`)
     if (!res.ok) {
       hint((await res.json().catch(() => ({}))).error || 'No picture was made', 5000)
@@ -1174,7 +1175,7 @@
       const f = sel.frame
       const name = String(f.label || f.file).replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'screen'
       hint('Making the PDF…', 8000)
-      const res = await fetch(`/api/pdf?${new URLSearchParams({ f: f.file, w: String(Math.round(f.w)), h: String(Math.round(f.h)), ...(f.hash ? { hash: f.hash } : {}) })}`)
+      const res = await fetch(`/api/pdf?${new URLSearchParams({ f: f.file, w: String(Math.round(f.w)), h: String(Math.round(f.h)), ...(dc.schemeOf?.(f) !== 'auto' ? { scheme: dc.schemeOf(f) } : {}), ...(f.hash ? { hash: f.hash } : {}) })}`)
       if (!res.ok) return hint((await res.json().catch(() => ({}))).error || 'No PDF was made', 5000)
       const a = h('a', { href: URL.createObjectURL(await res.blob()), download: `${name}.pdf` })
       document.body.append(a)

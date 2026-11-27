@@ -1192,6 +1192,8 @@
     ungroup: () => {
       if (!needEditable()) return
       if (sel.els.length !== 1 || !primary().children.length) return hint('Select one element that holds others to ungroup it', 2500)
+      // The page itself is never taken apart: said here, before anything is sent.
+      if (primary().localName === 'body') return hint('The whole screen cannot be ungrouped: select a part of it', 2500)
       send({ op: 'unwrap', cv: cvOf(primary()) })
     },
     makeComponent: async () => {
@@ -1394,6 +1396,8 @@
     nudge: (dx, dy, alt) => {
       if (!needEditable()) return
       const el = primary()
+      // The whole screen selected moves on the board, as Figma's arrows move a frame.
+      if (el.localName === 'body') return dc.nudgeScreen(sel.frame, dx, dy)
       const placed = (x) => ['absolute', 'fixed', 'relative', 'sticky'].includes(cs(x).position)
       if (placed(el) && !alt) {
         // Each element selected moves from its own place, in one edit, as Figma nudges a selection: never all of them

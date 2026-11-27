@@ -2092,6 +2092,22 @@
   }
   /** The arrow keys move what is selected on the board, as Figma nudges: 1 px, 10 with Shift. A section takes what is
    *  inside it; a line bound to objects stays with them. One key press is one undo step. */
+  /** Figma's arrows on a selected frame: the whole screen selected in it moves on the board, 1 or 10 at a time. */
+  async function nudgeScreen(f, dx, dy) {
+    if (!serve) return
+    if (isLocked(f.key)) return hint(LOCKED, 1800)
+    Object.assign(f, { x: f.x + dx, y: f.y + dy })
+    positionFrame(f)
+    renderItems()
+    renderPins()
+    call('onView')
+    try {
+      await sendAll([{ op: 'move', key: f.key, x: f.x, y: f.y, page: pageId }])
+    } catch (err) {
+      hint(err.message, 3000)
+      takeBoardAgain()
+    }
+  }
   async function nudgeBoard(dx, dy) {
     const it = picked ? board.items.find((i) => i.id === picked) : null
     const along = chosen ? { items: [...chosen.items], frames: [...chosen.frames] } : it ? (it.kind === 'section' ? inside(it) : { items: [it.id], frames: [] }) : null
@@ -4144,7 +4160,7 @@
     get threads() { return threads },
     overlay, viewport, world,
     toWorld, toScreen, frameAt, findFrame, showFrame, docFor, plainFile, reloadFile, reloadSheet, duplicateScreens, setFrameWidth, schemeOf, setScheme, ARTBOARD_SIZES, relayout, downloadFile,
-    setTool, openPanel, setPanel, currentTab, openMenu, closeMenu, question, sure, openPlay, goPage, moveFrameToPage,
+    setTool, openPanel, setPanel, currentTab, nudgeScreen, openMenu, closeMenu, question, sure, openPlay, goPage, moveFrameToPage,
     startComment, commentOn, openAsk, renderPins, pickItem, apply, sendBoard, showEmpty,
     setName: (n) => setName(n),
     store,

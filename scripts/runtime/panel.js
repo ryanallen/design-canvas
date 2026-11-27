@@ -147,7 +147,51 @@
   const kindGlyph = (k) => ({ Heading: 'H', Paragraph: '¶', Text: 'T', Button: '▭', Image: '▨', Vector: '✎', List: '☰', Item: '•', Row: '⇥', Column: '⇩', Grid: '▦', Field: '⎀', body: '#', named: '◆' }[k] ?? (k === 'group' ? '▢' : '§'))
 
   // ── properties ──
-  const field = (label, ...control) => h('div', { class: 'pf' }, h('label', {}, label), h('div', { class: 'pc' }, ...control))
+  // A number in a field, with its unit: what ↑ ↓ and a scrub change, the unit kept.
+  const numberIn = (v) => /^(-?\d+(?:\.\d+)?)(px|%|deg|°|em|rem|ms|s)?$/.exec(String(v).trim())
+  const stepped = (v, by) => { const m = numberIn(v); return m ? `${Math.round((Number(m[1]) + by) * 100) / 100}${m[2] ?? ''}` : null }
+  // Figma's scrub: a drag across a row's label changes the number in its first number field, 1 a pixel (Shift, 10),
+  // shown as it goes and written once on letting go.
+  const scrubbable = (lab, row) => {
+    lab.addEventListener('pointerdown', (e) => {
+      const first = row.querySelector('input.n:not([disabled])')
+      if (!first || e.button !== 0 || !numberIn(first.value)) return
+      e.preventDefault()
+      const start = first.value
+      const name = lab.textContent
+      // The panel may be drawn anew while the drag goes on: the field is found again by its row's label each time.
+      const target = () => [...(document.querySelector('#props')?.querySelectorAll('.pf') ?? [])].find((r) => r.querySelector(':scope > label')?.textContent === name)?.querySelector('input.n:not([disabled])') ?? first
+      const x0 = e.clientX
+      let moved = false
+      let now = start
+      const move = (ev) => {
+        const d = Math.round((ev.clientX - x0) / 2) * (ev.shiftKey ? 10 : 1)
+        if (!d && !moved) return
+        moved = true
+        now = stepped(start, d) ?? start
+        target().value = now
+      }
+      const up = () => {
+        removeEventListener('pointermove', move, true)
+        removeEventListener('pointerup', up, true)
+        removeEventListener('pointercancel', up, true)
+        if (moved && now !== start) { const t = target(); t.value = now; t.dispatchEvent(new Event('change')) }
+      }
+      addEventListener('pointermove', move, true)
+      addEventListener('pointerup', up, true)
+      addEventListener('pointercancel', up, true)
+    })
+  }
+  const field = (label, ...control) => {
+    const lab = h('label', {}, label)
+    const row = h('div', { class: 'pf' }, lab, h('div', { class: 'pc' }, ...control))
+    if (row.querySelector('input.n')) {
+      lab.classList.add('scrub')
+      lab.title = 'Drag across to change the number (Shift: 10 at a time)'
+      scrubbable(lab, row)
+    }
+    return row
+  }
   /** A field's value where the elements selected differ: shown empty, reading Mixed, as Figma shows it. */
   const MIXED = Symbol('mixed')
   const input = (value, onCommit, attrs = {}) => {
@@ -156,6 +200,12 @@
     el.addEventListener('keydown', (e) => {
       e.stopPropagation()
       if (e.key === 'Enter') el.blur()
+      // As in Figma's fields: ↑ and ↓ step a number by 1, with Shift by 10, its unit kept, each step written.
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && numberIn(el.value)) {
+        e.preventDefault()
+        el.value = stepped(el.value, (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 10 : 1))
+        onCommit(el.value)
+      }
     })
     return el
   }
@@ -420,7 +470,21 @@
   /** A layer hidden from its eye is read as it is when shown, as Figma's panel shows a hidden layer's own values (not
    *  a width of 0 and a layout of none): it is shown for the moment Properties is drawn, then hidden again, and a
    *  line at the top says it is hidden, with Show. */
+  // The field being typed in or stepped with ↑ ↓ is found again after the panel is drawn anew (an edit redraws it),
+  // so the next press goes to it, not to the board.
   function renderProps() {
+    const host = document.querySelector('#props')
+    const at = host?.contains(document.activeElement) && document.activeElement.matches('input')
+      ? { label: document.activeElement.closest('.pf')?.querySelector(':scope > label')?.textContent, n: [...(document.activeElement.closest('.pf')?.querySelectorAll('input') ?? [])].indexOf(document.activeElement) }
+      : null
+    drawPropsFor()
+    if (at?.label != null && at.n >= 0) {
+      const row = [...(document.querySelector('#props')?.querySelectorAll('.pf') ?? [])].find((r) => r.querySelector(':scope > label')?.textContent === at.label)
+      const again = row?.querySelectorAll('input')[at.n]
+      if (again && document.activeElement !== again) { again.focus({ preventScroll: true }); again.setSelectionRange?.(again.value.length, again.value.length) }
+    }
+  }
+  function drawPropsFor() {
     const el = ed.primary()
     const hidden = el && el.style.getPropertyValue('display') === 'none' && ed.cvOf(el) != null
     if (!hidden) return drawProps()

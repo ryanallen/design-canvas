@@ -112,6 +112,7 @@ body:has(#thread.open) #float.open, body:has(#thread.open) #itembar.open { displ
 .psec > header b { font-size: 12px; }
 .pf { display: grid; grid-template-columns: 78px 1fr; align-items: center; gap: 6px; margin: 4px 0; }
 .pf > label { color: var(--ink-3); font-size: 12px; }
+.pf > label.scrub { cursor: ew-resize; user-select: none; touch-action: none; }
 .pc { display: flex; gap: 4px; align-items: center; min-width: 0; flex-wrap: wrap; }
 .pc .cap { display: grid; gap: 1px; flex: 1; min-width: 0; }
 .pc .cap input { width: 100%; }

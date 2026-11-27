@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Design canvas: every HTML prototype on one board you can edit</title>
-<meta name="description" content="Lay a folder of HTML prototypes out on one board. Retype, restyle and rearrange them where they stand, and every change is written back into the prototype's own file. Free, open source, runs on Node.">
+<meta name="description" content="See all your HTML prototypes on one board and edit them right there. Every change is saved back into the file. Free and open source.">
 <link rel="canonical" href="https://ryanallen.com/design-canvas/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Design canvas">
-<meta property="og:description" content="Every HTML prototype in a folder, on one board you can edit.">
+<meta property="og:description" content="See all your HTML prototypes on one board, and edit them right there.">
 <meta property="og:url" content="https://ryanallen.com/design-canvas/">
 <meta property="og:image" content="https://ryanallen.com/design-canvas/landing/hero-1440.webp">
 <meta name="twitter:card" content="summary_large_image">
@@ -131,7 +131,24 @@
     .shot { padding-top: 40px; width: calc(100% + 40px); margin-left: -20px; margin-right: -20px; }
     .shot img, .shot video { border-radius: 10px 10px 0 0; }
   }
-  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn { transition: none; } }
+  /* The hero: a glow behind the screen, the screen standing up as the page opens and leaning toward the pointer,
+     a light across its glass where the pointer is. Only transform and opacity move, so it stays on the GPU. */
+  .night h1 { background: linear-gradient(180deg, #fff 30%, #9fb3ff); -webkit-background-clip: text; background-clip: text; color: transparent; padding-bottom: 0.08em; }
+  .rise { animation: rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  .rise.d1 { animation-delay: 0.08s; }
+  .rise.d2 { animation-delay: 0.16s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(18px); } }
+  .shot.first { position: relative; perspective: 1800px; }
+  .shot.first::before { content: ""; position: absolute; left: -20%; right: -20%; top: -12%; bottom: -40%; background: radial-gradient(closest-side at 50% 45%, rgb(62 106 225 / 0.7), rgb(130 90 255 / 0.28) 55%, transparent); pointer-events: none; animation: breathe 7s ease-in-out infinite alternate; }
+  @keyframes breathe { from { opacity: 0.65; transform: scale(0.94); } to { opacity: 1; transform: scale(1.04); } }
+  .stage { position: relative; transform-origin: 50% 100%; transform-style: preserve-3d; animation: stand 1.6s cubic-bezier(0.16, 0.8, 0.2, 1) 0.2s both; }
+  @keyframes stand { from { opacity: 0; transform: translateY(80px) rotateX(28deg) scale(0.92); } }
+  .tilt { position: relative; transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1); will-change: transform; }
+  .glare { position: absolute; inset: 0; overflow: hidden; border-radius: var(--r) var(--r) 0 0; pointer-events: none; opacity: 0; transition: opacity 0.5s; }
+  .glare::after { content: ""; position: absolute; left: -50%; top: -50%; width: 100%; aspect-ratio: 1; background: radial-gradient(closest-side, rgb(255 255 255 / 0.16), transparent); transform: translate(var(--gx, 50%), var(--gy, 0%)); }
+  .night:hover .glare { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn { transition: none; } .rise, .stage, .shot.first::before { animation: none; } .tilt { transform: none; } .glare { display: none; } }
+  @media (hover: none) { .glare { display: none; } }
 </style>
 </head>
 <body>
@@ -157,15 +174,38 @@
 
 <main>
   <section class="panel night" aria-labelledby="top">
-    <h1 id="top">Design canvas</h1>
-    <p class="say">Every HTML prototype in a folder, laid out on one board you can edit.</p>
-    <div class="acts">
+    <h1 id="top" class="rise">Design canvas</h1>
+    <p class="say rise d1">See all your HTML prototypes on one board, and edit them right there.</p>
+    <div class="acts rise d2">
       <a class="btn go" href="play/">Open it in your browser</a>
       <a class="btn calm" href="#get">Get it for your own folder</a>
     </div>
     <div class="shot first">
-      <video autoplay muted loop playsinline preload="auto" width="1440" height="900" poster="landing/hero-1440.webp" aria-label="The canvas at work on Vigil: a pointer selects the page's headline on the board and retypes it to Their cameras are still on, adds a sticky note beside it, leaves a comment on Take the watch, then plays the page at full size and draws a slow figure of eight over its photo of a lone house at night, the 3D photo turning to follow the pointer, before going back to the board"><source src="landing/hero.webm" type="video/webm"></video>
-      <script>if (matchMedia('(prefers-reduced-motion: reduce)').matches) { const v = document.currentScript.previousElementSibling; v.removeAttribute('autoplay'); v.pause(); v.controls = true }</script>
+      <div class="stage"><div class="tilt"><video autoplay muted loop playsinline preload="auto" width="1440" height="900" poster="landing/hero-1440.webp" aria-label="The canvas at work on Vigil: a pointer selects the page's headline on the board and retypes it to Their cameras are still on, adds a sticky note beside it, leaves a comment on Take the watch, then plays the page at full size and draws a slow figure of eight over its photo of a lone house at night, the 3D photo turning to follow the pointer, before going back to the board"><source src="landing/hero.webm" type="video/webm"></video><span class="glare"></span></div></div>
+      <script>
+        {
+          const v = document.querySelector('.shot.first video')
+          if (matchMedia('(prefers-reduced-motion: reduce)').matches) { v.removeAttribute('autoplay'); v.pause(); v.controls = true }
+          // With a mouse, the screen leans toward the pointer and the light follows it, once a frame at most.
+          else if (matchMedia('(hover: hover) and (pointer: fine)').matches) {
+            const hero = document.querySelector('.panel.night')
+            const tilt = hero.querySelector('.tilt')
+            let x = 0, y = 0, queued = false
+            const draw = () => {
+              queued = false
+              const r = tilt.getBoundingClientRect()
+              const nx = Math.max(-1, Math.min(1, (x - r.left) / r.width * 2 - 1))
+              const ny = Math.max(-1, Math.min(1, (y - r.top) / r.height * 2 - 1))
+              tilt.style.setProperty('--ry', `${(nx * 9).toFixed(2)}deg`)
+              tilt.style.setProperty('--rx', `${(-ny * 6).toFixed(2)}deg`)
+              tilt.style.setProperty('--gx', `${((nx + 1) * 50).toFixed(1)}%`)
+              tilt.style.setProperty('--gy', `${((ny + 1) * 50).toFixed(1)}%`)
+            }
+            hero.addEventListener('pointermove', (e) => { x = e.clientX; y = e.clientY; if (!queued) { queued = true; requestAnimationFrame(draw) } })
+            hero.addEventListener('pointerleave', () => { for (const k of ['--rx', '--ry']) tilt.style.setProperty(k, '0deg') })
+          }
+        }
+      </script>
     </div>
   </section>
 
@@ -176,7 +216,7 @@
 
   <section class="panel night" aria-labelledby="edit">
     <h2 id="edit">Click it, change it</h2>
-    <p class="say">Retype a headline, recolour a line, round a corner, drag a card into a new place. The change is written into that prototype's own file, and only the part you touched changes, so the diff stays small and readable.</p>
+    <p class="say">Retype a headline, recolor a line, round a corner, drag a card into a new place. The change is written into that prototype's own file, and only the part you touched changes, so the diff stays small and readable.</p>
     <div class="acts">
       <a class="btn calm" href="play/#page=design%20canvas">Try it on the sample</a>
     </div>
@@ -187,60 +227,60 @@
 
   <section class="panel night" aria-labelledby="think">
     <h2 id="think">Room to think around the screens</h2>
-    <p class="say">Sticky notes, shapes, sections and arrows that stay attached when things move. Pin a comment to a button and tick it for the agent: it reads the comment from the same file the next time it runs.</p>
+    <p class="say">Sticky notes, shapes, sections and arrows that stay attached when things move. Pin a comment to a button and mark it for your AI agent. The agent reads it the next time it runs.</p>
     <div class="shot">
       <img src="landing/whiteboard-1440.webp" srcset="landing/whiteboard-1440.webp 1440w, landing/whiteboard-2880.webp 2880w" sizes="(max-width: 1200px) 100vw, 1200px" width="1440" height="900" alt="Sticky notes, an ellipse and a rectangle joined by arrows on the board" loading="lazy" decoding="async">
     </div>
   </section>
 
   <section class="panel plain short" aria-labelledby="more">
-    <h2 id="more">The details are there</h2>
+    <h2 id="more">And a lot more</h2>
     <div class="grid">
-      <div><h3>One click, one element</h3><p>A click picks the line you clicked. <kbd>Alt</kbd>-click picks every one like it, when you want them all.</p></div>
+      <div><h3>One click, one element</h3><p>Click a line to select just that line. <kbd>Alt</kbd>-click to select every one like it.</p></div>
       <div><h3>Components</h3><p>Make a card a component, duplicate it, and a style changed on one copy changes on all of them. The words in each stay their own.</p></div>
-      <div><h3>Hover and pressed</h3><p>Switch a button to Hover, see it hovered on the board, set its colour, and choose how fast it fades.</p></div>
+      <div><h3>Hover and pressed</h3><p>Switch a button to Hover, see it hovered on the board, set its color, and choose how fast it fades.</p></div>
       <div><h3>Measure</h3><p>Hold <kbd>Alt</kbd> over another element to see the space between them, in the prototype's own pixels.</p></div>
-      <div><h3>Find and replace</h3><p>Change a word everywhere on the page. Only text changes; tags, scripts and styles are left alone.</p></div>
+      <div><h3>Find and replace</h3><p>Change a word everywhere on the page. Only the text changes. Code is left alone.</p></div>
       <div><h3>Undo anything</h3><p>Board or prototype, <kbd>Ctrl</kbd>+<kbd>Z</kbd> takes back whatever you did last, one step at a time.</p></div>
       <div><h3>Groups, align, snap</h3><p>Group notes, line them up, space them evenly, and watch them catch on each other's edges as you drag.</p></div>
       <div><h3>Any screen width</h3><p>Click a screen's width to see it at phone, tablet or your own size, beside the others.</p></div>
       <div><h3>Motion</h3><p>Give an element an entrance, stagger a row of cards, and scrub to any moment of it.</p></div>
       <div><h3>Flows and history</h3><p>See where every link goes, and who changed what, newest first.</p></div>
       <div><h3>Phones and tablets</h3><p>One finger moves the board, two zoom it, and a tap does what a click does.</p></div>
-      <div><h3>Nothing leaves your machine</h3><p>The canvas makes no requests of its own. Served, it answers only this computer.</p></div>
+      <div><h3>Nothing leaves your machine</h3><p>The canvas never goes online on its own, and only your computer can open it.</p></div>
     </div>
   </section>
 
   <section class="panel paper short" id="compare" aria-labelledby="beside">
-    <h2 id="beside">Beside the others</h2>
-    <p class="say">What each one does with a design, from its makers' own pages. Where a page says nothing, the table says so rather than guess.</p>
+    <h2 id="beside">How it compares</h2>
+    <p class="say">What each tool can do, taken from its own website. If the website doesn't say, neither do we.</p>
     <div class="compare" role="region" aria-labelledby="beside" tabindex="0">
       <table>
         <thead>
           <tr><th scope="col"><span class="sr">Feature</span></th><th scope="col" class="us">Design canvas</th><th scope="col">Figma</th><th scope="col">FigJam</th><th scope="col">Claude Design</th><th scope="col">Claude artifacts</th><th scope="col">Canva</th></tr>
         </thead>
         <tbody>
-          <tr><th scope="row">What you work on</th><td class="us y">Your folder of HTML prototypes, each change written into its own file</td><td class="p">Figma's own files; code layers in open beta</td><td class="n">A board in Figma's cloud</td><td class="p">Designs Claude builds as live HTML, exported as HTML</td><td class="p">A web page Claude writes and republishes</td><td class="p">Canva designs; HTML imported through Canva Code</td></tr>
-          <tr><th scope="row">Change it by hand</th><td class="us y">Click any element: retype, restyle, drag, resize</td><td class="y">Yes</td><td class="p">Board objects</td><td class="p">Text in place, drag, resize, align, and sliders Claude makes</td><td class="n">No: you ask Claude</td><td class="y">Yes</td></tr>
-          <tr><th scope="row">Fills and effects</th><td class="us y">Gradients, point and grid mesh gradients, stacked shadows, blur, blend, rotation</td><td class="y">Yes; mesh gradients by plugin</td><td class="p">Colours</td><td class="p">Spacing and colour sliders</td><td class="n">No</td><td class="y">Yes</td></tr>
-          <tr><th scope="row">Whiteboard</th><td class="us y">Notes, shapes, sections, pencil, stamps, templates, connectors that stay attached</td><td class="n">In FigJam</td><td class="y">Notes, shapes, elbowed connectors, stamps, templates</td><td class="p">A separate product, Claude Whiteboards (beta, paid plans)</td><td class="n">No</td><td class="y">Whiteboards with sticky notes</td></tr>
-          <tr><th scope="row">Comments on an element</th><td class="us y">Pinned to the element; replies, reactions, @mentions</td><td class="y">Yes</td><td class="y">Yes</td><td class="y">Yes</td><td class="y">Yes</td><td class="y">Yes</td></tr>
-          <tr><th scope="row">An agent acts on them</th><td class="us y">Your own agent reads the comments from the folder and changes the files</td><td class="p">Figma's agent, and coding agents through its MCP server</td><td class="p">Coding agents through Figma's MCP server</td><td class="y">Claude, in the same canvas</td><td class="y">Claude</td><td class="p">Canva AI, by prompt</td></tr>
-          <tr><th scope="row">Click through it</th><td class="us y">Play: the prototypes themselves, links and all</td><td class="y">Prototypes</td><td class="n">No</td><td class="y">Clickable flows</td><td class="y">It is a live page</td><td class="p">Sites and apps from Canva Code</td></tr>
-          <tr><th scope="row">Version history</th><td class="us y">Every change, who made it, undo across board and files</td><td class="y">Yes</td><td class="y">Yes</td><td class="n">None documented</td><td class="y">Each publish is a version</td><td class="p">Paid plans</td></tr>
-          <tr><th scope="row">Several people at once</th><td class="us p">One computer edits; comments can be shared through a host, and the built file sent to anyone</td><td class="y">Live, with cursors</td><td class="y">Live, with cursors</td><td class="p">Basic, within your organisation</td><td class="p">Viewers, and editors on Team plans</td><td class="y">Live</td></tr>
-          <tr><th scope="row">Where it lives</th><td class="us y">On your computer. No account, no requests of its own</td><td class="n">Figma's cloud, with an account</td><td class="n">Figma's cloud, with an account</td><td class="n">Anthropic's cloud, with an account</td><td class="n">Anthropic's cloud, with an account</td><td class="n">Canva's cloud, with an account</td></tr>
-          <tr><th scope="row">Take it with you</th><td class="us y">One .html file that opens anywhere; PNG of any element, PDF of any screen</td><td class="y">PNG, SVG, PDF</td><td class="y">PNG, PDF</td><td class="y">PDF, PPTX, HTML, Canva, a handoff to Claude Code</td><td class="p">A link</td><td class="y">PNG, PDF, video and more</td></tr>
-          <tr><th scope="row">Price</th><td class="us y">Free and open source</td><td class="p">Free plan, then paid seats</td><td class="p">Free plan, then paid seats</td><td class="y">On every Claude plan, Free included</td><td class="y">On Claude plans</td><td class="p">Free plan, then paid</td></tr>
-        </tbody>
+          <tr><th scope="row">What you design in</th><td class="us y">Your own HTML files. Every change is saved straight into them.</td><td class="p">Figma files. Working with code is in beta.</td><td class="n">A board stored online by Figma.</td><td class="p">HTML pages that Claude makes. You can download them.</td><td class="p">A web page Claude writes for you.</td><td class="p">Canva designs. You can bring in HTML with Canva Code.</td></tr>
+          <tr><th scope="row">Edit it yourself</th><td class="us y">Click anything to change its text, style, size or place.</td><td class="y">Yes</td><td class="p">Only the things on the board.</td><td class="p">You can edit text, move things and use sliders Claude adds.</td><td class="n">No. You ask Claude to change it.</td><td class="y">Yes</td></tr>
+          <tr><th scope="row">Colors and effects</th><td class="us y">Gradients, mesh gradients, shadows, blur, blending and rotation.</td><td class="y">Yes. Mesh gradients need a plugin.</td><td class="p">Colors only.</td><td class="p">Sliders for spacing and color.</td><td class="n">No</td><td class="y">Yes</td></tr>
+          <tr><th scope="row">Whiteboard</th><td class="us y">Sticky notes, shapes, sections, drawing, stamps, templates and arrows that stay connected.</td><td class="n">Only in FigJam.</td><td class="y">Sticky notes, shapes, arrows, stamps and templates.</td><td class="p">Only in Claude Whiteboards, a separate beta on paid plans.</td><td class="n">No</td><td class="y">Yes, with sticky notes.</td></tr>
+          <tr><th scope="row">Comments</th><td class="us y">Pin a comment to any element. Reply, react and @mention people.</td><td class="y">Yes</td><td class="y">Yes</td><td class="y">Yes</td><td class="y">Yes</td><td class="y">Yes</td></tr>
+          <tr><th scope="row">AI acts on comments</th><td class="us y">Your own AI agent reads the comments and changes the files.</td><td class="p">Figma's AI, or coding agents connected to Figma.</td><td class="p">Coding agents connected to Figma.</td><td class="y">Claude, right in the design.</td><td class="y">Claude</td><td class="p">Canva AI, when you ask it.</td></tr>
+          <tr><th scope="row">Click through it</th><td class="us y">Yes. Play mode runs your real pages, links and all.</td><td class="y">Yes</td><td class="n">No</td><td class="y">Yes</td><td class="y">Yes. It's a real web page.</td><td class="p">Only sites and apps made with Canva Code.</td></tr>
+          <tr><th scope="row">Undo and history</th><td class="us y">See every change and who made it. Undo works across everything.</td><td class="y">Yes</td><td class="y">Yes</td><td class="n">Not mentioned in its docs.</td><td class="y">Each time you publish, a version is saved.</td><td class="p">On paid plans.</td></tr>
+          <tr><th scope="row">Work together live</th><td class="us p">One person edits at a time. Others can comment, or you can send them the file.</td><td class="y">Yes, and you see each other's cursors.</td><td class="y">Yes, and you see each other's cursors.</td><td class="p">Basic sharing inside your company.</td><td class="p">Others can view. Team plans can edit.</td><td class="y">Yes</td></tr>
+          <tr><th scope="row">Where your work is kept</th><td class="us y">On your computer. No account, and nothing is sent anywhere.</td><td class="n">Online, and you need an account.</td><td class="n">Online, and you need an account.</td><td class="n">Online, and you need an account.</td><td class="n">Online, and you need an account.</td><td class="n">Online, and you need an account.</td></tr>
+          <tr><th scope="row">Export</th><td class="us y">One HTML file that opens anywhere. Save any element as a PNG or any screen as a PDF.</td><td class="y">PNG, SVG and PDF.</td><td class="y">PNG and PDF.</td><td class="y">PDF, PowerPoint, HTML, Canva, or send it to Claude Code.</td><td class="p">Just a link.</td><td class="y">PNG, PDF, video and more.</td></tr>
+          <tr><th scope="row">Price</th><td class="us y">Free and open source.</td><td class="p">Free to start, then you pay per person.</td><td class="p">Free to start, then you pay per person.</td><td class="y">Included with every Claude plan, even Free.</td><td class="y">Included with Claude plans.</td><td class="p">Free to start, then paid.</td></tr>
+          </tbody>
       </table>
     </div>
-    <p class="key"><span class="y">Does it</span><span class="p">In part, or another way</span><span class="n">Does not</span></p>
+    <p class="key"><span class="y">Yes</span><span class="p">Partly</span><span class="n">No</span></p>
   </section>
 
   <section class="panel plain short" id="get" aria-labelledby="get-it">
     <h2 id="get-it">Get it</h2>
-    <p class="say">Paste this into your agent. The link tells it everything: it installs the canvas and opens your prototypes, or walks you through it.</p>
+    <p class="say">Paste this into your agent. The link has everything it needs. It installs the canvas and opens your prototypes, or walks you through the steps.</p>
     <div class="paste">
       <code id="ask-agent">Install the design canvas in this project and open my prototypes on it: https://ryanallen.com/design-canvas/install/</code>
       <button type="button" class="btn go copy" data-copy="ask-agent">Copy</button>
@@ -257,7 +297,7 @@
       <a class="btn go" href="https://github.com/ryanallen/design-canvas/archive/refs/heads/main.zip">Download the zip</a>
       <a class="btn calm" href="https://github.com/ryanallen/design-canvas">See the code on GitHub</a>
     </div>
-    <p class="fine">A canvas you build is one .html file. Send it to someone and it opens from their disk; in Chrome or Edge they can edit and comment in it too.</p>
+    <p class="fine">A canvas you build is one .html file. Send it to anyone and it opens on their computer. In Chrome or Edge they can edit it and comment too.</p>
   </section>
 </main>
 

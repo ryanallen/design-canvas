@@ -13,6 +13,7 @@
 <meta property="og:image" content="https://ryanallen.com/design-canvas/landing/hero-1440.webp">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#0e0e10">
+<link rel="preload" as="font" type="font/woff2" href="landing/heading.woff2" crossorigin>
 <link rel="preload" as="image" href="landing/hero-1440.webp" imagesrcset="landing/hero-1440.webp 1440w, landing/hero-2880.webp 2880w" imagesizes="(max-width: 1200px) 100vw, 1200px" fetchpriority="high">
 <script>
   // Links made before the canvas moved to /play/ opened it on a page (#page=…): they still do.
@@ -133,20 +134,25 @@
   }
   /* The hero: a glow behind the screen, the screen standing up as the page opens and leaning toward the pointer,
      a light across its glass where the pointer is. Only transform and opacity move, so it stays on the GPU. */
-  .night h1 { background: linear-gradient(180deg, #fff 30%, #9fb3ff); -webkit-background-clip: text; background-clip: text; color: transparent; padding-bottom: 0.08em; }
+  /* The name, in Bricolage Grotesque (SIL Open Font License), cut down to its own letters: 2 KB. */
+  @font-face { font-family: "Heading"; src: url("landing/heading.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+  .night h1 { font-family: "Heading", system-ui, sans-serif; font-weight: 700; font-size: clamp(48px, 8vw, 88px); letter-spacing: -0.035em; background: linear-gradient(180deg, #fff 30%, #9fb3ff); -webkit-background-clip: text; background-clip: text; color: transparent; padding: 0 0.05em 0.18em; margin-bottom: -0.18em; }
   .rise { animation: rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
   .rise.d1 { animation-delay: 0.08s; }
   .rise.d2 { animation-delay: 0.16s; }
   @keyframes rise { from { opacity: 0; transform: translateY(18px); } }
   .shot.first { position: relative; perspective: 1800px; }
-  .shot.first::before { content: ""; position: absolute; left: -20%; right: -20%; top: -12%; bottom: -40%; background: radial-gradient(closest-side at 50% 45%, rgb(62 106 225 / 0.7), rgb(130 90 255 / 0.28) 55%, transparent); pointer-events: none; animation: breathe 7s ease-in-out infinite alternate; }
+  .shot.first::before { content: ""; position: absolute; left: -20%; right: -20%; top: -12%; bottom: -40%; background: radial-gradient(closest-side at 50% 45%, rgb(62 106 225 / 0.7), rgb(130 90 255 / 0.28) 55%, transparent); pointer-events: none; }
+  .fx .shot.first::before { animation: breathe 7s ease-in-out infinite alternate; }
   @keyframes breathe { from { opacity: 0.65; transform: scale(0.94); } to { opacity: 1; transform: scale(1.04); } }
-  .stage { position: relative; transform-origin: 50% 100%; transform-style: preserve-3d; animation: stand 1.6s cubic-bezier(0.16, 0.8, 0.2, 1) 0.2s both; }
+  .stage { position: relative; transform-origin: 50% 100%; transform-style: preserve-3d; animation: stand 1.6s cubic-bezier(0.16, 0.8, 0.2, 1) both; }
   @keyframes stand { from { opacity: 0; transform: translateY(80px) rotateX(28deg) scale(0.92); } }
   .tilt { position: relative; transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1); will-change: transform; }
   .glare { position: absolute; inset: 0; overflow: hidden; border-radius: var(--r) var(--r) 0 0; pointer-events: none; opacity: 0; transition: opacity 0.5s; }
   .glare::after { content: ""; position: absolute; left: -50%; top: -50%; width: 100%; aspect-ratio: 1; background: radial-gradient(closest-side, rgb(255 255 255 / 0.16), transparent); transform: translate(var(--gx, 50%), var(--gy, 0%)); }
-  .night:hover .glare { opacity: 1; }
+  .fx .night:hover .glare { opacity: 1; }
+  /* A browser too slow at it (one drawing without the graphics card) is shown the page still, at once. */
+  .calm .rise, .calm .stage, .calm .shot.first::before { animation: none; }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn { transition: none; } .rise, .stage, .shot.first::before { animation: none; } .tilt { transform: none; } .glare { display: none; } }
   @media (hover: none) { .glare { display: none; } }
 </style>
@@ -187,11 +193,44 @@
           const v = document.querySelector('.shot.first video')
           if (matchMedia('(prefers-reduced-motion: reduce)').matches) { v.removeAttribute('autoplay'); v.pause(); v.controls = true }
           // With a mouse, the screen leans toward the pointer and the light follows it, once a frame at most.
-          else if (matchMedia('(hover: hover) and (pointer: fine)').matches) {
+          // The first quarter second of the screen standing up is timed: a browser drawing without the graphics card,
+          // slow at this, has every movement stopped there and is shown the page still. Where it keeps up, a mouse makes
+          // the screen lean toward it, and if the lean falls behind later, it stops.
+          else {
             const hero = document.querySelector('.panel.night')
             const tilt = hero.querySelector('.tilt')
-            let x = 0, y = 0, queued = false
-            const draw = () => {
+            let x = 0, y = 0, queued = false, last = 0
+            const gaps = []
+            // Slow: one frame in five or more taking over 25 ms.
+            const slow = () => gaps.filter((g) => g > 25).length * 5 >= gaps.length
+            const off = () => { document.documentElement.classList.remove('fx'); document.documentElement.classList.add('calm'); hero.removeEventListener('pointermove', move); for (const k of ['--rx', '--ry']) tilt.style.setProperty(k, '0deg') }
+            // While it leans, 30 frames in a row are timed now and then (the lean is easing all the while).
+            let metering = false, metered = 0
+            const meter = (now) => {
+              if (last) gaps.push(now - last)
+              last = now
+              if (gaps.length < 30) return requestAnimationFrame(meter)
+              metering = false
+              metered = now
+              if (slow()) off()
+            }
+            const move = (e) => {
+              x = e.clientX; y = e.clientY
+              if (!queued) { queued = true; requestAnimationFrame(draw) }
+              if (!metering && performance.now() - metered > 3000) { metering = true; gaps.length = 0; last = 0; requestAnimationFrame(meter) }
+            }
+            let begun = 0
+            const probe = (now) => {
+              if (last) gaps.push(now - last)
+              last = now
+              begun ||= now
+              if (now - begun < 250) return requestAnimationFrame(probe)
+              if (gaps.filter((g) => g > 25).length >= 3) return document.documentElement.classList.add('calm')
+              document.documentElement.classList.add('fx')
+              if (matchMedia('(hover: hover) and (pointer: fine)').matches) hero.addEventListener('pointermove', move)
+            }
+            requestAnimationFrame(probe)
+            const draw = (now) => {
               queued = false
               const r = tilt.getBoundingClientRect()
               const nx = Math.max(-1, Math.min(1, (x - r.left) / r.width * 2 - 1))
@@ -201,7 +240,6 @@
               tilt.style.setProperty('--gx', `${((nx + 1) * 50).toFixed(1)}%`)
               tilt.style.setProperty('--gy', `${((ny + 1) * 50).toFixed(1)}%`)
             }
-            hero.addEventListener('pointermove', (e) => { x = e.clientX; y = e.clientY; if (!queued) { queued = true; requestAnimationFrame(draw) } })
             hero.addEventListener('pointerleave', () => { for (const k of ['--rx', '--ry']) tilt.style.setProperty(k, '0deg') })
           }
         }

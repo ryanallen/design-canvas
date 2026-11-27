@@ -579,9 +579,23 @@
         h('label', { class: 'cap' }, input(hi, put('max'), { class: 'n s', placeholder: '–', title: `Max ${dim}`, 'aria-label': `Max ${dim}` }), h('small', {}, 'Max')),
         h('button', { type: 'button', class: 'mini', title: `Take the min and max ${dim} off`, onclick: () => { limitsOpen.delete(dim); const props = { ...(lo !== '' ? { [`min-${dim}`]: off('min') } : {}), ...(hi !== '' ? { [`max-${dim}`]: off('max') } : {}) }; Object.keys(props).length ? set(props) : renderProps() } }, '−'))
     }
+    // Figma's constrain proportions: kept, the element's shape as drawn is written as its aspect-ratio and its height
+    // left to follow its width; let go, the ratio goes and it keeps the height it has.
+    const ratioOf = (k) => (/\d\s*\/\s*\d/.test(k.aspectRatio) && !/^auto\b/.test(k.aspectRatio) ? k.aspectRatio : '')
+    const keepRatio = () => {
+      const kept = across((x, k) => (ratioOf(k) ? 'yes' : 'no'))
+      return h('button', { type: 'button', class: 'mini', title: kept === 'yes' ? `Proportions kept (${ratioOf(c)}): click to let them go` : 'Keep proportions', 'aria-label': 'Keep proportions', 'aria-pressed': String(kept === 'yes'),
+        onclick: () => eachOwn((k) => {
+          if (ratioOf(k)) return { 'aspect-ratio': '', height: `${Math.max(0, Math.round(parseFloat(k.height) || 0))}px` }
+          const w = Math.round(parseFloat(k.width))
+          const ht = Math.round(parseFloat(k.height))
+          return { 'aspect-ratio': `${w} / ${ht}`, height: 'auto' }
+        }) }, '⛓')
+    }
     const dimRow = (dim, label) => [
       field(label, input(across((x) => Math.round(ed.sizeOf(x)[dim])),(v) => set({ [dim]: /^\d+(\.\d+)?$/.test(String(v).trim()) ? cssSize(dim, v) : px(v) }), { class: 'n' }), seg([['hug', 'Hug'], ['fixed', 'Fixed'], ['fill', 'Fill']], sizeMode(dim), (m) => setMode(dim, m)),
-        limitsOf(dim).set || limitsOpen.has(dim) ? null : h('button', { type: 'button', class: 'mini', title: `Min and max ${dim}`, 'aria-label': `Min and max ${dim}`, onclick: () => { limitsOpen.add(dim); renderProps() } }, '⇔')),
+        limitsOf(dim).set || limitsOpen.has(dim) ? null : h('button', { type: 'button', class: 'mini', title: `Min and max ${dim}`, 'aria-label': `Min and max ${dim}`, onclick: () => { limitsOpen.add(dim); renderProps() } }, '⇔'),
+        dim === 'width' ? keepRatio() : null),
       limitsOf(dim).set || limitsOpen.has(dim) ? limitRow(dim) : null,
     ]
     // The whole screen selected: its width is the screen's own (its canvas-width), as a Figma frame's is; its height

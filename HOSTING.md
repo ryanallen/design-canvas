@@ -30,6 +30,7 @@ Only the owner locks and unlocks: whoever edits where the canvas lives, served b
 - **An artboard**: the padlock in its header.
 - **A board object**: pick it, then Lock in its bar. A drag box locks or unlocks everything in it at once.
 - **A part of an artboard**: select it, then the padlock in its floating toolbar.
+- **By key**: Ctrl+Shift+L (⌘+Shift+L) locks what is selected, a part or board objects, and unlocks it when it is all locked, as in Figma.
 
 Then build and publish again. The locks travel in the file: board locks as `lock` lines, part locks as `data-locked` in the artboard's own HTML.
 

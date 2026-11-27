@@ -1445,6 +1445,12 @@
     else if (mod && e.altKey && e.code === 'KeyV') ops.pasteProps()
     // Figma's Show/Hide: hides what is selected, or shows it when all of it is hidden.
     else if (mod && e.shiftKey && k === 'h') setHidden(sel.frame, sel.els, sel.els.some((x) => cs(x).display !== 'none'))
+    // Figma's Lock (Ctrl+Shift+L): the owner locks the selected part, or unlocks it, as the toolbar's padlock does.
+    else if (mod && e.shiftKey && k === 'l') {
+      if (!dc.owner) hint('Only the owner locks', 1600)
+      else if (sel.els.length !== 1 || cvOf(el) == null || fileLocked(sel.frame.file) || (!el.hasAttribute('data-locked') && el.parentElement?.closest('[data-locked]'))) hint('Select one part that is not inside a locked one', 2000)
+      else send({ op: 'attr', cv: cvOf(el), name: 'data-locked', value: el.hasAttribute('data-locked') ? null : 'true' })
+    }
     // The whole screen selected (its label clicked): Ctrl+D copies the screen, as Figma duplicates a frame.
     else if (mod && k === 'd') el.localName === 'body' ? dc.duplicateScreens([sel.frame]) : ops.duplicate()
     else if (mod && k === 'g') e.shiftKey ? ops.ungroup() : ops.group()

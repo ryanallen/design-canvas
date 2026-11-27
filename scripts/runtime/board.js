@@ -2198,9 +2198,14 @@
     const it = board.items.find((i) => i.id === id)
     if (!it) return
     if (e.shiftKey) return toggleChosen(id)
-    // A press on one object of a group takes the whole group.
-    if (!chosen?.items.has(id) && (withGroup(id).length > 1 || groupFrames(it.group).length)) chooseItems(withGroup(id), groupFrames(it.group))
-    const group = chosen?.items.has(id) ? chosen : null
+    // A press on one object of a group takes the whole group; with Ctrl held (Figma's deep select) the one object. A
+    // click that does not move, on one of several chosen together (a drag box, Ctrl+A) and not just its group, then
+    // takes that one alone, as Figma does; a group selected stays selected.
+    const deep = e.ctrlKey || e.metaKey
+    const own = new Set([...withGroup(id), ...groupFrames(it.group)])
+    const within = !deep && chosen?.items.has(id) && chosen.items.size + chosen.frames.size > 1 && !(chosen.items.size + chosen.frames.size === own.size && [...chosen.items, ...chosen.frames].every((k) => own.has(k)))
+    if (!deep && !chosen?.items.has(id) && (withGroup(id).length > 1 || groupFrames(it.group).length)) chooseItems(withGroup(id), groupFrames(it.group))
+    const group = !deep && chosen?.items.has(id) ? chosen : null
     if (!group) pickItem(id)
     if (it.kind === 'guide') return
     if (!group && isLocked(id)) return
@@ -2268,7 +2273,7 @@
       end: async (_, moved) => {
         clearSnap()
         itemBar.classList.remove('dragging')
-        if (!moved) return
+        if (!moved) return within && pickItem(id)
         if (resize) return updateItem(id, it.x !== x0 || it.y !== y0 ? { x: it.x, y: it.y, w: it.w, h: it.h } : { w: it.w, h: it.h })
         if (copying) {
           for (const m of moving) Object.assign(m, starts.get(m.id))
@@ -4219,6 +4224,7 @@
     get allFrames() { return [...allFrames.values()] },
     get items() { return items() },
     get chosen() { return chosen && { box: chosen.box, items: [...chosen.items], frames: [...chosen.frames] } },
+    get picked() { return picked },
     choose, geometryOf,
     get pages() { return pages() },
     get threads() { return threads },

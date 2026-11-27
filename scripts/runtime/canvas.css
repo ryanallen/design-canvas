@@ -226,6 +226,11 @@ body.tiny .item.locked::after { display: none; }
 .snap-line { position: absolute; pointer-events: none; z-index: 50; background: rgb(255 64 129); }
 .snap-line.v { width: calc(1.5px / var(--z, 1)); margin-left: calc(-0.75px / var(--z, 1)); }
 .snap-line.h { height: calc(1.5px / var(--z, 1)); margin-top: calc(-0.75px / var(--z, 1)); }
+/* An equal gap while dragging, as Figma's smart spacing: a pink bar across it, its width on a pink tag. */
+.snap-gap { position: absolute; pointer-events: none; z-index: 50; display: flex; align-items: center; justify-content: center; }
+.snap-gap.h { height: calc(1.5px / var(--z, 1)); margin-top: calc(-0.75px / var(--z, 1)); background: rgb(255 64 129); }
+.snap-gap.v { width: calc(1.5px / var(--z, 1)); margin-left: calc(-0.75px / var(--z, 1)); background: rgb(255 64 129); }
+.snap-gap span { background: rgb(255 64 129); color: #fff; font: 600 calc(11px / var(--z, 1)) / 1 system-ui, sans-serif; padding: calc(2px / var(--z, 1)) calc(4px / var(--z, 1)); border-radius: calc(3px / var(--z, 1)); white-space: nowrap; }
 
 /* ── pins ──────────────────────────────────────────────────── */
 .pin {

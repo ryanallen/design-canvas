@@ -2131,13 +2131,61 @@
       }
       return best
     }
+    // Figma's smart spacing: along a row (or a column) of what overlaps it across, a dragged object catches the middle
+    // between its two neighbors, or a gap one of its neighbors already keeps with the next. p and s are the axis
+    // moved along (x, w or y, h); q and t the one across.
+    const spacing = (b, p, s, q, t) => {
+      const row = others.filter((o) => o[q] < b[q] + b[t] && o[q] + o[t] > b[q]).sort((a, c) => a[p] - c[p])
+      const end = (o) => o[p] + o[s]
+      const before = row.filter((o) => end(o) <= b[p] + 1).sort((a, c) => end(c) - end(a))[0]
+      const after = row.filter((o) => o[p] >= b[p] + b[s] - 1)[0]
+      const targets = []
+      if (before && after && after[p] - end(before) > b[s]) targets.push({ v: (end(before) + after[p] - b[s]) / 2, before, after })
+      for (let i = 1; i < row.length; i++) {
+        const g = row[i][p] - end(row[i - 1])
+        if (g <= 0) continue
+        const pair = [row[i - 1], row[i]]
+        if (before) targets.push({ v: end(before) + g, before, pair, g })
+        if (after) targets.push({ v: after[p] - g - b[s], after, pair, g })
+      }
+      let best = null
+      for (const tg of targets) {
+        const d = tg.v - b[p]
+        if (Math.abs(d) <= SNAP_PX / view.z && (!best || Math.abs(d) < Math.abs(best.d))) best = { ...tg, d }
+      }
+      return best
+    }
+    /** The gap marks: a pink bar across each equal gap, its width written on it. */
+    const gapMark = (axis, from, to, at) => {
+      const len = to - from
+      if (len <= 0) return
+      const style = axis === 'x' ? `left:${from}px;top:${at}px;width:${len}px` : `top:${from}px;left:${at}px;height:${len}px`
+      snapEls.push(h('div', { class: `snap-gap ${axis === 'x' ? 'h' : 'v'}`, style }, h('span', {}, String(Math.round(len)))))
+    }
+    const showGaps = (g, b, p, s, q, t) => {
+      const mid = (o) => o[q] + o[t] / 2
+      const end = (o) => o[p] + o[s]
+      if (g.before) gapMark(p, end(g.before), b[p], (mid(g.before) + mid(b)) / 2)
+      if (g.after) gapMark(p, end(b), g.after[p], (mid(g.after) + mid(b)) / 2)
+      if (g.pair) gapMark(p, end(g.pair[0]), g.pair[1][p], (mid(g.pair[0]) + mid(g.pair[1])) / 2)
+    }
     return (dx, dy) => {
       const b = { x: start.x + dx, y: start.y + dy, w: start.w, h: start.h }
-      const sx = nearest(marks(b, 'x', 'w'), xs)
-      const sy = nearest(marks(b, 'y', 'h'), ys)
+      let sx = nearest(marks(b, 'x', 'w'), xs)
+      let sy = nearest(marks(b, 'y', 'h'), ys)
+      const gx = spacing(b, 'x', 'w', 'y', 'h')
+      const gy = spacing(b, 'y', 'h', 'x', 'w')
+      if (gx && (!sx || Math.abs(gx.d) < Math.abs(sx.d))) sx = null
+      else if (gx) gx.skip = true
+      if (gy && (!sy || Math.abs(gy.d) < Math.abs(sy.d))) sy = null
+      else if (gy) gy.skip = true
       if (sx) b.x += sx.d
+      else if (gx) b.x += gx.d
       if (sy) b.y += sy.d
+      else if (gy) b.y += gy.d
       clearSnap()
+      if (gx && !gx.skip) showGaps(gx, b, 'x', 'w', 'y', 'h')
+      if (gy && !gy.skip) showGaps(gy, b, 'y', 'h', 'x', 'w')
       if (sx) {
         const top = Math.min(b.y, sx.o.y) - 12 / view.z
         snapEls.push(h('div', { class: 'snap-line v', style: `left:${sx.at}px;top:${top}px;height:${Math.max(b.y + b.h, sx.o.y + sx.o.h) + 12 / view.z - top}px` }))
@@ -2147,7 +2195,7 @@
         snapEls.push(h('div', { class: 'snap-line h', style: `top:${sy.at}px;left:${left}px;width:${Math.max(b.x + b.w, sy.o.x + sy.o.w) + 12 / view.z - left}px` }))
       }
       world.append(...snapEls)
-      return { dx: dx + (sx?.d ?? 0), dy: dy + (sy?.d ?? 0) }
+      return { dx: dx + (sx?.d ?? (gx && !gx.skip ? gx.d : 0)), dy: dy + (sy?.d ?? (gy && !gy.skip ? gy.d : 0)) }
     }
   }
   /** The arrow keys move what is selected on the board, as Figma nudges: 1 px, 10 with Shift. A section takes what is

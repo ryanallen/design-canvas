@@ -1009,6 +1009,19 @@
       hint(err.message, 3000)
     }
   }
+  /** FigJam's Select matching: every object on the page of the same kind and colour as one selected (a note of the
+   * same colour, an arrow of the same colour), locked ones left out. */
+  const colourOf = (i) => String(i.color || (i.kind === 'note' ? NOTE_COLORS[0] : '')).toLowerCase()
+  function matching() {
+    const ids = chosen ? [...chosen.items] : picked ? withGroup(picked) : []
+    const like = new Set(ids.map((id) => board.items.find((i) => i.id === id)).filter(Boolean).map((i) => `${i.kind} ${colourOf(i)}`))
+    return items().filter((i) => i.kind !== 'guide' && (like.has(`${i.kind} ${colourOf(i)}`) && (!isLocked(i.id) || ids.includes(i.id)))).map((i) => i.id)
+  }
+  function selectMatching() {
+    const ids = matching()
+    if (ids.length) chooseItems(ids)
+    hint(`${ids.length} selected`, 1200)
+  }
   /** The menu of the board objects selected: what their keys and bar do, in one place. */
   function itemMenu() {
     const ids = chosen ? [...chosen.items] : picked ? withGroup(picked) : []
@@ -1029,6 +1042,7 @@
       free && many ? { label: 'Group', key: 'Ctrl+G', run: () => groupChosen(true) } : null,
       free && grouped && chosen ? { label: 'Ungroup', key: 'Ctrl+Shift+G', run: () => groupChosen(false) } : null,
       { label: 'Zoom to selection', key: 'Shift+2', run: zoomToSelection },
+      matching().length > ids.length ? { label: `Select matching (${matching().length})`, key: 'Ctrl+Alt+A', run: selectMatching } : null,
       '-',
       owner() && free ? { label: 'Lock', run: () => setLock(ids, true) } : null,
       owner() && ids.some(isLocked) ? { label: 'Unlock', run: () => setLock(ids.filter(isLocked), false) } : null,
@@ -3523,7 +3537,7 @@
   const SHORTCUTS = [
     ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['E', 'Stamp'], ['R', 'Rectangle'], ['S', 'Section'], ['A', 'Artboard'], ['C', 'Comment']]],
     ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['Page Down, Page Up', 'Next, previous screen'], ['+ and −, Ctrl+= and Ctrl+−', 'Zoom in and out'], ['0 or Ctrl+0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+\\', 'Panel']]],
-    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Shift+drag', 'Move straight across or down; resize in proportion'], ['Delete', 'Delete']]],
+    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Ctrl+Alt+A', 'Select matching: same kind and colour'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Shift+drag', 'Move straight across or down; resize in proportion'], ['Delete', 'Delete']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Alt+drag', 'Drop a copy'], ['Shift+drag', 'Straight across or down; resize in proportion'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste after it'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+R', 'Rename in Layers'], ['Ctrl+Shift+H', 'Hide or show'], ['Ctrl+Shift+L', 'Lock or unlock a part'], ['Shift+A', 'Add auto layout'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
     ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['C', 'Comment on it, then click where'], ['Esc', 'Back to the canvas']]],
     ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+?', 'This sheet']]],
@@ -3902,6 +3916,10 @@
       return
     }
     // Ctrl+A on the board: every object and frame on the page.
+    if ((e.metaKey || e.ctrlKey) && e.altKey && !e.shiftKey && e.code === 'KeyA' && selectedItems().length && !call('selectedFile')) {
+      e.preventDefault()
+      return selectMatching()
+    }
     if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'a' && serve) {
       e.preventDefault()
       const ids = board.items.filter((i) => (i.page ?? firstPage()) === pageId && i.kind !== 'guide').map((i) => i.id)

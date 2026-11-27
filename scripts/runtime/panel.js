@@ -194,9 +194,38 @@
   }
   /** A field's value where the elements selected differ: shown empty, reading Mixed, as Figma shows it. */
   const MIXED = Symbol('mixed')
+  // Figma's sums in a number field: 24*2, 100/4, (16 + 8) / 2, a unit kept where one is written. Read by a small
+  // parser of numbers, + − × ÷ and brackets; anything else is passed on as typed.
+  const sum = (text) => {
+    const m = /^\s*([\d.+\-*/×÷()\s]+?)\s*(px|%|deg|°|em|rem|ms|s)?\s*$/.exec(String(text))
+    if (!m || !/[+\-*/×÷]/.test(m[1].trim().replace(/^-/, ''))) return null
+    const tokens = m[1].replace(/×/g, '*').replace(/÷/g, '/').match(/\d+(?:\.\d+)?|\.\d+|[+\-*/()]/g)
+    if (!tokens || tokens.join('') !== m[1].replace(/×/g, '*').replace(/÷/g, '/').replace(/\s+/g, '')) return null
+    let i = 0
+    const atom = () => {
+      const t = tokens[i++]
+      if (t === '(') { const v = expr(); if (tokens[i++] !== ')') throw new Error('bracket'); return v }
+      if (t === '-') return -atom()
+      if (t === '+') return atom()
+      const v = Number(t)
+      if (!Number.isFinite(v)) throw new Error('number')
+      return v
+    }
+    const term = () => { let v = atom(); while (tokens[i] === '*' || tokens[i] === '/') { const o = tokens[i++]; const r = atom(); v = o === '*' ? v * r : v / r } return v }
+    const expr = () => { let v = term(); while (tokens[i] === '+' || tokens[i] === '-') { const o = tokens[i++]; const r = term(); v = o === '+' ? v + r : v - r } return v }
+    try {
+      const v = expr()
+      if (i !== tokens.length || !Number.isFinite(v)) return null
+      return `${Math.round(v * 100) / 100}${m[2] ?? ''}`
+    } catch { return null }
+  }
   const input = (value, onCommit, attrs = {}) => {
     const el = value === MIXED ? h('input', { value: '', ...attrs, placeholder: 'Mixed' }) : h('input', { value: value ?? '', ...attrs })
-    el.addEventListener('change', () => onCommit(el.value))
+    el.addEventListener('change', () => {
+      const worked = /(^|\s)n(\s|$)/.test(el.className) ? sum(el.value) : null
+      if (worked != null) el.value = worked
+      onCommit(el.value)
+    })
     el.addEventListener('keydown', (e) => {
       e.stopPropagation()
       if (e.key === 'Enter') el.blur()

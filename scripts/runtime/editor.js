@@ -841,6 +841,9 @@
       splitAtCaret()
     } else if ((e.key === 'Backspace' || e.key === 'Delete') && !mod && !e.shiftKey && !e.altKey && joinAtCaret(e.key === 'Backspace')) {
       e.preventDefault()
+    } else if (e.key === 'Tab' && !mod && !e.altKey) {
+      e.preventDefault()
+      tabOut(e.shiftKey)
     } else if (mod && ['b', 'i', 'u'].includes(e.key.toLowerCase())) {
       e.preventDefault()
       editing.frame.doc.execCommand({ b: 'bold', i: 'italic', u: 'underline' }[e.key.toLowerCase()])
@@ -891,6 +894,21 @@
     sel = { ...sel, els: [next] }
     draw()
     placeFloat()
+  }
+  /** Tab while typing: the typing ends, saved, and the next part beside it is selected (Shift+Tab the one before), as
+      Tab does when nothing is being typed; the browser's own Tab would take the keys to a button of the canvas. */
+  function tabOut(back) {
+    const span = editing.chain ? editing.chain.length - 1 : 0
+    const beside = (x) => {
+      const list = [...(x.parentElement?.children ?? [])].filter((c) => !SKIP.has(c.localName))
+      return list[(list.indexOf(x) + (back ? -1 : 1) + list.length) % list.length]
+    }
+    const lastOf = (x) => { for (let i = 0; i < span && x.nextElementSibling; i++) x = x.nextElementSibling; return x }
+    const first = editing.chain ? editing.chain[0] : editing.el
+    stopEditing(true, {
+      now: beside(back ? first : lastOf(first)),
+      then: (f, x) => { const to = x && beside(back ? x : lastOf(x)); if (f && to) select(f, [to]) },
+    })
   }
   /** Backspace at the start of a line Enter made, or Delete at the end of the one before it, joins the two again, as
       any text editor does; typing goes on at the join. Only lines of this typing (the chain) are joined, since they

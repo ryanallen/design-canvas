@@ -902,6 +902,7 @@
     }
     if (!f) openMenu(at, [
       serve && boardClip ? { label: 'Paste', key: 'Ctrl+V', run: pasteItems } : null,
+      serve && boardClip ? { label: 'Paste in place', key: 'Ctrl+Shift+V', run: pasteInPlace } : null,
       serve ? { label: 'Select all', key: 'Ctrl+A', run: () => chooseItems(board.items.filter((i) => (i.page ?? firstPage()) === pageId && i.kind !== 'guide').map((i) => i.id), frames().map((f) => f.key)) } : null,
       { label: 'Zoom to fit', key: 'Shift+1', run: fitAll },
       { label: 'Keyboard shortcuts', key: '?', run: openKeys },
@@ -1006,6 +1007,7 @@
       free ? { label: 'Cut', key: 'Ctrl+X', run: cutItems } : null,
       { label: 'Copy', key: 'Ctrl+C', run: copyItems },
       boardClip ? { label: 'Paste', key: 'Ctrl+V', run: pasteItems } : null,
+      boardClip ? { label: 'Paste in place', key: 'Ctrl+Shift+V', run: pasteInPlace } : null,
       { label: 'Duplicate', key: 'Ctrl+D', run: duplicateItems },
       free ? '-' : null,
       free ? { label: 'Bring to front', key: 'Ctrl+]', run: () => restack(true) } : null,
@@ -1568,6 +1570,12 @@
     if (!boardClip) return false
     boardClip.times++
     placeCopies(boardClip.items, 24 * boardClip.times, 24 * boardClip.times)
+    return true
+  }
+  /** Figma's Paste in place (Ctrl+Shift+V): the copies exactly where the originals were, on this page. */
+  function pasteInPlace() {
+    if (!boardClip) return false
+    placeCopies(boardClip.items, 0, 0)
     return true
   }
   /** Shift+2: the board objects or the prototype elements selected fill the window, never past 400%. */
@@ -3450,7 +3458,7 @@
   const SHORTCUTS = [
     ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['E', 'Stamp'], ['R', 'Rectangle'], ['S', 'Section'], ['A', 'Artboard'], ['C', 'Comment']]],
     ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['+ and −, Ctrl+= and Ctrl+−', 'Zoom in and out'], ['0 or Ctrl+0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+\\', 'Panel']]],
-    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+], Ctrl+[', 'Front, back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Delete', 'Delete']]],
+    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+], Ctrl+[', 'Front, back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Delete', 'Delete']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste after it'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+Shift+H', 'Hide or show'], ['Shift+A', 'Add auto layout'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
     ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['C', 'Comment on it, then click where'], ['Esc', 'Back to the canvas']]],
     ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+?', 'This sheet']]],
@@ -3837,6 +3845,10 @@
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'g' && chosen?.items.size && serve) {
       e.preventDefault()
       return groupChosen(!e.shiftKey)
+    }
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && !e.altKey && serve && e.key.toLowerCase() === 'v' && boardClip && !call('selectedFile')) {
+      e.preventDefault()
+      return pasteInPlace()
     }
     if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && serve) {
       const k = e.key.toLowerCase()

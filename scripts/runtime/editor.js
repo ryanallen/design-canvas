@@ -1046,6 +1046,9 @@
   }
 
   // ── structure ──
+  /** Whether the element a drag holds is gone from what is drawn: its screen was drawn again (an edit just made, or
+   *  the file changed outside) while the drag went on. */
+  const lost = (frame, el) => !el.isConnected || !el.ownerDocument.defaultView || el.ownerDocument !== frame.doc
   function startMove(e, frame, point, still) {
     const el = primary()
     const positioned = ['absolute', 'fixed'].includes(cs(el).position)
@@ -1058,6 +1061,11 @@
     const from = positioned ? null : rectOn(frame, el)
     const opacity0 = el.style.opacity
     const move = (ev) => {
+      // The screen was drawn again under the drag: it lets go, with nothing sent.
+      if (lost(frame, el)) {
+        moving = false
+        return up(ev)
+      }
       const dx = (ev.clientX - start.x) / dc.view.z / frame.s
       const dy = (ev.clientY - start.y) / dc.view.z / frame.s
       if (Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < 5 && !target && !moving) return
@@ -1084,6 +1092,7 @@
       dropLine = null
       if (dragGhost) { el.style.opacity = opacity0; if (!el.getAttribute('style')) el.removeAttribute('style') }
       dragGhost = null
+      if (lost(frame, el)) return draw()
       if (!moving) return still ? still() : draw()
       if (positioned) return send({ op: 'style', cv: cvOf(el), props: { left: el.style.left, top: el.style.top } })
       draw()
@@ -1136,6 +1145,7 @@
     const start = { x: e.clientX, y: e.clientY }
     let both = false
     const move = (ev) => {
+      if (lost(f, el)) return up()
       const mx = (ev.clientX - start.x) / dc.view.z / f.s
       const my = (ev.clientY - start.y) / dc.view.z / f.s
       const dx = mx * Math.cos(turn) + my * Math.sin(turn)
@@ -1158,6 +1168,7 @@
     const up = () => {
       removeEventListener('pointermove', move, true)
       removeEventListener('pointerup', up, true)
+      if (lost(f, el)) return draw()
       const props = {}
       if (both || /[ew]/.test(hd)) props.width = el.style.width
       if (both || /[ns]/.test(hd)) props.height = el.style.height

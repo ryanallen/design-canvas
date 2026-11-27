@@ -750,6 +750,8 @@
     if (t !== 'select') pickItem(null)
     sizesBar.hidden = t !== 'artboard'
     stampBar.hidden = t !== 'stamp'
+    penBar.hidden = t !== 'pencil'
+    if (t === 'pencil') renderPens()
     call('onTool', t)
   }
   // The artboard tool's sizes, as Figma's frame presets: a click on the board makes the one chosen; a drag, any size.
@@ -773,6 +775,21 @@
   }
   renderStamps()
   document.body.append(stampBar)
+  // FigJam's pens: a fine line, a marker, a bold one or a highlighter (wide and see-through), and their colours,
+  // chosen on a bar over the toolbar while the pencil is in hand, kept in this browser.
+  const PENS = [['fine', 'Fine', 3, ''], ['marker', 'Marker', 5, ''], ['bold', 'Bold', 10, ''], ['highlight', 'Highlighter', 24, 'highlight']]
+  const penNow = () => PENS.find(([k]) => k === store.get('pen')) ?? PENS[1]
+  const penColor = () => store.get('penColor') || (penNow()[3] ? '#f59e0b' : SHAPE_COLORS[0])
+  const penBar = h('div', { id: 'pen-bar', hidden: true, role: 'toolbar', 'aria-label': 'Pen' })
+  function renderPens() {
+    penBar.replaceChildren(
+      ...PENS.map(([k, name, w]) => h('button', { type: 'button', class: 'tool', title: name, 'aria-label': name, 'aria-pressed': String(penNow()[0] === k), onclick: () => { store.set('pen', k); renderPens() } },
+        h('span', { class: 'pen-line', style: `height:${Math.min(14, Math.max(2, w / 2))}px;${k === 'highlight' ? 'opacity:.45;' : ''}background:${penColor()}` }))),
+      h('span', { class: 'sep' }),
+      ...SHAPE_COLORS.map((c) => h('button', { type: 'button', class: `swatch${penColor() === c ? ' on' : ''}`, style: `background:${c}`, title: COLOR_NAMES[c] ?? c, 'aria-label': COLOR_NAMES[c] ?? c, 'aria-pressed': String(penColor() === c), onclick: () => { store.set('penColor', c); renderPens() } })))
+  }
+  // Drawn when the pencil is taken up: the colours it lists are set further on.
+  document.body.append(penBar)
   /** What a stamp at a point sits on: the topmost note, shape or picture there (a section only where nothing else is). */
   function stampTarget(x, y) {
     const under = items().filter((i) => ['note', 'rect', 'ellipse', 'diamond', 'triangle', 'image', 'section'].includes(i.kind) && x >= i.x && x <= i.x + (i.w ?? 0) && y >= i.y && y <= i.y + (i.h ?? 0))
@@ -1341,8 +1358,8 @@
         svg.append(s('defs', {}, marker))
       }
       svg.append(
-        s('path', { class: 'ink', d, fill: 'none', stroke: color, 'stroke-width': it.kind === 'pencil' ? 5 : 4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'marker-end': it.kind === 'arrow' ? `url(#${markerId})` : null }),
-        s('path', { class: 'hit', d, fill: 'none', stroke: 'transparent', 'stroke-width': 24 }),
+        s('path', { class: 'ink', d, fill: 'none', stroke: color, 'stroke-width': Number(it.weight) || (it.kind === 'pencil' ? 5 : 4), ...(it.pen === 'highlight' ? { 'stroke-opacity': 0.4 } : {}), 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'marker-end': it.kind === 'arrow' ? `url(#${markerId})` : null }),
+        s('path', { class: 'hit', d, fill: 'none', stroke: 'transparent', 'stroke-width': Math.max(24, Number(it.weight) || 0) }),
       )
       // A line or arrow's label, as Figma's connector text: on its middle, over a backing so it reads across the line.
       const label = it.kind !== 'pencil' && pts.length >= 4 && it.text
@@ -1462,7 +1479,7 @@
   /** What is selected on the board: a drag box's or Shift's objects, or the one picked with its group. */
   const selectedItems = () => (chosen ? [...chosen.items] : picked ? withGroup(picked) : []).map((id) => board.items.find((i) => i.id === id)).filter((i) => i && i.kind !== 'guide')
   // Everything an object is, but where it is bound and which group it is in, which a copy is given anew; a guide's frame stays its own.
-  const COPIED = ['kind', 'x', 'y', 'w', 'h', 'text', 'color', 'points', 'from', 'to', 'group', 'size', 'z', 'cols', 'gutter', 'margin', 'frame', 'src', 'route', 'dx', 'dy']
+  const COPIED = ['kind', 'x', 'y', 'w', 'h', 'text', 'color', 'points', 'from', 'to', 'group', 'size', 'z', 'cols', 'gutter', 'margin', 'frame', 'src', 'route', 'dx', 'dy', 'weight', 'pen']
   /** New objects like these, moved by dx, dy: a group copied is a new group, and a line holding an
    * object copied with it holds the copy; one holding something left behind lets go where it is. */
   async function placeCopies(list, dx, dy) {
@@ -1787,6 +1804,8 @@
       ...(it.kind === 'title' ? [h('span', { class: 'sep' }), ...[['S', 48], ['M', 96], ['L', 160], ['XL', 240]].map(([label, px]) => h('button', { type: 'button', class: `tool${(it.size || 96) === px ? ' on' : ''}`, title: `${px} px`, 'aria-pressed': String((it.size || 96) === px), onclick: () => updateItem(it.id, { size: px }) }, label))] : []),
       // A shape's kind, changed in place as FigJam's shape menu does: its box, words and the lines bound to it kept.
       ...(['rect', 'ellipse', 'diamond', 'triangle'].includes(it.kind) ? [h('span', { class: 'sep' }), ...['rect', 'ellipse', 'diamond', 'triangle'].map((k) => h('button', { type: 'button', class: `tool${it.kind === k ? ' on' : ''}`, title: SHAPE_NAMES[k].replace(/ \(.\)$/, ''), 'aria-label': SHAPE_NAMES[k].replace(/ \(.\)$/, ''), 'aria-pressed': String(it.kind === k), onclick: () => updateItem(it.id, { kind: k }) }, icon(k)))] : []),
+      // A stroke, line or arrow's thickness: S, M, L (a highlighter keeps its width as its own).
+      ...(['pencil', 'line', 'arrow'].includes(it.kind) && it.pen !== 'highlight' ? [h('span', { class: 'sep' }), ...[['S', 3], ['M', it.kind === 'pencil' ? 5 : 4], ['L', 10]].map(([label, w]) => h('button', { type: 'button', class: `tool${(Number(it.weight) || (it.kind === 'pencil' ? 5 : 4)) === w ? ' on' : ''}`, title: `${w} px thick`, 'aria-pressed': String((Number(it.weight) || (it.kind === 'pencil' ? 5 : 4)) === w), onclick: () => updateItem(it.id, { weight: w }) }, label))] : []),
       // A line or arrow's way: Straight, Elbow or Curve.
       ...((it.kind === 'line' || it.kind === 'arrow') && (it.points?.length ?? 0) === 4 ? [h('span', { class: 'sep' }), ...[['', 'Straight'], ['elbow', 'Elbow'], ['curve', 'Curve']].map(([route, label]) => h('button', { type: 'button', class: `tool${(it.route || '') === route ? ' on' : ''}`, title: `${label} line`, 'aria-pressed': String((it.route || '') === route), onclick: () => updateItem(it.id, { route }) }, label))] : []),
       ...(it.kind === 'guide'
@@ -2158,7 +2177,7 @@
         if (kind === 'pencil' || kind === 'line' || kind === 'arrow') {
           const all = kind === 'pencil' ? pts : [p.x, p.y, last.x, last.y]
           const d = all.reduce((s, v, i) => s + (i % 2 ? `,${v}` : `${i ? ' L' : 'M'}${v}`), '')
-          svgGhost.innerHTML = `<svg style="overflow:visible;position:absolute;left:0;top:0" width="1" height="1"><path d="${d}" fill="none" stroke="#3b82f6" stroke-width="${4 / Math.max(view.z, 0.2)}" stroke-linecap="round"/></svg>`
+          svgGhost.innerHTML = `<svg style="overflow:visible;position:absolute;left:0;top:0" width="1" height="1"><path d="${d}" fill="none" stroke="${kind === 'pencil' ? penColor() : '#3b82f6'}" stroke-opacity="${kind === 'pencil' && penNow()[3] ? 0.4 : 1}" stroke-width="${kind === 'pencil' ? penNow()[2] : 4 / Math.max(view.z, 0.2)}" stroke-linecap="round" stroke-linejoin="round"/></svg>`
         } else {
           Object.assign(ghost.style, { left: `${Math.min(p.x, last.x)}px`, top: `${Math.min(p.y, last.y)}px`, width: `${Math.abs(last.x - p.x)}px`, height: `${Math.abs(last.y - p.y)}px` })
         }
@@ -2187,7 +2206,7 @@
           y = Math.min(...ys)
           w = Math.max(...xs) - x
           hgt = Math.max(...ys) - y
-          item = { kind, x, y, w, h: hgt, points: all.map((v, i) => Math.round(v - (i % 2 ? y : x))) }
+          item = { kind, x, y, w, h: hgt, points: all.map((v, i) => Math.round(v - (i % 2 ? y : x))), ...(kind === 'pencil' ? { weight: penNow()[2], color: penColor(), ...(penNow()[3] ? { pen: penNow()[3] } : {}) } : {}) }
           // A line or arrow begun or ended on an object or a frame holds on to it.
           if (kind !== 'pencil') {
             const start = from?.from ?? bindAt(p)
@@ -2523,7 +2542,7 @@
   const future = []
   let openStep = null
   let replaying = false
-  const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points', 'size', 'src', 'route', 'dx', 'dy']
+  const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points', 'size', 'src', 'route', 'dx', 'dy', 'weight', 'pen']
   /** The one thing a line touches, as a board says it is: an object's fields, a frame's place, or null for nothing there. */
   function stateOf(b, ev) {
     if (ev.op === 'item' || ev.op === 'remove') {

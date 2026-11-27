@@ -193,6 +193,14 @@ test('a diamond and a triangle are shapes the board keeps', () => {
   assert.throws(() => board({ op: 'item', kind: 'star', x: 0, y: 0 }), /kind must be one of/)
 })
 
+test("a stroke's weight and pen: 1 to 60 thick, a highlighter or a marker", () => {
+  const p = board({ op: 'item', kind: 'pencil', x: 0, y: 0, points: [0, 0, 10, 10, 20, 0], weight: 24, pen: 'highlight' })
+  assert.deepEqual([p.weight, p.pen], [24, 'highlight'])
+  assert.equal(board({ op: 'item', id: p.id, weight: 500 }).weight, 60)
+  assert.equal(board({ op: 'item', id: p.id, weight: '' }).weight, '')
+  assert.throws(() => board({ op: 'item', id: p.id, pen: 'crayon' }), /pen must be/)
+})
+
 test('a stamp keeps its place on what it sits on', () => {
   const st = board({ op: 'item', kind: 'stamp', x: 10, y: 20, w: 48, h: 48, text: '👍', to: 'b-note', dx: 10, dy: 20 })
   assert.equal(st.kind, 'stamp')

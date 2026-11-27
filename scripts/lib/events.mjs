@@ -274,6 +274,12 @@ export function makeBoardEvent(input, { now = new Date(), newId = randomId } = {
       // Objects grouped together share a group id; an empty string ungroups.
       if (input.group != null) event.group = input.group === '' ? '' : id(input.group, 'group')
       for (const k of ['cols', 'gutter', 'margin']) if (input[k] != null) event[k] = input[k] === '' ? '' : coord(input[k], k)
+      // A stroke's thickness, in board pixels, and its pen: a highlighter is wide and see-through (empty: a marker).
+      if (input.weight != null) event.weight = input.weight === '' ? '' : Math.min(60, Math.max(1, coord(input.weight, 'weight')))
+      if (input.pen != null) {
+        if (!['', 'highlight'].includes(input.pen)) throw new Error('pen must be highlight or empty')
+        event.pen = input.pen
+      }
       // A line's way between its ends, as FigJam's connectors: straight (empty), elbow or curve.
       if (input.route != null) {
         if (!['', 'elbow', 'curve'].includes(input.route)) throw new Error('route must be elbow, curve or empty')

@@ -175,6 +175,10 @@ body.tiny .item.locked::after { display: none; }
 .connect[data-side='w'] { translate: calc(-22px / var(--z, 1)) 0; }
 .connect:hover { opacity: 1; background: var(--accent, #3b82f6); }
 #stamp-bar .tool { width: 36px; font-size: 18px; }
+#pen-bar .tool { width: 40px; display: grid; place-items: center; }
+#pen-bar .pen-line { display: block; width: 22px; border-radius: 99px; }
+#pen-bar .swatch { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--panel-3); padding: 0; margin: 0 1px; }
+#pen-bar .swatch.on { border-color: var(--ink); }
 /* A diamond or triangle: its outline drawn to its box, its words in the part of it wide enough to hold them. */
 .item.diamond, .item.triangle { display: grid; place-items: center; padding: 25%; }
 .item.triangle { padding: 42% 22% 6%; }
@@ -269,7 +273,7 @@ a.tool { text-decoration: none; font-size: 13px; }
 .tool[aria-pressed='true'] .count { background: rgb(0 0 0 / 0.12); color: inherit; }
 
 /* The toolbar: one floating plane, every tool a circle on it. */
-#artboard-sizes, #stamp-bar {
+#artboard-sizes, #stamp-bar, #pen-bar {
   position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 10;
   display: flex; align-items: center; gap: 2px; padding: 4px 6px; border-radius: 999px;
   background: var(--panel); box-shadow: var(--chrome-shadow), var(--edge); white-space: nowrap; font-size: 13px;

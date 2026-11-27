@@ -2312,8 +2312,10 @@
           }
           if (group) Object.assign(group.box, { x: Math.round(boxStart.x + dx), y: Math.round(boxStart.y + dy) })
         }
-        // The bar would sit over what is being moved; it comes back where the drag ends.
+        // The bar would sit over what is being moved, and the connector dots over the snap marks; they come back where
+        // the drag ends.
         itemBar.classList.add('dragging')
+        document.body.classList.add('item-dragging')
         renderItems()
         if (snapEls.length) world.append(...snapEls)
         if (frameList.length) {
@@ -2324,6 +2326,7 @@
       end: async (_, moved) => {
         clearSnap()
         itemBar.classList.remove('dragging')
+        document.body.classList.remove('item-dragging')
         if (!moved) return within && pickItem(id)
         if (resize) return updateItem(id, it.x !== x0 || it.y !== y0 ? { x: it.x, y: it.y, w: it.w, h: it.h } : { w: it.w, h: it.h })
         if (copying) {

@@ -226,6 +226,7 @@ body.tiny .item.locked::after { display: none; }
 .snap-line { position: absolute; pointer-events: none; z-index: 50; background: rgb(255 64 129); }
 .snap-line.v { width: calc(1.5px / var(--z, 1)); margin-left: calc(-0.75px / var(--z, 1)); }
 .snap-line.h { height: calc(1.5px / var(--z, 1)); margin-top: calc(-0.75px / var(--z, 1)); }
+body.item-dragging .connect { display: none; }
 /* An equal gap while dragging, as Figma's smart spacing: a pink bar across it, its width on a pink tag. */
 .snap-gap { position: absolute; pointer-events: none; z-index: 50; display: flex; align-items: center; justify-content: center; }
 .snap-gap.h { height: calc(1.5px / var(--z, 1)); margin-top: calc(-0.75px / var(--z, 1)); background: rgb(255 64 129); }

@@ -20,6 +20,26 @@
   const layersEl = () => (dc.currentTab() === 'code' ? $('#layers-c') : $('#layers-p'))
   // A layer being renamed in its row: the list is not drawn again under the typing until the name is kept or left.
   let renaming = false
+  // Figma's clicks in Layers: Shift+click selects every row from the last one clicked to this one (in the same
+  // screen; a row inside another picked with it is left to it, and a row not shown is not taken), Ctrl+click adds a row or takes it out, Alt+click
+  // selects every copy. The row last clicked is where a Shift+click range starts.
+  let layerAnchor = null
+  function layerClick(e, f, c, rows) {
+    const sel = ed.sel
+    // From the row last clicked while it is still selected, else from what was selected last on the screen.
+    const from = sel?.frame === f ? (sel.els.includes(layerAnchor) ? layerAnchor : sel.els.at(-1)) : null
+    if (e.shiftKey && from && from.ownerDocument === c.ownerDocument) {
+      const list = rows.map((r) => r.layerEl).filter((x) => x && x.ownerDocument === c.ownerDocument)
+      const a = list.indexOf(from)
+      const b = list.indexOf(c)
+      if (a >= 0 && b >= 0) {
+        const span = list.slice(Math.min(a, b), Math.max(a, b) + 1)
+        return ed.select(f, span.filter((x) => !span.some((y) => y !== x && y.contains(x))))
+      }
+    }
+    layerAnchor = c
+    ed.pick(f, c, { add: e.shiftKey || e.ctrlKey || e.metaKey, copies: e.altKey })
+  }
   // What Find a layer holds, kept while the panel is drawn anew.
   let layerQuery = ''
   function renderLayers() {
@@ -74,12 +94,13 @@
           const on = sel?.frame === f && sel.els.includes(c)
           const n = ed.nameOf(c)
           const row = h('button', { type: 'button', class: `lrow${on ? ' on' : ''}${ed.cvOf(c) == null ? ' runtime' : ''}`, style: `--d:${d}`, title: ed.cvOf(c) == null ? 'Made by the prototype\'s own script: can be inspected, not edited' : '',
-            onclick: (e) => ed.pick(f, c, { add: e.shiftKey, copies: e.altKey }),
+            onclick: (e) => layerClick(e, f, c, rows),
             onpointerenter: () => ed.hover(f, c), onpointerleave: () => ed.hover(null, null) },
             h('span', { class: 'tw', onclick: (e) => { e.stopPropagation(); open.has(c) ? open.delete(c) : open.add(c); renderLayers() } }, kids.length ? (open.has(c) ? '▾' : '▸') : ''),
             h('span', { class: 'lk' }, c.localName === 'a' ? dc.icon('link') : kindGlyph(n.kind)),
             h('span', { class: 'ln' }, n.text),
             dc.serve && ed.cvOf(c) != null ? eyeOf(f, c) : null)
+          row.layerEl = c
           if (cs(c).display === 'none') row.classList.add('hidden-layer')
           if (dc.serve && ed.cvOf(c) != null) layerDrag(row, f, c, kids.length > 0 || CONTAINS.test(c.localName))
           rows.push(row)

@@ -839,6 +839,8 @@
     } else if (e.key === 'Enter' && !e.shiftKey && !mod) {
       e.preventDefault()
       splitAtCaret()
+    } else if ((e.key === 'Backspace' || e.key === 'Delete') && !mod && !e.shiftKey && !e.altKey && joinAtCaret(e.key === 'Backspace')) {
+      e.preventDefault()
     } else if (mod && ['b', 'i', 'u'].includes(e.key.toLowerCase())) {
       e.preventDefault()
       editing.frame.doc.execCommand({ b: 'bold', i: 'italic', u: 'underline' }[e.key.toLowerCase()])
@@ -889,6 +891,50 @@
     sel = { ...sel, els: [next] }
     draw()
     placeFloat()
+  }
+  /** Backspace at the start of a line Enter made, or Delete at the end of the one before it, joins the two again, as
+      any text editor does; typing goes on at the join. Only lines of this typing (the chain) are joined, since they
+      are written as one edit when typing ends. Returns whether it joined. */
+  function joinAtCaret(back) {
+    const { frame, el, chain } = editing
+    if (!chain) return false
+    const doc = frame.doc
+    const s = doc.getSelection()
+    if (!s.rangeCount || !s.isCollapsed || !el.contains(s.anchorNode)) return false
+    const r = s.getRangeAt(0)
+    const side = doc.createRange()
+    side.selectNodeContents(el)
+    if (back) side.setEnd(r.startContainer, r.startOffset)
+    else side.setStart(r.endContainer, r.endOffset)
+    if (side.toString() !== '' || side.cloneContents().querySelector('img, svg')) return false
+    const n = chain.indexOf(el)
+    const [first, second] = back ? [chain[n - 1], el] : [el, chain[n + 1]]
+    if (!first || !second) return false
+    const bare = (x) => !x.innerHTML.replace(/<br\s*\/?>/g, '').trim()
+    if (bare(first)) first.replaceChildren()
+    const at = first.childNodes.length
+    if (!bare(second)) first.append(...second.childNodes)
+    if (!first.childNodes.length) first.innerHTML = '<br>'
+    for (const [k, fn] of [['keydown', editKeys], ['input', onEditInput], ['paste', plainPaste]]) second.removeEventListener(k, fn)
+    second.remove()
+    const rest = chain.filter((x) => x !== second)
+    if (first !== el) {
+      for (const [k, fn] of [['keydown', editKeys], ['input', onEditInput], ['paste', plainPaste]]) first.addEventListener(k, fn)
+      first.contentEditable = 'true'
+      first.spellcheck = false
+    }
+    // Back to the one element first typed in: written as its words, as if Enter had not been pressed.
+    editing = { ...editing, el: first, chain: rest.length > 1 ? rest : null }
+    first.focus()
+    const c = doc.createRange()
+    c.setStart(first, Math.min(at, first.childNodes.length))
+    c.collapse(true)
+    s.removeAllRanges()
+    s.addRange(c)
+    sel = { ...sel, els: [first] }
+    draw()
+    placeFloat()
+    return true
   }
   /** Wrap what is selected inside the text being edited in a span carrying one style. */
   function styleRun(prop, value) {

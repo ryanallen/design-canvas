@@ -121,6 +121,8 @@ Every page is a whiteboard, with or without prototypes on it. **Templates…** i
 
 `build` refuses a prototype whose file no longer matches its last edit line, so a rebuild by its own script never drops a canvas edit silently: carry the edits into the script, then `accept`.
 
+The **Comments** tab lists the threads, numbered. Over the list, a search finds words in a thread or its replies (or a name), **Resolved** shows the resolved ones too, **Mine** keeps the threads the viewer started, answered or is @named in, and the order is as numbered or **Newest first** by the latest word said; Mine and the order are kept in this browser.
+
 ## Working with an agent
 
 From disk, an agent reads the threads straight from `canvas.html`: `parseEvents` and `foldEvents` in `scripts/lib/events.mjs` fold its comment lines, and a thread with `agent: true` is work for it. While `serve` runs, the same is answered over HTTP:

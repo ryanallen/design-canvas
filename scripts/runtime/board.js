@@ -1217,7 +1217,10 @@
   function showEmpty() {
     const el = $('#empty')
     if (!el) return
-    const empty = !frames().length && !items().length
+    // Comments pinned to the page count as something on it: the card would cover them.
+    let pins = false
+    try { pins = threads.some((t) => anchorOf(t).page === pageId && (showResolved() || !t.resolved)) } catch {}
+    const empty = !frames().length && !items().length && !pins
     el.hidden = !empty
     if (!empty) return
     const edit = !serve && document.querySelector('button#canvas-mode:not(:disabled)')
@@ -2719,6 +2722,7 @@
     placeThread()
   }
   function renderPins() {
+    showEmpty()
     drawFlows()
     itemPins = threads.some((t) => t.item)
     pinLayer.replaceChildren()
@@ -2744,7 +2748,17 @@
   function renderList() {
     const list = $('#comment-list')
     document.body.classList.toggle('hide-resolved', !showResolved())
-    const shown = threads.filter((t) => showResolved() || !t.resolved)
+    // Figma's comment filters: words looked for in a thread and its replies, only the threads the viewer started,
+    // answered or is named in, and the order, as numbered or with the latest said first.
+    const q = ($('#comment-search')?.value ?? '').trim().toLowerCase()
+    const mine = $('#only-mine')?.checked && me
+    const said = (t) => [t, ...t.replies]
+    const latest = (t) => Math.max(...said(t).map((m) => Date.parse(m.at) || 0))
+    const shown = threads
+      .filter((t) => showResolved() || !t.resolved)
+      .filter((t) => !q || said(t).some((m) => String(m.text ?? '').toLowerCase().includes(q) || String(m.name ?? '').toLowerCase().includes(q)))
+      .filter((t) => !mine || said(t).some((m) => m.name === me || String(m.text ?? '').includes(`@${me}`)))
+    if ($('#comment-sort')?.value === 'recent') shown.sort((a, b) => latest(b) - latest(a))
     list.replaceChildren(...(shown.length
       ? shown.map((t) => {
           const f = t.frame ? findFrame(t.frame) : null
@@ -2753,7 +2767,7 @@
             h('div', { class: 'body' }, t.text),
             h('div', { class: 'where' }, f ? `${pages().find((p) => p.id === f.page)?.title ?? ''} · ${f.label}` : 'On the board'))
         })
-      : [h('div', { class: 'empty' }, api ? 'No comments yet. Press C, then click anywhere.' : 'No comments.')]))
+      : [h('div', { class: 'empty' }, q || mine ? 'No comment matches.' : api ? 'No comments yet. Press C, then click anywhere.' : 'No comments.')]))
   }
 
   function startComment(sx, sy, agent = false) {
@@ -3764,6 +3778,11 @@
     } else openPanel('comments')
   })
   $('#show-resolved').addEventListener('change', renderPins)
+  $('#comment-search').addEventListener('input', renderList)
+  $('#comment-search').addEventListener('keydown', (e) => e.stopPropagation())
+  for (const id of ['#only-mine', '#comment-sort']) $(id).addEventListener('change', () => { store.set(id.slice(1), id === '#only-mine' ? $(id).checked : $(id).value); renderList() })
+  $('#only-mine').checked = !!store.get('only-mine')
+  $('#comment-sort').value = store.get('comment-sort') || 'number'
   $('#my-name').addEventListener('change', (e) => setName(e.target.value))
 
   // ── hints ──

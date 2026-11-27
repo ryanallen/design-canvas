@@ -1794,8 +1794,18 @@
     const right = Math.max(...boxes.map((q) => q.x + (q.w ?? 600)))
     const bottom = Math.max(...boxes.map((q) => q.y + (q.h ?? (q.size ?? 96) * 1.3)))
     const mid = toWorld(innerWidth / 2, innerHeight / 2)
-    const ox = Math.round(mid.x - (left + right) / 2)
-    const oy = Math.round(mid.y - (top + bottom) / 2)
+    let ox = Math.round(mid.x - (left + right) / 2)
+    let oy = Math.round(mid.y - (top + bottom) / 2)
+    // In the middle of the view where that is clear board; where it would land on screens or objects (or on locked
+    // work, which a visitor may not cover), beside everything on the page instead.
+    const span = { x: left + ox, y: top + oy, w: right - left, h: bottom - top }
+    const hits = (r) => r.x < span.x + span.w && span.x < r.x + r.w && r.y < span.y + span.h && span.y < r.y + r.h
+    const there = [...items().filter((i) => i.kind !== 'guide').map(geometryOf).map((i) => ({ x: i.x, y: i.y, w: i.w ?? 0, h: i.h ?? 0 })), ...frames().map((f) => ({ x: f.x, y: f.y, w: f.W, h: f.H }))]
+    if (there.some(hits)) {
+      const all = boxAround(items().map((i) => i.id), frames().map((f) => f.key))
+      ox = Math.round(all.x + all.w + 400 - left)
+      oy = Math.round(all.y - top)
+    }
     const ids = []
     for (const q of t.parts) {
       let it = { ...q, x: q.x + ox, y: q.y + oy }

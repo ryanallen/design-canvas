@@ -535,6 +535,11 @@
       any ||= stack
     }
     document.body.classList.toggle('labels-stacked', any)
+    // A section's heading sits clear of the tallest screen label under it, however many rows its buttons took
+    // (read after every label is laid out, so the page is laid out once).
+    let tallest = 0
+    for (const f of frames()) if (f.labelEl?.isConnected) tallest = Math.max(tallest, f.labelEl.offsetHeight)
+    document.body.style.setProperty('--label-h', `${tallest}px`)
   }
   function apply() {
     world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.z})`

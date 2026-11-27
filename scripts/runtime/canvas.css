@@ -110,8 +110,6 @@ body.tool-text #viewport { cursor: text; }
 /* Too narrow for the name and its buttons side by side: the name has its own line, the buttons under it. */
 .frame-label.stack { flex-wrap: wrap; row-gap: 2px; }
 .frame-label.stack .name { flex: 1 0 100%; }
-body.labels-stacked .section-label { transform: scale(var(--iz, 1)) translateY(calc(-100% - 58px)); }
-@media (pointer: coarse) { body.labels-stacked .section-label { transform: scale(var(--iz, 1)) translateY(calc(-100% - 76px)); } }
 .frame-label button {
   flex: none; border: 0; background: transparent; border-radius: 5px;
   padding: 0 5px; height: 22px; font-size: 11px; color: var(--ink-2); display: inline-flex; align-items: center; gap: 4px;
@@ -140,7 +138,8 @@ body.labels-stacked .section-label { transform: scale(var(--iz, 1)) translateY(c
 }
 .item.locked.svg::after, .item.locked.title::after { display: none; }
 .section-label {
-  transform: scale(var(--iz, 1)) translateY(calc(-100% - 36px));
+  /* Clear of the tallest screen label (its name and the rows of its buttons), measured as the zoom changes. */
+  transform: scale(var(--iz, 1)) translateY(calc(-100% - max(36px, var(--label-h, 24px) + 14px)));
   font-size: 15px; font-weight: 600; color: var(--ink);
 }
 .section-label { max-width: max(160px, calc(var(--w) * var(--z, 1) * 1px)); }

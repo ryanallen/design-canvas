@@ -1143,8 +1143,9 @@
     const starts = new Map(list.map((x) => [x.key, { x: x.x, y: x.y }]))
     drag = {
       kind: 'frame', id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false,
-      move: (_, dx, dy) => {
+      move: (ev, dx, dy) => {
         if (isLocked(f.key)) return
+        ;({ dx, dy } = straight(ev, dx, dy))
         for (const x of list) {
           if (isLocked(x.key)) continue
           x.x = Math.round(starts.get(x.key).x + dx)
@@ -2074,6 +2075,8 @@
     }
     return true
   }
+  /** Shift held while dragging keeps the move to one axis, the one it has gone further along, as in Figma. */
+  const straight = (ev, dx, dy) => (ev?.shiftKey ? (Math.abs(dx) >= Math.abs(dy) ? { dx, dy: 0 } : { dx: 0, dy }) : { dx, dy })
   function startItemDrag(e, id) {
     const it = board.items.find((i) => i.id === id)
     if (!it) return
@@ -2111,13 +2114,18 @@
       kind: 'item', id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false,
       move: (ev, dx, dy) => {
         // A picture keeps its proportions, as a placed image does in FigJam; Shift lets them go.
-        if (resize && it.kind === 'image' && !ev.shiftKey) {
+        // A shape or note with Shift held keeps its proportions, as in Figma.
+        if (resize && (it.kind === 'image') !== !!ev.shiftKey) {
           const w = Math.max(40, Math.round(w0 + dx))
           Object.assign(it, { w, h: Math.max(20, Math.round((w * h0) / Math.max(1, w0))) })
         } else if (resize) Object.assign(it, { w: Math.max(40, Math.round(w0 + dx)), h: Math.max(30, Math.round(h0 + dy)) })
         else {
+          ;({ dx, dy } = straight(ev, dx, dy))
+          const across = ev.shiftKey && !dy
           // Edges and centres catch on other objects' and frames' edges and centres; Ctrl or ⌘ held lets go.
           ;({ dx, dy } = snap && !(ev.ctrlKey || ev.metaKey) ? snap(dx, dy) : (clearSnap(), { dx, dy }))
+          // A catch never takes it off the axis Shift holds it to.
+          if (ev.shiftKey) across ? (dy = 0) : (dx = 0)
           last = { dx, dy }
           for (const m of moving) Object.assign(m, { x: Math.round(starts.get(m.id).x + dx), y: Math.round(starts.get(m.id).y + dy) })
           for (const f of frameList) {
@@ -3515,7 +3523,7 @@
   const SHORTCUTS = [
     ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['E', 'Stamp'], ['R', 'Rectangle'], ['S', 'Section'], ['A', 'Artboard'], ['C', 'Comment']]],
     ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['Page Down, Page Up', 'Next, previous screen'], ['+ and −, Ctrl+= and Ctrl+−', 'Zoom in and out'], ['0 or Ctrl+0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+\\', 'Panel']]],
-    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Delete', 'Delete']]],
+    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Shift+drag', 'Move straight across or down; resize in proportion'], ['Delete', 'Delete']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Alt+drag', 'Drop a copy'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste after it'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+R', 'Rename in Layers'], ['Ctrl+Shift+H', 'Hide or show'], ['Ctrl+Shift+L', 'Lock or unlock a part'], ['Shift+A', 'Add auto layout'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
     ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['C', 'Comment on it, then click where'], ['Esc', 'Back to the canvas']]],
     ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+?', 'This sheet']]],

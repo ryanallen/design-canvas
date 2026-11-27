@@ -31,7 +31,7 @@
 <body>
 <main>
   <h1>Design canvas</h1>
-  <p class="lead">Every HTML prototype in a folder, on one board. View them, play them, edit their text, styles and structure by pointing at them, comment on them, and draw around them. Every edit is written back into the prototype's own <code>.html</code>. Node only, nothing to install.</p>
+  <p class="lead">See every HTML prototype in a folder on one board. Click through them, change their text, styles and layout right where they are, comment on them and sketch around them. Every edit is saved back into the prototype's own <code>.html</code> file. All it needs is Node.</p>
   <div class="get">
     <a class="btn" href="https://github.com/ryanallen/design-canvas/archive/refs/heads/main.zip" target="_blank" rel="noopener">⬇ Download it</a>
     <a class="btn star" href="https://github.com/ryanallen/design-canvas" target="_blank" rel="noopener">★ Star on GitHub</a>
@@ -39,72 +39,72 @@
   </div>
   <pre>git clone https://github.com/ryanallen/design-canvas .agents/skills/design-canvas
 node .agents/skills/design-canvas/scripts/canvas.mjs build &lt;folder of prototypes&gt;</pre>
-  <p class="small">As a skill, it goes in a project's <code>.agents/skills/design-canvas/</code> (or <code>.claude/skills/design-canvas/</code>), and an agent reads <code>SKILL.md</code>. Without a terminal, double-click <b>Design Canvas.cmd</b> (Windows) or <b>Design Canvas.command</b> (Mac) and pick a folder.</p>
+  <p class="small">Put it in your project's <code>.agents/skills/design-canvas/</code> folder (or <code>.claude/skills/design-canvas/</code>), and your AI agent will read <code>SKILL.md</code>. No terminal? Double-click <b>Design Canvas.cmd</b> on Windows or <b>Design Canvas.command</b> on a Mac and pick a folder.</p>
   <hr>
   <h2 class="try">Try it on this board</h2>
-  <p class="lead">Everything you do here is kept in your browser, for you alone. Anything with an orange dot or padlock is locked; the rest is yours to change. Click a box to tick each thing as it works. <span class="count" id="count"></span></p>
+  <p class="lead">Everything you do here is saved in your browser, just for you. Things with an orange dot or a padlock are locked, and everything else is yours to change. Tick each box as you try it. <span class="count" id="count"></span></p>
   <div class="cols">
     <section>
       <h3>1. The board</h3>
-      <label><input type="checkbox"><span>Scroll to pan, <kbd>Ctrl</kbd>+wheel to zoom, <kbd>F</kbd> to fit, hold <kbd>Space</kbd> to drag.</span></label>
-      <label><input type="checkbox"><span>Zoom menu at the top right: 50%, 100%, 200%.</span></label>
-      <label><input type="checkbox"><span>Drag an artboard by its name to move it (not this one: it is locked); reload and it stays.</span></label>
-      <label><input type="checkbox"><span>Pages, top left: New page, rename it, delete it.</span></label>
+      <label><input type="checkbox"><span>Scroll to move around. <kbd>Ctrl</kbd> and scroll to zoom. <kbd>F</kbd> fits everything in view, and holding <kbd>Space</kbd> lets you drag the board.</span></label>
+      <label><input type="checkbox"><span>Use the zoom menu at the top right to jump to 50%, 100% or 200%.</span></label>
+      <label><input type="checkbox"><span>Drag a screen by its name to move it. Reload, and it stays where you put it. (This one is locked, so try another.)</span></label>
+      <label><input type="checkbox"><span>Use Pages at the top left to add a page, rename it and delete it.</span></label>
     </section>
     <section>
       <h3>2. Select</h3>
-      <label><input type="checkbox"><span>Links, buttons and boxes work when clicked; <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+click one to select it and edit it instead.</span></label>
-      <label><input type="checkbox"><span>Hover shows an outline; click selects, with a name tag and handles.</span></label>
-      <label><input type="checkbox"><span>Click one card on <b>home</b>: only that card is selected. <kbd>Alt</kbd>+click selects all three.</span></label>
-      <label><input type="checkbox"><span><kbd>Esc</kbd> goes to the parent, <kbd>Enter</kbd> to the first child, <kbd>Tab</kbd> to the next sibling.</span></label>
-      <label><input type="checkbox"><span><kbd>Ctrl</kbd>+<kbd>\</kbd> opens the panel; layers follow the selection both ways.</span></label>
+      <label><input type="checkbox"><span>Links, buttons and fields work when you click them. <kbd>Ctrl</kbd>+click (or <kbd>⌘</kbd>+click) one to select it instead.</span></label>
+      <label><input type="checkbox"><span>Hover over something to see its outline. Click to select it, and you'll see its name and handles.</span></label>
+      <label><input type="checkbox"><span>Click one card on <b>home</b> and only that card is selected. <kbd>Alt</kbd>+click to select all three.</span></label>
+      <label><input type="checkbox"><span><kbd>Esc</kbd> selects the parent, <kbd>Enter</kbd> selects what's inside, and <kbd>Tab</kbd> moves to the next one.</span></label>
+      <label><input type="checkbox"><span><kbd>Ctrl</kbd>+<kbd>\</kbd> opens the side panel. Its layer list follows what you select, and the other way round.</span></label>
     </section>
     <section>
       <h3>3. Text</h3>
-      <label><input type="checkbox"><span>Double-click the headline on <b>home</b>, retype it, <kbd>Enter</kbd>.</span></label>
-      <label><input type="checkbox"><span>While typing, select a word and press <kbd>Ctrl</kbd>+<kbd>B</kbd>; color a word from the toolbar.</span></label>
-      <label><input type="checkbox"><span>Press <kbd>T</kbd> and click inside a frame: a new paragraph opens for typing.</span></label>
+      <label><input type="checkbox"><span>Double-click the headline on <b>home</b>, type something new and press <kbd>Enter</kbd>.</span></label>
+      <label><input type="checkbox"><span>While typing, select a word and press <kbd>Ctrl</kbd>+<kbd>B</kbd> to make it bold, or give it a color from the toolbar.</span></label>
+      <label><input type="checkbox"><span>Press <kbd>T</kbd> and click inside a screen to start a new paragraph.</span></label>
     </section>
     <section>
       <h3>4. Style</h3>
-      <label><input type="checkbox"><span>The floating toolbar: color, bold, align, fill, layout, radius, padding.</span></label>
-      <label><input type="checkbox"><span>Properties: width Hug, Fixed, Fill; padding; font size; color shows a contrast reading.</span></label>
-      <label><input type="checkbox"><span>With all three cards selected, change the radius: one rule changes them all.</span></label>
-      <label><input type="checkbox"><span>Code tab: edit a declaration, an <code>@attribute</code>, and the source HTML, then Apply.</span></label>
-      <label><input type="checkbox"><span>Tweaks on <b>home</b>: drag <code>--gap</code>, pick a new <code>--accent</code>.</span></label>
+      <label><input type="checkbox"><span>Try the toolbar above a selection: color, bold, alignment, fill, layout, corner radius and padding.</span></label>
+      <label><input type="checkbox"><span>In Properties, set width to Hug, Fixed or Fill, and change padding and font size. Colors show how readable they are.</span></label>
+      <label><input type="checkbox"><span>Select all three cards and change the corner radius. One rule changes them all.</span></label>
+      <label><input type="checkbox"><span>In the Code tab, change a style, an <code>@attribute</code> and the HTML itself, then press Apply.</span></label>
+      <label><input type="checkbox"><span>Open Tweaks on <b>home</b>, drag <code>--gap</code> and pick a new <code>--accent</code>.</span></label>
     </section>
     <section>
       <h3>5. Structure</h3>
-      <label><input type="checkbox"><span>Drag a card before another one: a blue line shows where it lands.</span></label>
-      <label><input type="checkbox"><span>Drag a selection's right handle to resize it.</span></label>
-      <label><input type="checkbox"><span><kbd>Ctrl</kbd>+<kbd>D</kbd>, <kbd>Delete</kbd>, <kbd>Ctrl</kbd>+<kbd>G</kbd>, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd>, <kbd>Ctrl</kbd>+<kbd>C</kbd> then <kbd>Ctrl</kbd>+<kbd>V</kbd>.</span></label>
-      <label><input type="checkbox"><span><kbd>Alt</kbd>+<kbd>↓</kbd> moves it one place; "…" offers Wrap in flex row, column, grid.</span></label>
-      <label><input type="checkbox"><span><kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes each one, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> redoes.</span></label>
+      <label><input type="checkbox"><span>Drag a card in front of another. A blue line shows where it will land.</span></label>
+      <label><input type="checkbox"><span>Drag the right handle of a selection to resize it.</span></label>
+      <label><input type="checkbox"><span>Try <kbd>Ctrl</kbd>+<kbd>D</kbd> to duplicate, <kbd>Delete</kbd>, <kbd>Ctrl</kbd>+<kbd>G</kbd> to wrap and <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> to unwrap, and <kbd>Ctrl</kbd>+<kbd>C</kbd> then <kbd>Ctrl</kbd>+<kbd>V</kbd>.</span></label>
+      <label><input type="checkbox"><span><kbd>Alt</kbd>+<kbd>↓</kbd> moves it down one place. The … menu can wrap it in a row, a column or a grid.</span></label>
+      <label><input type="checkbox"><span><kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes each change, and <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> redoes it.</span></label>
     </section>
     <section>
       <h3>6. Comments</h3>
-      <label><input type="checkbox"><span><kbd>C</kbd> then click an element: comment, reply, resolve, delete.</span></label>
-      <label><input type="checkbox"><span>Move that element: the pin follows it.</span></label>
-      <label><input type="checkbox"><span>Select something, <b>✦ Ask agent</b> at the bottom, type, <kbd>Enter</kbd>: an orange pin. In your own copy, your agent reads it as work to do.</span></label>
+      <label><input type="checkbox"><span>Press <kbd>C</kbd> and click something to comment on it. Reply, resolve and delete from there.</span></label>
+      <label><input type="checkbox"><span>Move that element, and its comment pin moves with it.</span></label>
+      <label><input type="checkbox"><span>Select something, click <b>✦ Ask agent</b> at the bottom, type a request and press <kbd>Enter</kbd>. An orange pin appears. In your own copy, your AI agent picks it up as a task.</span></label>
     </section>
     <section>
       <h3>7. On the board</h3>
-      <label><input type="checkbox"><span><kbd>N</kbd> sticky note, typed, recolored; <kbd>R</kbd> rectangle; the ▴ beside it for ellipse, section, line, arrow, layout guide.</span></label>
-      <label><input type="checkbox"><span>Draw an arrow from a note to a frame, then move the frame: the arrow follows.</span></label>
-      <label><input type="checkbox"><span><kbd>P</kbd> pencil; <kbd>T</kbd> on empty board for a title.</span></label>
-      <label><input type="checkbox"><span>Drag a selection box around notes and frames, then move them together.</span></label>
-      <label><input type="checkbox"><span><kbd>A</kbd> and drag out an artboard: a new prototype appears, ready to edit.</span></label>
+      <label><input type="checkbox"><span><kbd>N</kbd> makes a sticky note to type in and recolor. <kbd>R</kbd> draws a rectangle, <kbd>O</kbd> an ellipse, <kbd>L</kbd> a line and <kbd>Shift</kbd>+<kbd>L</kbd> an arrow.</span></label>
+      <label><input type="checkbox"><span>Draw an arrow from a note to a screen, then move the screen. The arrow stays attached.</span></label>
+      <label><input type="checkbox"><span><kbd>P</kbd> draws with a pencil. <kbd>T</kbd> on the empty board adds a title.</span></label>
+      <label><input type="checkbox"><span>Drag a box around some notes and screens, then move them all together.</span></label>
+      <label><input type="checkbox"><span>Press <kbd>A</kbd> and drag out a new screen. It's a new prototype, ready to edit.</span></label>
     </section>
     <section>
       <h3>8. Play</h3>
-      <label><input type="checkbox"><span>▷ PLAY on <b>home</b>, click <b>Download free</b>: it moves on to <b>detail</b>.</span></label>
-      <label><input type="checkbox"><span><kbd>←</kbd> <kbd>→</kbd> step through the page; 390, 1024, 1440, Fill, Fit; <kbd>Esc</kbd> back.</span></label>
-      <label><input type="checkbox"><span>Full screen on <b>pricing</b> reflows to the window (it is fluid).</span></label>
+      <label><input type="checkbox"><span>Press ▷ PLAY on <b>home</b> and click <b>Download free</b>. It takes you to <b>detail</b>.</span></label>
+      <label><input type="checkbox"><span><kbd>←</kbd> and <kbd>→</kbd> go through the screens. Try the 390, 1024, 1440, Fill and Fit sizes, then <kbd>Esc</kbd> to go back.</span></label>
+      <label><input type="checkbox"><span>Open <b>pricing</b> full screen. It reflows to fit the window.</span></label>
     </section>
     <section>
       <h3>9. It all stays</h3>
-      <label><input type="checkbox"><span>Reload the page: every edit, comment, note and page is still there.</span></label>
-      <label><input type="checkbox"><span>Title menu → Download the canvas, and download one prototype.</span></label>
+      <label><input type="checkbox"><span>Reload the page. Every edit, comment, note and page is still there.</span></label>
+      <label><input type="checkbox"><span>From the title menu, download the whole canvas, and then just one prototype.</span></label>
     </section>
   </div>
 </main>

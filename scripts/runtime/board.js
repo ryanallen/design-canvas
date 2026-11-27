@@ -3251,7 +3251,10 @@
   const playFrame = $('#play iframe')
   let playing = null
   let playWidth = 'fill'
+  // The screen Play was opened on, where R starts over.
+  let playStart = null
   function openPlay(f, width) {
+    if (!play.classList.contains('open')) playStart = f
     playing = f
     $('#play-title').textContent = `${pages().find((p) => p.id === f.page)?.title ?? ''} · ${f.label}`
     playFrame.srcdoc = docFor(f)
@@ -3284,6 +3287,8 @@
     else if (e.key === 'ArrowRight') stepPlay(1)
     else if (e.key === 'ArrowLeft') stepPlay(-1)
     else if ((e.key === 'c' || e.key === 'C') && api) setPlayCommenting(playCatch.hidden)
+    // Figma's R: start over from the screen Play was opened on, as it first was (anything typed or opened in it gone).
+    else if ((e.key === 'r' || e.key === 'R') && playStart) openPlay(playStart, playWidth)
     else return
     e.preventDefault()
   }
@@ -3552,7 +3557,7 @@
     ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['Page Down, Page Up', 'Next, previous screen'], ['+ and −, Ctrl+= and Ctrl+−', 'Zoom in and out'], ['0 or Ctrl+0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+\\', 'Panel']]],
     ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Ctrl+Alt+A', 'Select matching: same kind and colour'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Shift+drag', 'Move straight across or down; resize in proportion'], ['Alt+drag a corner', 'Resize from the middle'], ['Delete', 'Delete']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Alt+drag', 'Drop a copy'], ['Shift+drag', 'Straight across or down; resize in proportion'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste after it'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+R', 'Rename in Layers'], ['Ctrl+Shift+H', 'Hide or show'], ['Ctrl+Shift+L', 'Lock or unlock a part'], ['Shift+A', 'Add auto layout'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
-    ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['C', 'Comment on it, then click where'], ['Esc', 'Back to the canvas']]],
+    ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['C', 'Comment on it, then click where'], ['R', 'Start over from the first screen'], ['Esc', 'Back to the canvas']]],
     ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+C', 'Show or hide comments'], ['Shift+?', 'This sheet']]],
   ]
   const keysSheet = h('dialog', { id: 'keys-sheet', 'aria-label': 'Keyboard shortcuts' })

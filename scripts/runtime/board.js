@@ -1010,8 +1010,10 @@
       boardClip ? { label: 'Paste in place', key: 'Ctrl+Shift+V', run: pasteInPlace } : null,
       { label: 'Duplicate', key: 'Ctrl+D', run: duplicateItems },
       free ? '-' : null,
-      free ? { label: 'Bring to front', key: 'Ctrl+]', run: () => restack(true) } : null,
-      free ? { label: 'Send to back', key: 'Ctrl+[', run: () => restack(false) } : null,
+      free ? { label: 'Bring forward', key: 'Ctrl+]', run: () => restep(true) } : null,
+      free ? { label: 'Send backward', key: 'Ctrl+[', run: () => restep(false) } : null,
+      free ? { label: 'Bring to front', key: 'Ctrl+Shift+]', run: () => restack(true) } : null,
+      free ? { label: 'Send to back', key: 'Ctrl+Shift+[', run: () => restack(false) } : null,
       free && many ? { label: 'Group', key: 'Ctrl+G', run: () => groupChosen(true) } : null,
       free && grouped && chosen ? { label: 'Ungroup', key: 'Ctrl+Shift+G', run: () => groupChosen(false) } : null,
       { label: 'Zoom to selection', key: 'Shift+2', run: zoomToSelection },
@@ -1598,6 +1600,49 @@
     renderItems()
     try {
       await sendAll(list.map((it) => ({ op: 'item', id: it.id, z: it.z })))
+    } catch (err) {
+      hint(err.message, 3000)
+      takeBoardAgain()
+    }
+  }
+  /** Figma's Bring forward and Send backward: each object chosen goes one place up or down the stack, past the next
+   * object that overlaps it (one that does not would show no change). The moved ones take a `z` between their new
+   * neighbours; when there is no room, every object on the page is numbered again ten apart, in one undo step. */
+  async function restep(forward) {
+    const ids = chosen ? [...chosen.items] : picked ? withGroup(picked) : []
+    const moving = new Set(ids.map((id) => board.items.find((i) => i.id === id)).filter((i) => i && !isLocked(i.id) && i.kind !== 'section' && i.kind !== 'guide'))
+    if (!moving.size) return
+    const idx = (i) => board.items.indexOf(i)
+    const stack = items().filter((i) => i.kind !== 'section').sort((a, b) => (a.z ?? 0) - (b.z ?? 0) || idx(a) - idx(b))
+    const box = (i) => { const g = geometryOf(i); return { x: g.x, y: g.y, w: g.w ?? 0, h: g.h ?? 0 } }
+    const meets = (a, b) => { const p = box(a), q = box(b); return p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h }
+    const moved = []
+    for (const it of forward ? [...stack].reverse() : [...stack]) {
+      if (!moving.has(it)) continue
+      const at = stack.indexOf(it)
+      const others = (forward ? stack.slice(at + 1) : stack.slice(0, at).reverse()).filter((o) => !moving.has(o) && o.kind !== 'guide')
+      const past = others.find((o) => meets(it, o)) ?? others[0]
+      if (!past) continue
+      stack.splice(at, 1)
+      stack.splice(stack.indexOf(past) + (forward ? 1 : 0), 0, it)
+      moved.push(it)
+    }
+    if (!moved.length) return
+    const was = new Map(stack.map((i) => [i, i.z ?? 0]))
+    const below = (a, b) => (a.z ?? 0) - (b.z ?? 0) || idx(a) - idx(b)
+    let fits = true
+    for (const it of moved) {
+      const n = stack.indexOf(it)
+      const lo = stack[n - 1]
+      const hi = stack[n + 1]
+      it.z = lo ? (lo.z ?? 0) + 1 : (hi?.z ?? 0) - 1
+    }
+    for (let n = 1; n < stack.length; n++) if (below(stack[n - 1], stack[n]) >= 0) fits = false
+    if (!fits) stack.forEach((i, n) => (i.z = n * 10))
+    const sends = stack.filter((i) => (i.z ?? 0) !== was.get(i) || moved.includes(i)).map((i) => ({ op: 'item', id: i.id, z: i.z }))
+    renderItems()
+    try {
+      await sendAll(sends)
     } catch (err) {
       hint(err.message, 3000)
       takeBoardAgain()
@@ -3458,7 +3503,7 @@
   const SHORTCUTS = [
     ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['E', 'Stamp'], ['R', 'Rectangle'], ['S', 'Section'], ['A', 'Artboard'], ['C', 'Comment']]],
     ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['+ and −, Ctrl+= and Ctrl+−', 'Zoom in and out'], ['0 or Ctrl+0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+\\', 'Panel']]],
-    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Front, back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Delete', 'Delete']]],
+    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Delete', 'Delete']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste after it'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+Shift+H', 'Hide or show'], ['Ctrl+Shift+L', 'Lock or unlock a part'], ['Shift+A', 'Add auto layout'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
     ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['C', 'Comment on it, then click where'], ['Esc', 'Back to the canvas']]],
     ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+?', 'This sheet']]],
@@ -3859,12 +3904,14 @@
       e.preventDefault()
       return pasteInPlace()
     }
+    // Ctrl+] and Ctrl+[ one place up or down the stack, with Shift to the front or back (by the key's place, since
+    // Shift changes what a bracket key types).
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && serve && (e.code === 'BracketRight' || e.code === 'BracketLeft') && selectedItems().length) {
+      e.preventDefault()
+      return e.shiftKey ? restack(e.code === 'BracketRight') : restep(e.code === 'BracketRight')
+    }
     if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && serve) {
       const k = e.key.toLowerCase()
-      if ((k === ']' || k === '[') && selectedItems().length) {
-        e.preventDefault()
-        return restack(k === ']')
-      }
       const screens = k === 'd' && chosen?.frames.size ? frames().filter((f) => chosen.frames.has(f.key)) : []
       const done = k === 'd' ? (selectedItems().length || screens.length ? (selectedItems().length && duplicateItems(), screens.length && duplicateScreens(screens), true) : false) : k === 'c' ? copyItems() : k === 'x' ? cutItems() : k === 'v' ? !call('selectedFile') && pasteItems() : false
       if (done) return e.preventDefault()

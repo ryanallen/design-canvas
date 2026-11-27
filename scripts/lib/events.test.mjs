@@ -201,6 +201,13 @@ test("a stroke's weight and pen: 1 to 60 thick, a highlighter or a marker", () =
   assert.throws(() => board({ op: 'item', id: p.id, pen: 'crayon' }), /pen must be/)
 })
 
+test("an arrow's heads: at its end, or at both ends", () => {
+  const a = board({ op: 'item', kind: 'arrow', x: 0, y: 0, points: [0, 0, 100, 0], ends: 'both' })
+  assert.equal(a.ends, 'both')
+  assert.equal(board({ op: 'item', id: a.id, ends: '' }).ends, '')
+  assert.throws(() => board({ op: 'item', id: a.id, ends: 'start' }), /ends must be/)
+})
+
 test('a stamp keeps its place on what it sits on', () => {
   const st = board({ op: 'item', kind: 'stamp', x: 10, y: 20, w: 48, h: 48, text: '👍', to: 'b-note', dx: 10, dy: 20 })
   assert.equal(st.kind, 'stamp')

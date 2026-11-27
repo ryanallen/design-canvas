@@ -280,6 +280,11 @@ export function makeBoardEvent(input, { now = new Date(), newId = randomId } = {
         if (!['', 'highlight'].includes(input.pen)) throw new Error('pen must be highlight or empty')
         event.pen = input.pen
       }
+      // An arrow's heads: at its end alone (empty), or at both ends.
+      if (input.ends != null) {
+        if (!['', 'both'].includes(input.ends)) throw new Error('ends must be both or empty')
+        event.ends = input.ends
+      }
       // A line's way between its ends, as FigJam's connectors: straight (empty), elbow or curve.
       if (input.route != null) {
         if (!['', 'elbow', 'curve'].includes(input.route)) throw new Error('route must be elbow, curve or empty')

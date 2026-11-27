@@ -227,6 +227,8 @@ body.tiny .item.locked::after { display: none; }
 .snap-line.v { width: calc(1.5px / var(--z, 1)); margin-left: calc(-0.75px / var(--z, 1)); }
 .snap-line.h { height: calc(1.5px / var(--z, 1)); margin-top: calc(-0.75px / var(--z, 1)); }
 body.item-dragging .connect { display: none; }
+/* A board object's size while it is resized, under it. */
+.size-tag { position: absolute; pointer-events: none; z-index: 50; transform: translate(-50%, calc(8px / var(--z, 1))); background: #3b82f6; color: #fff; font: 600 calc(11px / var(--z, 1)) / 1 system-ui, sans-serif; padding: calc(3px / var(--z, 1)) calc(6px / var(--z, 1)); border-radius: calc(4px / var(--z, 1)); white-space: nowrap; font-variant-numeric: tabular-nums; }
 /* Alt measuring on the board: red where the snap marks are pink, the object pointed at outlined. */
 .snap-gap.measure { background: rgb(242 72 34); }
 .snap-gap.measure span { background: rgb(242 72 34); }

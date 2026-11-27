@@ -2382,6 +2382,11 @@
         itemBar.classList.add('dragging')
         document.body.classList.add('item-dragging')
         renderItems()
+        // Resizing, its size under it as it changes, as Figma's: width × height in board pixels.
+        if (resize) {
+          clearSnap()
+          snapEls.push(h('div', { class: 'size-tag', style: `left:${it.x + it.w / 2}px;top:${it.y + it.h}px` }, `${it.w} × ${it.h}`))
+        }
         if (snapEls.length) world.append(...snapEls)
         if (frameList.length) {
           renderPins()

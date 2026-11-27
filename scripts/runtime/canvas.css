@@ -1,5 +1,5 @@
 /* The window: a dark board, the chrome around it, comments, Play. The editor's own look is editor.css. */
-/* One plane of chrome over a quiet board. Monochrome: a tool that is on is white, and the one colour,
+/* One plane of chrome over a quiet board. Monochrome: a tool that is on is white, and the one color,
    the accent, means only "selected" or "the thing to press". Surfaces are told apart by tone and a
    soft shadow, not by outlines; radii come in three sizes. */
 :root {
@@ -183,7 +183,7 @@ body.tiny .item.locked::after { display: none; }
 .item.triangle { padding: 42% 22% 6%; }
 .item .form { position: absolute; left: 2px; top: 2px; width: calc(100% - 4px); height: calc(100% - 4px); overflow: visible; pointer-events: none; }
 .item .form polygon { fill: none; stroke: var(--c, #8a8a96); stroke-width: 4px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
-/* A filled shape: a light tint of its colour inside its outline, its words still dark enough to read. */
+/* A filled shape: a light tint of its color inside its outline, its words still dark enough to read. */
 .item.rect.filled, .item.ellipse.filled { background: color-mix(in srgb, var(--c, #8a8a96) 32%, var(--bg)); }
 .item.filled .form polygon { fill: color-mix(in srgb, var(--c, #8a8a96) 32%, var(--bg)); }
 /* Its words over the fill, which is drawn in a layer of its own. */

@@ -614,14 +614,14 @@
     if (f.page !== pageId) goPage(f.page)
     fitTo({ x: f.x, y: f.y, w: f.W, h: f.H })
   }
-  const centre = () => ({ x: (viewport.clientWidth - panelWidth()) / 2, y: viewport.clientHeight / 2 })
+  const center = () => ({ x: (viewport.clientWidth - panelWidth()) / 2, y: viewport.clientHeight / 2 })
   /** Figma's Page Down and Page Up: the next or previous screen on the page, in the order Play steps them, fills the
    * window; from the screen selected, else the one nearest the middle of the window, going round at the ends. */
   function stepScreen(d) {
     const list = frames()
     if (!list.length) return
     const file = call('selectedFile')
-    const c = centre()
+    const c = center()
     const mid = { x: (c.x - view.x) / view.z, y: (c.y - view.y) / view.z }
     const far = (f) => Math.hypot(f.x + f.W / 2 - mid.x, f.y + f.H / 2 - mid.y)
     const now = list.find((f) => chosen?.frames.size === 1 && chosen.frames.has(f.key)) ?? list.find((f) => file && f.file === file) ?? list.reduce((a, b) => (far(b) < far(a) ? b : a))
@@ -802,7 +802,7 @@
   }
   renderStamps()
   document.body.append(stampBar)
-  // FigJam's pens: a fine line, a marker, a bold one or a highlighter (wide and see-through), and their colours,
+  // FigJam's pens: a fine line, a marker, a bold one or a highlighter (wide and see-through), and their colors,
   // chosen on a bar over the toolbar while the pencil is in hand, kept in this browser.
   const PENS = [['fine', 'Fine', 3, ''], ['marker', 'Marker', 5, ''], ['bold', 'Bold', 10, ''], ['highlight', 'Highlighter', 24, 'highlight']]
   const penNow = () => PENS.find(([k]) => k === store.get('pen')) ?? PENS[1]
@@ -815,7 +815,7 @@
       h('span', { class: 'sep' }),
       ...SHAPE_COLORS.map((c) => h('button', { type: 'button', class: `swatch${penColor() === c ? ' on' : ''}`, style: `background:${c}`, title: COLOR_NAMES[c] ?? c, 'aria-label': COLOR_NAMES[c] ?? c, 'aria-pressed': String(penColor() === c), onclick: () => { store.set('penColor', c); renderPens() } })))
   }
-  // Drawn when the pencil is taken up: the colours it lists are set further on.
+  // Drawn when the pencil is taken up: the colors it lists are set further on.
   document.body.append(penBar)
   /** What a stamp at a point sits on: the topmost note, shape or picture there (a section only where nothing else is). */
   function stampTarget(x, y) {
@@ -1038,13 +1038,13 @@
     // Brought to the middle at the zoom it is at, or further out if it would not fit.
     if (a.x < 0 || a.y < 0 || b.x > viewport.clientWidth - panelWidth() || b.y > viewport.clientHeight) fitTo(boxAround([to.id]), 60, view.z)
   }
-  /** FigJam's Select matching: every object on the page of the same kind and colour as one selected (a note of the
-   * same colour, an arrow of the same colour), locked ones left out. */
-  const colourOf = (i) => String(i.color || (i.kind === 'note' ? NOTE_COLORS[0] : '')).toLowerCase()
+  /** FigJam's Select matching: every object on the page of the same kind and color as one selected (a note of the
+   * same color, an arrow of the same color), locked ones left out. */
+  const colorOf = (i) => String(i.color || (i.kind === 'note' ? NOTE_COLORS[0] : '')).toLowerCase()
   function matching() {
     const ids = chosen ? [...chosen.items] : picked ? withGroup(picked) : []
-    const like = new Set(ids.map((id) => board.items.find((i) => i.id === id)).filter(Boolean).map((i) => `${i.kind} ${colourOf(i)}`))
-    return items().filter((i) => i.kind !== 'guide' && (like.has(`${i.kind} ${colourOf(i)}`) && (!isLocked(i.id) || ids.includes(i.id)))).map((i) => i.id)
+    const like = new Set(ids.map((id) => board.items.find((i) => i.id === id)).filter(Boolean).map((i) => `${i.kind} ${colorOf(i)}`))
+    return items().filter((i) => i.kind !== 'guide' && (like.has(`${i.kind} ${colorOf(i)}`) && (!isLocked(i.id) || ids.includes(i.id)))).map((i) => i.id)
   }
   function selectMatching() {
     const ids = matching()
@@ -1220,7 +1220,7 @@
   /** What each swatch is called, for its tooltip and for a screen reader. */
   const COLOR_NAMES = {
     '#fde68a': 'Yellow', '#bfdbfe': 'Blue', '#ddd6fe': 'Lavender', '#fbcfe8': 'Pink', '#bbf7d0': 'Green', '#fed7aa': 'Peach',
-    '#8a8a96': 'Grey', '#3b82f6': 'Blue', '#a855f7': 'Purple', '#ec4899': 'Pink', '#22c55e': 'Green', '#f59e0b': 'Amber', '#ef4444': 'Red', '#ffffff': 'White',
+    '#8a8a96': 'Gray', '#3b82f6': 'Blue', '#a855f7': 'Purple', '#ec4899': 'Pink', '#22c55e': 'Green', '#f59e0b': 'Amber', '#ef4444': 'Red', '#ffffff': 'White',
   }
   let picked = null
   // What a drag box took in: board objects and frames, and the box itself.
@@ -1305,7 +1305,7 @@
     const f = allFrames.get(ref)
     return f && f.page === pageId ? { x: f.x, y: f.y, w: f.W, h: f.H } : null
   }
-  /** Where the line from a box's centre towards a point leaves the box. */
+  /** Where the line from a box's center towards a point leaves the box. */
   function edgeToward(b, p) {
     const cx = b.x + b.w / 2
     const cy = b.y + b.h / 2
@@ -1342,10 +1342,10 @@
     const A = boxOfRef(it.from)
     const B = boxOfRef(it.to)
     if (!A && !B) return it
-    const centre = (r) => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 })
+    const center = (r) => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 })
     if (A && B) {
-      a = edgeToward(A, centre(B))
-      b = edgeToward(B, centre(A))
+      a = edgeToward(A, center(B))
+      b = edgeToward(B, center(A))
     } else if (A) a = edgeToward(A, b)
     else b = edgeToward(B, a)
     const x = Math.round(Math.min(a.x, b.x))
@@ -1364,7 +1364,7 @@
     return under[0]?.id ?? null
   }
 
-  // A colour is a hex, a name or rgb()/hsl() numbers, nothing else: a colour from a canvas file
+  // A color is a hex, a name or rgb()/hsl() numbers, nothing else: a color from a canvas file
   // goes into a style, and a style may not fetch (url()) or break out of its declaration.
   const safeColor = (c) => (typeof c === 'string' && /^(#[0-9a-f]{3,8}|[a-z]{3,20}|(?:rgb|hsl)a?\([\d.,%\s/]+\))$/i.test(c.trim()) ? c.trim() : '')
   const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0)
@@ -1445,7 +1445,7 @@
     if (route === 'curve') return across ? `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}` : `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`
     return null
   }
-  // A board object's own bar: its colours and delete, above it while it is picked.
+  // A board object's own bar: its colors and delete, above it while it is picked.
   const itemBar = h('div', { id: 'itembar', role: 'toolbar', 'aria-label': 'Board object' })
   document.body.append(itemBar)
   function pickItem(id) {
@@ -1472,7 +1472,7 @@
     // The agent reads it at GET /api/selection.
     if (serve) fetch('/api/selection', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selection: chosen ? { board: { page: pageId, box, items: [...chosen.items], frames: [...chosen.frames] } } : null }) }).catch(() => {})
   }
-  // ── groups: board objects that share a group id are picked, moved, coloured and deleted as one ──
+  // ── groups: board objects that share a group id are picked, moved, colored and deleted as one ──
   const groupMembers = (gid) => (gid ? items().filter((i) => i.group === gid).map((i) => i.id) : [])
   /** The screens on this page in a group. */
   const groupFrames = (gid) => (gid ? frames().filter((f) => board.moved?.[f.key]?.group === gid).map((f) => f.key) : [])
@@ -1663,7 +1663,7 @@
   }
   /** Figma's Bring forward and Send backward: each object chosen goes one place up or down the stack, past the next
    * object that overlaps it (one that does not would show no change). The moved ones take a `z` between their new
-   * neighbours; when there is no room, every object on the page is numbered again ten apart, in one undo step. */
+   * neighbors; when there is no room, every object on the page is numbered again ten apart, in one undo step. */
   async function restep(forward) {
     const ids = chosen ? [...chosen.items] : picked ? withGroup(picked) : []
     const moving = new Set(ids.map((id) => board.items.find((i) => i.id === id)).filter((i) => i && !isLocked(i.id) && i.kind !== 'section' && i.kind !== 'guide'))
@@ -1748,11 +1748,11 @@
     const all = boxAround(units.flatMap((u) => u.members))
     moveUnits(units.map(({ members, box: b }) => ({
       members,
-      dx: how === 'left' ? all.x - b.x : how === 'centre' ? all.x + all.w / 2 - (b.x + b.w / 2) : how === 'right' ? all.x + all.w - (b.x + b.w) : 0,
+      dx: how === 'left' ? all.x - b.x : how === 'center' ? all.x + all.w / 2 - (b.x + b.w / 2) : how === 'right' ? all.x + all.w - (b.x + b.w) : 0,
       dy: how === 'top' ? all.y - b.y : how === 'middle' ? all.y + all.h / 2 - (b.y + b.h / 2) : how === 'bottom' ? all.y + all.h - (b.y + b.h) : 0,
     })))
   }
-  /** Equal gaps between neighbours across (x) or down (y), the first and last staying where they are. */
+  /** Equal gaps between neighbors across (x) or down (y), the first and last staying where they are. */
   function distributeChosen(axis) {
     const units = selectedUnits()
     if (units.length < 3) return hint('Select three or more to space them evenly', 1600)
@@ -1794,7 +1794,7 @@
     const n = selectedUnits().length
     openMenu(anchor, [
       { label: 'Align left', key: 'Alt+A', run: () => alignChosen('left') },
-      { label: 'Align centres', key: 'Alt+H', run: () => alignChosen('centre') },
+      { label: 'Align centers', key: 'Alt+H', run: () => alignChosen('center') },
       { label: 'Align right', key: 'Alt+D', run: () => alignChosen('right') },
       '-',
       { label: 'Align top', key: 'Alt+W', run: () => alignChosen('top') },
@@ -1805,7 +1805,7 @@
       { label: 'Tidy up', key: 'Ctrl+Alt+T', run: tidyChosen },
     ])
   }
-  /** One colour for every selected object that takes one. */
+  /** One color for every selected object that takes one. */
   async function colorChosen(color) {
     const ids = [...(chosen?.items ?? [])].filter((id) => !isLocked(id) && !['guide', 'image'].includes(board.items.find((i) => i.id === id)?.kind))
     for (const id of ids) Object.assign(board.items.find((i) => i.id === id), { color })
@@ -1865,7 +1865,7 @@
     if (chosen) {
       const n = chosen.items.size + chosen.frames.size
       const its = [...chosen.items].map((id) => board.items.find((i) => i.id === id)).filter((i) => i && i.kind !== 'guide')
-      // Every selected object takes the colour clicked; the swatches are those of the kind most of them are.
+      // Every selected object takes the color clicked; the swatches are those of the kind most of them are.
       const paletteOf = (k) => (k === 'note' ? NOTE_COLORS : k === 'section' ? SECTION_COLORS : SHAPE_COLORS)
       const tinted = its.filter((i) => i.kind !== 'image')
       const colors = tinted.length ? paletteOf(tinted.filter((i) => i.kind === 'note').length * 2 > tinted.length ? 'note' : tinted.every((i) => i.kind === 'section') ? 'section' : 'shape') : []
@@ -1880,7 +1880,7 @@
         ...colors.map((c) => h('button', { type: 'button', class: `swatch${same === c ? ' on' : ''}`, style: `background:${c}`, title: COLOR_NAMES[c] ?? c, 'aria-label': COLOR_NAMES[c] ?? c, 'aria-pressed': String(same === c), onclick: () => colorChosen(c) })),
         colors.length ? h('span', { class: 'sep' }) : null,
         selectedUnits().length > 1 ? h('button', { type: 'button', class: 'tool', title: 'Align and space evenly', 'aria-haspopup': 'menu', onclick: (e) => alignMenu(e.currentTarget) }, 'Align', h('span', { class: 'caret' }, '▾')) : null,
-        its.length > 1 && !grouped ? h('button', { type: 'button', class: 'tool', title: 'Group them: they move, colour and delete as one (Ctrl+G)', onclick: () => groupChosen(true) }, 'Group') : null,
+        its.length > 1 && !grouped ? h('button', { type: 'button', class: 'tool', title: 'Group them: they move, color and delete as one (Ctrl+G)', onclick: () => groupChosen(true) }, 'Group') : null,
         anyGroup ? h('button', { type: 'button', class: 'tool', title: 'Ungroup (Ctrl+Shift+G)', onclick: () => groupChosen(false) }, 'Ungroup') : null,
         api ? h('button', { type: 'button', class: 'tool', title: 'Ask the agent about what is in the box', onclick: () => openAsk() }, '✦ Ask agent') : null,
         chosen.items.size ? h('button', { type: 'button', class: 'tool', title: 'Delete (Delete)', onclick: () => removeChosen() }, 'Delete') : null,
@@ -1916,7 +1916,7 @@
       ...(it.kind === 'title' ? [h('span', { class: 'sep' }), ...[['S', 48], ['M', 96], ['L', 160], ['XL', 240]].map(([label, px]) => h('button', { type: 'button', class: `tool${(it.size || 96) === px ? ' on' : ''}`, title: `${px} px`, 'aria-pressed': String((it.size || 96) === px), onclick: () => updateItem(it.id, { size: px }) }, label))] : []),
       // A shape's kind, changed in place as FigJam's shape menu does: its box, words and the lines bound to it kept.
       ...(['rect', 'ellipse', 'diamond', 'triangle'].includes(it.kind) ? [h('span', { class: 'sep' }), ...['rect', 'ellipse', 'diamond', 'triangle'].map((k) => h('button', { type: 'button', class: `tool${it.kind === k ? ' on' : ''}`, title: SHAPE_NAMES[k].replace(/ \(.\)$/, ''), 'aria-label': SHAPE_NAMES[k].replace(/ \(.\)$/, ''), 'aria-pressed': String(it.kind === k), onclick: () => updateItem(it.id, { kind: k }) }, icon(k)))] : []),
-      // A shape's inside, as FigJam's fill: clear, or filled with a tint of its colour.
+      // A shape's inside, as FigJam's fill: clear, or filled with a tint of its color.
       ...(['rect', 'ellipse', 'diamond', 'triangle'].includes(it.kind) ? [h('span', { class: 'sep' }), ...[['', 'Outline only', '▢'], ['solid', 'Filled', '■']].map(([fill, label, glyph]) => {
         const on = (it.fill || '') === fill
         return h('button', { type: 'button', class: `tool${on ? ' on' : ''}`, title: label, 'aria-label': label, 'aria-pressed': String(on), onclick: () => updateItem(it.id, { fill }) }, glyph)
@@ -2062,7 +2062,7 @@
     for (const el of snapEls) el.remove()
     snapEls = []
   }
-  /** For a drag of these objects and frames: a function from the drag's offset to the offset caught on the nearest edge or centre. */
+  /** For a drag of these objects and frames: a function from the drag's offset to the offset caught on the nearest edge or center. */
   function snapper(ids, keys) {
     const start = boxAround(ids, keys)
     if (!start.w && !start.h) return null
@@ -2199,7 +2199,7 @@
         else {
           ;({ dx, dy } = straight(ev, dx, dy))
           const across = ev.shiftKey && !dy
-          // Edges and centres catch on other objects' and frames' edges and centres; Ctrl or ⌘ held lets go.
+          // Edges and centers catch on other objects' and frames' edges and centers; Ctrl or ⌘ held lets go.
           ;({ dx, dy } = snap && !(ev.ctrlKey || ev.metaKey) ? snap(dx, dy) : (clearSnap(), { dx, dy }))
           // A catch never takes it off the axis Shift holds it to.
           if (ev.shiftKey) across ? (dy = 0) : (dx = 0)
@@ -2515,7 +2515,7 @@
     placeStamps(board)
   }
   /** Every line of one action: all of it drawn at once, then saved in order, so what is drawn never steps back while
-   *  the later lines are on their way (a deletion of several, a colour, an align, a drag). */
+   *  the later lines are on their way (a deletion of several, a color, an align, a drag). */
   async function sendAll(inputs) {
     for (const input of inputs) {
       if (input.op === 'remove') ahead.set(`item:${input.id}`, { removed: true })
@@ -3243,7 +3243,7 @@
     askRegion = chosen ? { box: { ...chosen.box }, items: [...chosen.items, ...chosen.frames] } : null
     askTarget = askRegion ? null : call('selectionTarget') ?? null
     const n = askRegion?.items.length
-    $('#ask-on').textContent = askRegion ? `On the ${n} thing${n === 1 ? '' : 's'} in the box` : askTarget ? `On ${askTarget.label}` : 'On the board, where the view is centred'
+    $('#ask-on').textContent = askRegion ? `On the ${n} thing${n === 1 ? '' : 's'} in the box` : askTarget ? `On ${askTarget.label}` : 'On the board, where the view is centered'
     ask.classList.add('open')
     $('#tool-ask').setAttribute('aria-pressed', 'true')
     $('#ask-error').textContent = ''
@@ -3278,7 +3278,7 @@
       const f = askTarget.frame
       at = { frame: f.key, x: Math.round((askTarget.wx - f.x) / f.s), y: Math.round((askTarget.wy - f.y) / f.s), file: askTarget.file, anchor: askTarget.anchor }
     } else {
-      const c = centre()
+      const c = center()
       const p = toWorld(c.x, c.y)
       const f = frameAt(c.x, c.y)
       at = f ? { frame: f.key, x: Math.round((p.x - f.x) / f.s), y: Math.round((p.y - f.y) / f.s) } : { frame: null, x: p.x, y: p.y }
@@ -3576,7 +3576,7 @@
   }
   /** A line of text from the person, or null if they cancel. */
   const question = (message, value = '') => openDialog(message, { value: String(value ?? '') })
-  /** Yes or no; `ok` names the yes button, `danger` colours it as a delete. */
+  /** Yes or no; `ok` names the yes button, `danger` colors it as a delete. */
   const sure = (message, ok = 'OK', danger = false) => openDialog(message, { ok, danger })
   const menuItems = () => [...menu.querySelectorAll(':scope > .mi:not(:disabled)')]
   function closeMenu(refocus) {
@@ -3605,7 +3605,7 @@
   const SHORTCUTS = [
     ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['E', 'Stamp'], ['R', 'Rectangle'], ['S', 'Section'], ['A', 'Artboard'], ['C', 'Comment']]],
     ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['Page Down, Page Up', 'Next, previous screen'], ['+ and −, Ctrl+= and Ctrl+−', 'Zoom in and out'], ['0, Shift+0 or Ctrl+0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+\\', 'Panel']]],
-    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Ctrl+Alt+A', 'Select matching: same kind and colour'], ['Tab, Shift+Tab', 'Next or previous object'], ['Enter', 'Type in the one picked'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Shift+drag', 'Move straight across or down; resize in proportion'], ['Alt+drag a corner', 'Resize from the middle'], ['Delete', 'Delete']]],
+    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Ctrl+Alt+A', 'Select matching: same kind and color'], ['Tab, Shift+Tab', 'Next or previous object'], ['Enter', 'Type in the one picked'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centers, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Shift+drag', 'Move straight across or down; resize in proportion'], ['Alt+drag a corner', 'Resize from the middle'], ['Delete', 'Delete']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Alt+drag', 'Drop a copy'], ['Shift+drag', 'Straight across or down; resize in proportion'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste after it'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+R', 'Rename in Layers'], ['Ctrl+Shift+H', 'Hide or show'], ['Ctrl+Shift+L', 'Lock or unlock a part'], ['Shift+A', 'Add auto layout'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
     ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['C', 'Comment on it, then click where'], ['R', 'Start over from the first screen'], ['Esc', 'Back to the canvas']]],
     ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+C', 'Show or hide comments'], ['Shift+?', 'This sheet']]],
@@ -3892,13 +3892,13 @@
 
   // Zoom menu.
   zoomLabel.addEventListener('click', (e) => openMenu(e.currentTarget, [
-    { label: 'Zoom in', key: '+', run: () => zoomAt(view.z * 1.25, centre().x, centre().y) },
-    { label: 'Zoom out', key: '−', run: () => zoomAt(view.z / 1.25, centre().x, centre().y) },
+    { label: 'Zoom in', key: '+', run: () => zoomAt(view.z * 1.25, center().x, center().y) },
+    { label: 'Zoom out', key: '−', run: () => zoomAt(view.z / 1.25, center().x, center().y) },
     '-',
     { label: 'Zoom to fit', key: 'F', run: fitAll },
-    { label: '50%', run: () => zoomAt(0.5, centre().x, centre().y) },
-    { label: '100%', key: '0', run: () => zoomAt(1, centre().x, centre().y) },
-    { label: '200%', run: () => zoomAt(2, centre().x, centre().y) },
+    { label: '50%', run: () => zoomAt(0.5, center().x, center().y) },
+    { label: '100%', key: '0', run: () => zoomAt(1, center().x, center().y) },
+    { label: '200%', run: () => zoomAt(2, center().x, center().y) },
   ]))
 
   // ── the panel ──
@@ -3966,8 +3966,8 @@
     // Ctrl+= and Ctrl+− zoom the board, Ctrl+0 to 100%, as in Figma: never the browser's zoom of the whole page.
     if ((e.ctrlKey || e.metaKey) && !e.altKey && ['=', '+', '-', '_', '0'].includes(e.key)) {
       e.preventDefault()
-      if (e.key === '0') return zoomAt(1, centre().x, centre().y)
-      return zoomAt(view.z * (e.key === '-' || e.key === '_' ? 0.8 : 1.25), centre().x, centre().y)
+      if (e.key === '0') return zoomAt(1, center().x, center().y)
+      return zoomAt(view.z * (e.key === '-' || e.key === '_' ? 0.8 : 1.25), center().x, center().y)
     }
     if (e.key === 'Escape' && menu.classList.contains('open')) {
       e.preventDefault()
@@ -4029,7 +4029,7 @@
       return tidyChosen()
     }
     if (e.altKey && !e.ctrlKey && !e.metaKey && serve && chosen?.items.size > 1) {
-      const how = e.shiftKey ? { KeyH: 'x', KeyV: 'y' }[e.code] : { KeyA: 'left', KeyH: 'centre', KeyD: 'right', KeyW: 'top', KeyV: 'middle', KeyS: 'bottom' }[e.code]
+      const how = e.shiftKey ? { KeyH: 'x', KeyV: 'y' }[e.code] : { KeyA: 'left', KeyH: 'center', KeyD: 'right', KeyW: 'top', KeyV: 'middle', KeyS: 'bottom' }[e.code]
       if (how) {
         e.preventDefault()
         return e.shiftKey ? distributeChosen(how) : alignChosen(how)
@@ -4076,10 +4076,10 @@
     else if (k === 's' && serve) setShape('section')
     else if (k === 'f' || (e.key === '!' && e.shiftKey)) fitAll()
     else if (e.shiftKey && e.code === 'Digit2') zoomToSelection()
-    else if (e.key === '=' || e.key === '+') zoomAt(view.z * 1.25, centre().x, centre().y)
-    else if (e.key === '-') zoomAt(view.z / 1.25, centre().x, centre().y)
+    else if (e.key === '=' || e.key === '+') zoomAt(view.z * 1.25, center().x, center().y)
+    else if (e.key === '-') zoomAt(view.z / 1.25, center().x, center().y)
     // 0, and Figma's Shift+0 (by the key's place, since Shift changes what it types): 100%.
-    else if (e.key === '0' || (e.shiftKey && e.code === 'Digit0')) zoomAt(1, centre().x, centre().y)
+    else if (e.key === '0' || (e.shiftKey && e.code === 'Digit0')) zoomAt(1, center().x, center().y)
     else return
     e.preventDefault()
   })

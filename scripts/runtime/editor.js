@@ -218,7 +218,7 @@
           one.append(h('div', { class: 'ov-tag' }, `${n.text}${sel.els.length > 1 ? ` · ${sel.els.length} ${everyCopy() ? 'copies' : 'selected'}` : ''}`, h('span', {}, `${Math.round(w)} × ${Math.round(ht)}`)))
           if (sel.els.length === 1 && editable(el) && !editing) {
             for (const hd of ['nw', 'ne', 'sw', 'se', 'e', 's']) one.append(h('div', { class: `handle ${hd}`, 'data-h': hd, onpointerdown: (e) => startResize(e, hd) }))
-            // A mesh fill's points, each where its colour sits, to drag.
+            // A mesh fill's points, each where its color sits, to drag.
             const grid = gridOf(el)
             if (grid) {
               // Its lattice drawn: the lines between points, then the points.
@@ -235,10 +235,10 @@
               svg.setAttribute('height', b.h)
               svg.innerHTML = segs.map(([p, q]) => `<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}"/>`).join('')
               one.append(svg)
-              grid.pts.forEach((p, k) => one.append(h('div', { class: 'mesh-pt grid', 'data-i': k, title: 'Drag to bend the colour; click to pick its colour', style: `left:${p[0] * 100}%;top:${p[1] * 100}%;background:${p[2]}`, onpointerdown: (e) => startGridDrag(e, el, k) })))
+              grid.pts.forEach((p, k) => one.append(h('div', { class: 'mesh-pt grid', 'data-i': k, title: 'Drag to bend the color; click to pick its color', style: `left:${p[0] * 100}%;top:${p[1] * 100}%;background:${p[2]}`, onpointerdown: (e) => startGridDrag(e, el, k) })))
             }
             const mesh = grid ? null : meshOf(cs(el).backgroundImage)
-            if (mesh) mesh.forEach((p, k) => one.append(h('div', { class: 'mesh-pt', 'data-i': k, title: 'Drag to move this colour', style: `left:${p.x}%;top:${p.y}%;background:${p.color}`, onpointerdown: (e) => startMeshDrag(e, el, k) })))
+            if (mesh) mesh.forEach((p, k) => one.append(h('div', { class: 'mesh-pt', 'data-i': k, title: 'Drag to move this color', style: `left:${p.x}%;top:${p.y}%;background:${p.color}`, onpointerdown: (e) => startMeshDrag(e, el, k) })))
           }
         }
         overlay.append(one)
@@ -255,7 +255,7 @@
     const B = boxOf(b)
     const at = (x, y) => dc.toScreen(f.x + x * f.s, f.y + y * f.s)
     const lines = []
-    /** A line across (y fixed) or down (x fixed) from p to q, labelled with its length. */
+    /** A line across (y fixed) or down (x fixed) from p to q, labeled with its length. */
     const line = (horiz, fixed, p, q) => {
       if (Math.round(Math.abs(q - p)) < 1) return
       const [s, e] = [Math.min(p, q), Math.max(p, q)]
@@ -649,7 +649,7 @@
     send({ op: 'styles', items }, { file: frame.file, key: frame.key, then: sel?.frame === frame ? reselect() : undefined })
   }
   /** The picture of the selection, as a PNG from the server; null, with a hint, when there is none. */
-  /** Every element on the element's screen with its fill, its text colour (on what holds words) or its type. */
+  /** Every element on the element's screen with its fill, its text color (on what holds words) or its type. */
   function sameAs(el, how) {
     const k = cs(el)
     const key = (x) => {
@@ -696,15 +696,15 @@
   }
   /** The lines of text in the selection, each that holds words of its own (a group's headline and paragraph). */
   const textsIn = () => [...new Set(sel.els.flatMap((x) => [x, ...x.querySelectorAll('*')]))].filter((x) => ownText(x) && editable(x) && cvOf(x) != null && !['script', 'style'].includes(x.localName))
-  /** A text colour for a selection that is not itself text (a group, a card): every line in it takes it, over any
-   *  colour of its own, in one edit, as a text colour on a Figma group colours every text in it. */
+  /** A text color for a selection that is not itself text (a group, a card): every line in it takes it, over any
+   *  color of its own, in one edit, as a text color on a Figma group colors every text in it. */
   function styleTexts(props) {
     const texts = textsIn()
     if (!texts.length) return
     for (const x of texts) for (const [k, v] of Object.entries(props)) x.style.setProperty(k, v)
     send({ op: 'styles', items: texts.map((x) => ({ cv: cvOf(x), props })) }, { then: reselect() })
   }
-  const colourTexts = (value) => styleTexts({ color: value })
+  const colorTexts = (value) => styleTexts({ color: value })
   /** Whether the selection is every copy of one kind (Alt + click, Select every copy), whose style is one rule. */
   function everyCopy() {
     if (!sel || sel.els.length < 2) return false
@@ -1393,7 +1393,7 @@
         return Object.keys(props).length ? setStyle(props) : hint('It already looks like that', 1200)
       }
       // A box that holds text (a card) takes the fill, border and the rest itself, and every line of text in it takes
-      // the type and text colour, over any of its own, as a text colour on a Figma group reaches every text in it.
+      // the type and text color, over any of its own, as a text color on a Figma group reaches every text in it.
       const items = []
       for (const x of sel.els) {
         const inner = isText(x) ? [] : [...x.querySelectorAll('*')].filter((t) => ownText(t) && editable(t) && cvOf(t) != null && !['script', 'style'].includes(t.localName))
@@ -1435,7 +1435,7 @@
   const PROPS = ['background-color', 'background-image', 'border-top', 'border-right', 'border-bottom', 'border-left', 'border-radius', 'box-shadow', 'opacity',
     'color', 'font-family', 'font-size', 'font-weight', 'font-style', 'line-height', 'letter-spacing', 'text-transform', 'text-decoration-line', 'text-align']
   const TEXT_PROPS = new Set(PROPS.slice(PROPS.indexOf('color')))
-  /** A property as read for copying: a side with no border is `none`, whatever colour it would have. */
+  /** A property as read for copying: a side with no border is `none`, whatever color it would have. */
   const propOf = (c, p) => {
     const v = c.getPropertyValue(p)
     return /^border-(top|right|bottom|left)$/.test(p) && /\bnone\b/.test(v) ? 'none' : v
@@ -1601,9 +1601,9 @@
   }
 
   // ── the floating toolbar ──
-  // A mesh fill: colour points over the element's fill, each a radial gradient from its colour at its place fading to
+  // A mesh fill: color points over the element's fill, each a radial gradient from its color at its place fading to
   // nothing at its spread, so the points blend into one another as a freeform gradient mesh does. Plain CSS, kept in
-  // the prototype's own file: `radial-gradient(at x% y%, colour 0px, transparent spread%)`, one layer a point.
+  // the prototype's own file: `radial-gradient(at x% y%, color 0px, transparent spread%)`, one layer a point.
   // meshOf reads a computed background-image as points, or null where it is anything else.
   const meshOf = (image) => {
     if (!image || !image.startsWith('radial-gradient(at ')) return null
@@ -1627,11 +1627,11 @@
   }
   const round1 = (n) => Math.round(n * 10) / 10
   const meshCss = (points) => points.map((p) => `radial-gradient(at ${round1(p.x)}% ${round1(p.y)}%, ${p.color} 0px, transparent ${round1(p.spread)}%)`).join(', ')
-  // A grid mesh, as Illustrator's gradient mesh: a lattice of points, each a colour, whose colours and places blend
-  // along smooth curves (Catmull-Rom through the lattice, for colour and place alike), so moving a point bends the
-  // colour around it. The web draws no mesh of its own: the canvas draws it as a small picture, smooth enough to be
+  // A grid mesh, as Illustrator's gradient mesh: a lattice of points, each a color, whose colors and places blend
+  // along smooth curves (Catmull-Rom through the lattice, for color and place alike), so moving a point bends the
+  // color around it. The web draws no mesh of its own: the canvas draws it as a small picture, smooth enough to be
   // stretched over the element, kept in the element's own CSS; the lattice is kept in its data-mesh attribute
-  // ({ rows, cols, pts: [[x, y, colour], …] }, x and y from 0 to 1) to edit again.
+  // ({ rows, cols, pts: [[x, y, color], …] }, x and y from 0 to 1) to edit again.
   const gridOf = (el) => {
     try {
       const g = JSON.parse(el?.getAttribute('data-mesh') ?? 'null')
@@ -1734,7 +1734,7 @@
       removeEventListener('pointerup', up, true)
       cancelAnimationFrame(frame)
       if (moved) return writeGrid(el, g)
-      // A click on a point without moving it: its colour, picked there.
+      // A click on a point without moving it: its color, picked there.
       const pickr = h('input', { type: 'color', value: rgbHex(g.pts[k][2]), style: 'position:fixed;left:-99px;top:0;opacity:0' })
       document.body.append(pickr)
       pickr.addEventListener('change', () => { g.pts[k][2] = pickr.value; pickr.remove(); writeGrid(el, g) })
@@ -1797,7 +1797,7 @@
   }
   function colorButton(title, prop, value, onPick, targets = () => sel?.els.filter(live) ?? []) {
     const input = h('input', { type: 'color', value: rgbHex(value), 'aria-label': title })
-    // A see-through colour keeps its see-through when another is picked, as Properties' colours do.
+    // A see-through color keeps its see-through when another is picked, as Properties' colors do.
     const alpha = value && value !== 'Mixed' && value !== 'rgba(0, 0, 0, 0)' ? /rgba\([^)]*,\s*([\d.]+)\)/.exec(value)?.[1] : null
     const keep = (hex) => {
       const m = alpha && Number(alpha) < 1 ? /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex) : null
@@ -1834,7 +1834,7 @@
       const cls = el.classList[0]
       const label = cls ? `.${cls}` : `${shared('font-family').split(',')[0].replace(/["']/g, '')} · ${shared('font-size')}`
       parts.push(h('button', { type: 'button', class: 'fbtn wide', title: 'Text style', onclick: (e) => textStyles(e.currentTarget) }, label, h('span', { class: 'caret' }, '▾')))
-      parts.push(colorButton('Text colour', 'color', shared('color'), (v) => (styleRun('color', v) || setStyle({ color: v }))))
+      parts.push(colorButton('Text color', 'color', shared('color'), (v) => (styleRun('color', v) || setStyle({ color: v }))))
       const bold = Number(shared('font-weight')) >= 600
       parts.push(h('button', { type: 'button', class: 'fbtn', title: 'Bold', 'aria-pressed': String(bold), onclick: () => (editing ? editing.frame.doc.execCommand('bold') : toggleStyle('font-weight', !bold, '700', '400', (v) => Number(v) >= 600)) }, h('b', {}, 'B')))
       const italic = shared('font-style') === 'italic'
@@ -1846,12 +1846,12 @@
       const ta = shared('text-align')
       parts.push(h('button', { type: 'button', class: 'fbtn', title: `Align: ${ta}`, onclick: (e) => dc.openMenu(e.currentTarget, ['left', 'center', 'right', 'justify'].map((a) => ({ label: a[0].toUpperCase() + a.slice(1), tick: ta === a || (a === 'left' && ta === 'start'), run: () => setStyle({ 'text-align': a }) }))) }, alignGlyph(['center', 'right', 'justify'].includes(ta) ? ta : 'left')))
     }
-    // A group or a card is not text, but holds lines of it: a text colour for all of them.
+    // A group or a card is not text, but holds lines of it: a text color for all of them.
     if (!text && canEdit) {
       const texts = textsIn()
       if (texts.length) {
         const seen = new Set(texts.map((x) => cs(x).color))
-        parts.push(colorButton('Text colour', 'color', seen.size === 1 ? [...seen][0] : 'Mixed', colourTexts, textsIn))
+        parts.push(colorButton('Text color', 'color', seen.size === 1 ? [...seen][0] : 'Mixed', colorTexts, textsIn))
         // Bold and italic for every line in it: on when every line already is.
         const bold = texts.every((x) => Number(cs(x).fontWeight) >= 600)
         parts.push(h('button', { type: 'button', class: 'fbtn', title: 'Bold, every line in it', 'aria-pressed': String(bold), onclick: () => styleTexts({ 'font-weight': bold ? '400' : '700' }) }, h('b', {}, 'B')))
@@ -1867,7 +1867,7 @@
       // A group with no box of its own (display: contents) draws no fill, corners or padding: only its layout is offered.
       const flat = d === 'contents'
       if (!flat) {
-        // Over a gradient a fill colour would change nothing seen: the chip shows the gradient, and a colour picked
+        // Over a gradient a fill color would change nothing seen: the chip shows the gradient, and a color picked
         // takes its place.
         const image = shared('background-image')
         const gridded = sel.els.filter(live).some((x) => gridOf(x))
@@ -1876,7 +1876,7 @@
           ? send({ op: 'styles', items: sel.els.filter(live).filter((x) => editable(x) && cvOf(x) != null).map((x) => ({ cv: cvOf(x), props: { 'background-color': v, 'background-image': '', 'background-size': '', 'background-repeat': '' }, attrs: { 'data-mesh': '' } })) })
           : setStyle(graded ? { 'background-color': v, 'background-image': 'none' } : { 'background-color': v })))
         if (graded) {
-          fill.title = `Fill: a colour picked replaces the ${gridded ? 'mesh' : 'gradient'}`
+          fill.title = `Fill: a color picked replaces the ${gridded ? 'mesh' : 'gradient'}`
           fill.querySelector('.chip').style.background = image
           fill.querySelector('input').addEventListener('input', () => { if (!editing) for (const x of sel?.els.filter(live) ?? []) x.style.setProperty('background-image', 'none') })
         }
@@ -2151,8 +2151,8 @@
       sel.els.length > 1 ? { label: 'Select this one alone', run: () => select(sel.frame, [primary()]) } : null,
       copiesOf(primary()).length > 1 && sel.els.length === 1 ? { label: 'Select every copy', key: 'Ctrl+Alt+A', run: () => select(sel.frame, copiesOf(primary())) } : null,
       // Figma's Select all with the same properties: everything on this screen with the selected element's fill, its
-      // text colour, or its type (font, size and weight).
-      ...(sel.els.length === 1 && primary().localName !== 'body' ? [['fill', 'Select all with the same fill'], ['color', 'Select all with the same text colour'], ['type', 'Select all with the same type']].map(([how, label]) => {
+      // text color, or its type (font, size and weight).
+      ...(sel.els.length === 1 && primary().localName !== 'body' ? [['fill', 'Select all with the same fill'], ['color', 'Select all with the same text color'], ['type', 'Select all with the same type']].map(([how, label]) => {
         const same = sameAs(primary(), how)
         return same.length > 1 ? { label: `${label} (${same.length})`, run: () => select(sel.frame, [primary(), ...same.filter((x) => x !== primary())]) } : null
       }).filter(Boolean) : []),

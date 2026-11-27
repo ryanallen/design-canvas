@@ -297,14 +297,14 @@
     s.addEventListener('change', () => onPick(s.value))
     return s
   }
-  // Figma's document colours: the colours the screen already uses, most used first, and its colour levers (custom
-  // properties on :root or html holding a colour), named. Read once a screen; a lever picked is written as var().
-  const screenColours = (() => {
+  // Figma's document colors: the colors the screen already uses, most used first, and its color levers (custom
+  // properties on :root or html holding a color), named. Read once a screen; a lever picked is written as var().
+  const screenColors = (() => {
     let at = null
     let found = null
     return () => {
       const doc = ed.sel?.frame?.doc
-      if (!doc) return { levers: [], colours: [] }
+      if (!doc) return { levers: [], colors: [] }
       if (at === doc && found) return found
       const levers = []
       const seen = new Set()
@@ -328,42 +328,42 @@
         add(k.backgroundColor)
         if (k.borderTopStyle !== 'none' && parseFloat(k.borderTopWidth) > 0) add(k.borderTopColor)
       }
-      const colours = [...count.entries()].sort((a, b) => b[1] - a[1]).map(([v]) => v).slice(0, 24)
+      const colors = [...count.entries()].sort((a, b) => b[1] - a[1]).map(([v]) => v).slice(0, 24)
       at = doc
-      found = { levers, colours }
+      found = { levers, colors }
       return found
     }
   })()
   const color = (value, onPick0, onRemove, linked) => {
-    // A field given a lever argument (Fill, text Color) can be set to a lever; the others take its colour.
+    // A field given a lever argument (Fill, text Color) can be set to a lever; the others take its color.
     const takesLever = linked !== undefined
     const hex = ed.rgbHex(value)
     // Nothing set shows as an empty swatch, not as black.
     const clear = value === 'rgba(0, 0, 0, 0)' || value === 'transparent'
-    // A see-through colour keeps its see-through when another colour is picked (the picker has none), as a Figma
-    // fill keeps its opacity; it is shown beside the colour.
+    // A see-through color keeps its see-through when another color is picked (the picker has none), as a Figma
+    // fill keeps its opacity; it is shown beside the color.
     const alpha = clear ? null : /rgba\([^)]*,\s*([\d.]+)\)/.exec(value ?? '')?.[1] ?? null
     const onPick = (v) => {
       const m = alpha && Number(alpha) < 1 ? /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(v).trim()) : null
       onPick0(m ? `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${alpha})` : v)
     }
-    const c = h('input', { type: 'color', value: clear ? '#ffffff' : hex, class: clear ? 'clear' : null, title: clear ? 'None: pick a colour' : linked ? `${linked}: a colour picked here takes this element off it` : null })
-    // A colour written as a lever (var(--accent)) shows the lever, so a pick is a seen choice to leave it.
+    const c = h('input', { type: 'color', value: clear ? '#ffffff' : hex, class: clear ? 'clear' : null, title: clear ? 'None: pick a color' : linked ? `${linked}: a color picked here takes this element off it` : null })
+    // A color written as a lever (var(--accent)) shows the lever, so a pick is a seen choice to leave it.
     const t = input(linked ?? (clear ? '' : hex.toUpperCase()), (v) => onPick(v), { placeholder: clear ? 'None' : '' })
     c.addEventListener('change', () => onPick(c.value))
-    // ▦ opens the screen's own colours under the field; one picked is written, as a colour typed is.
-    const more = h('button', { type: 'button', class: 'mini', title: 'Colours on this screen', 'aria-label': 'Colours on this screen', 'aria-expanded': 'false' }, '▦')
+    // ▦ opens the screen's own colors under the field; one picked is written, as a color typed is.
+    const more = h('button', { type: 'button', class: 'mini', title: 'Colors on this screen', 'aria-label': 'Colors on this screen', 'aria-expanded': 'false' }, '▦')
     more.addEventListener('click', () => {
       const wrap = more.parentElement
       const open = wrap.querySelector('.swatches')
       if (open) { open.remove(); more.setAttribute('aria-expanded', 'false'); return }
-      const { levers, colours } = screenColours()
+      const { levers, colors } = screenColors()
       const chip = (bg, title, pick) => h('button', { type: 'button', class: 'sw', style: `background:${bg}`, title, 'aria-label': title, onclick: () => { pop.remove(); pick() } })
-      const pop = h('div', { class: 'swatches', role: 'group', 'aria-label': 'Colours on this screen' },
+      const pop = h('div', { class: 'swatches', role: 'group', 'aria-label': 'Colors on this screen' },
         levers.length ? h('small', {}, 'Levers') : null,
         levers.length ? h('div', { class: 'swrow' }, ...levers.map((l) => chip(l.value, `${l.name} ${ed.rgbHex(l.value).toUpperCase()}`, () => (takesLever ? onPick0(`var(${l.name})`) : onPick(ed.rgbHex(l.value)))))) : null,
         h('small', {}, 'On this screen'),
-        h('div', { class: 'swrow' }, ...colours.map((v) => chip(v, ed.rgbHex(v).toUpperCase() + (/rgba/.test(v) ? ` ${Math.round(Number(/,\s*([\d.]+)\)$/.exec(v)?.[1] ?? 1) * 100)}%` : ''), () => onPick0(/rgba/.test(v) ? v : ed.rgbHex(v))))))
+        h('div', { class: 'swrow' }, ...colors.map((v) => chip(v, ed.rgbHex(v).toUpperCase() + (/rgba/.test(v) ? ` ${Math.round(Number(/,\s*([\d.]+)\)$/.exec(v)?.[1] ?? 1) * 100)}%` : ''), () => onPick0(/rgba/.test(v) ? v : ed.rgbHex(v))))))
       wrap.append(pop)
       // Above the field where the panel has no room under it.
       if (pop.getBoundingClientRect().bottom > innerHeight - 8) pop.classList.add('up')
@@ -371,10 +371,10 @@
       const away = (e) => { if (!wrap.contains(e.target)) { pop.remove(); more.setAttribute('aria-expanded', 'false'); removeEventListener('pointerdown', away, true) } }
       addEventListener('pointerdown', away, true)
     })
-    return h('div', { class: 'colorf' }, c, t, more, alpha && Number(alpha) < 1 ? h('span', { class: 'alpha', title: 'How see-through it is, kept when another colour is picked' }, `${Math.round(Number(alpha) * 100)}%`) : null, onRemove ? h('button', { type: 'button', class: 'mini', title: 'Remove', onclick: onRemove }, '−') : null)
+    return h('div', { class: 'colorf' }, c, t, more, alpha && Number(alpha) < 1 ? h('span', { class: 'alpha', title: 'How see-through it is, kept when another color is picked' }, `${Math.round(Number(alpha) * 100)}%`) : null, onRemove ? h('button', { type: 'button', class: 'mini', title: 'Remove', onclick: onRemove }, '−') : null)
   }
   // What a computed background-image says of a gradient: null where there is none; { kind, angle, from, to } for one of
-  // two colours end to end, as Figma's linear, radial and angular fills (an angular one turning from its angle); { rich:
+  // two colors end to end, as Figma's linear, radial and angular fills (an angular one turning from its angle); { rich:
   // true } for any other.
   const gradientOf = (image) => {
     if (!image || !/gradient\(/.test(image)) return null
@@ -481,7 +481,7 @@
     const name = value.split(',')[0].replace(/["']/g, '').trim()
     return h('button', { type: 'button', class: 'font-box', title: 'Every font', style: `font-family:${value}`, onclick: (e) => fontMenu(e.currentTarget, own, pick) }, h('span', {}, name), h('span', { class: 'caret' }, '▾'))
   }
-  // Relative luminance and the contrast ratio, for a colour against what is painted behind it.
+  // Relative luminance and the contrast ratio, for a color against what is painted behind it.
   const lum = (hex) => {
     const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4))
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
@@ -602,7 +602,7 @@
     const S = (p) => ed.shared(p)
     // What a field shows for the whole selection: `get(element, its style)` when every element selected gives the
     // same, else Mixed; one element's value is never shown as if all had it.
-    // A change worked out from each element's own style (its own border width and colour kept when only the border's
+    // A change worked out from each element's own style (its own border width and color kept when only the border's
     // style changes), in one edit; one element, every copy of one thing, or a state's rule takes it as one.
     const eachOwn = (propsOf) => {
       if (ed.sel.els.length < 2 || ed.everyCopy() || state !== 'default') return set(propsOf(c))
@@ -807,7 +807,7 @@
     // middle (object-position), and the words read out in its place (alt).
     if (['img', 'video'].includes(el.localName)) {
       const fit = across((x, k) => k.objectFit)
-      const SPOTS = [['0% 0%', 'Top left'], ['50% 0%', 'Top'], ['100% 0%', 'Top right'], ['0% 50%', 'Left'], ['50% 50%', 'Centre'], ['100% 50%', 'Right'], ['0% 100%', 'Bottom left'], ['50% 100%', 'Bottom'], ['100% 100%', 'Bottom right']]
+      const SPOTS = [['0% 0%', 'Top left'], ['50% 0%', 'Top'], ['100% 0%', 'Top right'], ['0% 50%', 'Left'], ['50% 50%', 'Center'], ['100% 50%', 'Right'], ['0% 100%', 'Bottom left'], ['50% 100%', 'Bottom'], ['100% 100%', 'Bottom right']]
       const spot = across((x, k) => k.objectPosition)
       const spotName = spot === MIXED ? 'Mixed' : SPOTS.find(([v]) => v === spot)?.[1] ?? spot
       const pics = ed.sel.els.filter((x) => x.localName === el.localName && ed.editable(x) && ed.cvOf(x) != null)
@@ -834,7 +834,7 @@
         field('Color', color(S('color'), (v) => set({ color: v }), null, lever(el, 'color'))),
         contrast(el),
         field('Emphasis', seg([['underline', 'U̲', 'Underline'], ['line-through', 'S̶', 'Strikethrough']], deco.includes('underline') ? 'underline' : deco.includes('line-through') ? 'line-through' : '', (v) => set({ 'text-decoration': deco.includes(v) ? 'none' : v }))),
-        field('Align', seg([['left', '⇤', 'Left'], ['center', '↔', 'Centre'], ['right', '⇥', 'Right'], ['justify', '☰', 'Justify']], c.textAlign === 'start' ? 'left' : c.textAlign, (v) => set({ 'text-align': v }))),
+        field('Align', seg([['left', '⇤', 'Left'], ['center', '↔', 'Center'], ['right', '⇥', 'Right'], ['justify', '☰', 'Justify']], c.textAlign === 'start' ? 'left' : c.textAlign, (v) => set({ 'text-align': v }))),
         // Figma's Case: the letters as typed, or shown upper, lower or title case without changing the words.
         field('Case', seg([['none', '—', 'As typed'], ['uppercase', 'AG', 'Upper case'], ['lowercase', 'ag', 'Lower case'], ['capitalize', 'Ag', 'Title case']], across((x, k) => k.textTransform), (v) => set({ 'text-transform': v }))),
         // Figma's Truncate text: past so many lines the text stops with an ellipsis.
@@ -845,7 +845,7 @@
           return field('Truncate', seg([['off', 'Off'], ['on', 'Lines']], on ? 'on' : lines === MIXED ? '' : 'off', (v) => (v === 'on' ? (on ? null : clamp(2)) : on ? set({ display: '', '-webkit-box-orient': '', '-webkit-line-clamp': '', overflow: '' }) : null)),
             on ? input(lines, (v) => { const n = Math.round(Number(v)); if (n >= 1) clamp(n) }, { class: 'n s', title: 'How many lines show before the ellipsis', 'aria-label': 'Lines shown' }) : null)
         })(),
-        // Figma's drop shadow on a text layer follows the letters: text-shadow, X, Y, Blur and its colour (its
+        // Figma's drop shadow on a text layer follows the letters: text-shadow, X, Y, Blur and its color (its
         // see-through kept); + gives one, − takes it off; more than one is shown as written, for the Code tab.
         (() => {
           const raw = across((x, k) => k.textShadow)
@@ -860,7 +860,7 @@
           const keep = (v) => { const mm = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(v).trim()); return mm ? `rgba(${parseInt(mm[1], 16)}, ${parseInt(mm[2], 16)}, ${parseInt(mm[3], 16)}, ${alpha})` : String(v).trim() }
           return [
             field('Text shadow', ...[['x', 'X', x], ['y', 'Y', y], ['b', 'Blur', b]].map(([k, title, v]) => h('label', { class: 'cap' }, input(n0(v), (nv) => write({ [k]: nv }), { class: 'n s', title, 'aria-label': `Text shadow ${title}` }), h('small', {}, title)))),
-            field('Text shadow colour', color(col, (v) => write({ col: keep(v) }), () => set({ 'text-shadow': 'none' }))),
+            field('Text shadow color', color(col, (v) => write({ col: keep(v) }), () => set({ 'text-shadow': 'none' }))),
           ]
         })()))
     }
@@ -869,7 +869,7 @@
     const bg = S('background-color')
     const radii = ['top-left', 'top-right', 'bottom-right', 'bottom-left'].map((k) => num(c.getPropertyValue(`border-${k}-radius`)))
     const sameR = radii.every((r) => r === radii[0])
-    // A gradient over the fill, as Figma's linear fill: two colours and an angle are edited here; one with more stops,
+    // A gradient over the fill, as Figma's linear fill: two colors and an angle are edited here; one with more stops,
     // or of another kind, is named and left to the Code tab.
     const lattice = ed.gridOf(el)
     const mesh = lattice ? null : ed.meshOf(c.backgroundImage)
@@ -885,7 +885,7 @@
               grad.kind === 'radial' ? null : input(grad.angle, (v) => { if (Number.isFinite(Number(v))) set({ 'background-image': gradCss({ ...grad, angle: ((Number(v) % 360) + 360) % 360 }) }) }, { class: 'n s', title: grad.kind === 'conic' ? 'Where it starts turning, in degrees from the top' : 'Angle in degrees: 180 runs top to bottom, 90 left to right' })),
             field(grad.kind === 'radial' ? 'To (the edge)' : 'To', color(grad.to, (v) => set({ 'background-image': gradCss({ ...grad, to: v }) }))),
           ]
-    // A mesh: its points, each a colour, how far it reaches, and − to take it out; + adds one in the middle. The points
+    // A mesh: its points, each a color, how far it reaches, and − to take it out; + adds one in the middle. The points
     // are dragged on the element itself.
     const setMesh = (points) => set({ 'background-image': ed.meshCss(points) })
     const hueOf = (rgb) => {
@@ -901,16 +901,16 @@
     const meshFields = !mesh
       ? []
       : [
-          field('Mesh', h('span', { class: 'val', title: 'Drag the points on the element to move their colours' }, `${mesh.length} ${mesh.length === 1 ? 'point' : 'points'}, dragged on it`),
+          field('Mesh', h('span', { class: 'val', title: 'Drag the points on the element to move their colors' }, `${mesh.length} ${mesh.length === 1 ? 'point' : 'points'}, dragged on it`),
             h('button', { type: 'button', class: 'mini', title: 'Add a point', onclick: () => setMesh([...mesh, { x: 50, y: 50, color: `hsl(${(hueOf(mesh[mesh.length - 1].color) + 75) % 360} 75% 68%)`, spread: 50 }]) }, '+'),
             h('button', { type: 'button', class: 'mini', title: 'Remove the mesh', onclick: () => set({ 'background-image': 'none' }) }, '−')),
           ...mesh.map((pt, k) => field(`Point ${k + 1}`,
             color(pt.color, (v) => setMesh(mesh.map((q, j) => (j === k ? { ...q, color: v } : q)))),
-            input(Math.round(pt.spread), (v) => { if (Number.isFinite(Number(v)) && Number(v) > 0) setMesh(mesh.map((q, j) => (j === k ? { ...q, spread: Math.min(150, Number(v)) } : q))) }, { class: 'n s', title: 'How far its colour reaches, in % of the element' }),
+            input(Math.round(pt.spread), (v) => { if (Number.isFinite(Number(v)) && Number(v) > 0) setMesh(mesh.map((q, j) => (j === k ? { ...q, spread: Math.min(150, Number(v)) } : q))) }, { class: 'n s', title: 'How far its color reaches, in % of the element' }),
             mesh.length > 1 ? h('button', { type: 'button', class: 'mini', title: 'Remove this point', onclick: () => setMesh(mesh.filter((_, j) => j !== k)) }, '×') : null)),
         ]
-    // A grid mesh: how many rows and columns its lattice has (the look kept when they change), each point's colour laid
-    // out as the lattice is, and − to take it off. Its points are dragged, or clicked for a colour, on the element.
+    // A grid mesh: how many rows and columns its lattice has (the look kept when they change), each point's color laid
+    // out as the lattice is, and − to take it off. Its points are dragged, or clicked for a color, on the element.
     const hexOf = (v) => { const x = document.createElement('canvas').getContext('2d'); x.fillStyle = v; return x.fillStyle }
     const gridFields = !lattice
       ? []
@@ -920,20 +920,20 @@
             h('span', { class: 'val' }, '×'),
             input(lattice.cols, (v) => { const n = Math.round(Number(v)); if (n >= 2 && n <= 6) ed.writeGrid(el, ed.regrid(lattice, lattice.rows, n)) }, { class: 'n s', title: 'Columns, 2 to 6' }),
             h('button', { type: 'button', class: 'mini', title: 'Remove the mesh', onclick: () => ed.writeGrid(el, null) }, '−')),
-          field('Colours', h('div', { class: 'meshgrid', style: `grid-template-columns: repeat(${lattice.cols}, 22px)` }, ...lattice.pts.map((pt, k) => {
-            const sw = h('input', { type: 'color', value: hexOf(pt[2]), title: `Row ${Math.floor(k / lattice.cols) + 1}, column ${(k % lattice.cols) + 1}`, 'aria-label': `Mesh colour ${k + 1}` })
+          field('Colors', h('div', { class: 'meshgrid', style: `grid-template-columns: repeat(${lattice.cols}, 22px)` }, ...lattice.pts.map((pt, k) => {
+            const sw = h('input', { type: 'color', value: hexOf(pt[2]), title: `Row ${Math.floor(k / lattice.cols) + 1}, column ${(k % lattice.cols) + 1}`, 'aria-label': `Mesh color ${k + 1}` })
             sw.addEventListener('change', () => ed.writeGrid(el, { ...lattice, pts: lattice.pts.map((q, j) => (j === k ? [q[0], q[1], sw.value] : q)) }))
             return sw
           }))),
         ]
-    // Starting one: a 3 × 3 lattice, evenly spread, its colours round the fill's own hue.
+    // Starting one: a 3 × 3 lattice, evenly spread, its colors round the fill's own hue.
     const startGrid = () => {
       const hue = hueOf(bg === 'rgba(0, 0, 0, 0)' ? 'rgb(255, 255, 255)' : bg)
       const pts = []
       for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) pts.push([j / 2, i / 2, hexOf(`hsl(${(hue + (i * 3 + j) * 47) % 360} 72% ${i === 1 && j === 1 ? 80 : 64}%)`)])
       ed.writeGrid(el, { rows: 3, cols: 3, pts })
     }
-    // Starting one: four colours round the fill's own hue, in the corners, over the fill (a pale one where it has none).
+    // Starting one: four colors round the fill's own hue, in the corners, over the fill (a pale one where it has none).
     const startMesh = () => {
       const base = bg === 'rgba(0, 0, 0, 0)' ? null : bg
       const hue = hueOf(base ?? 'rgb(255, 255, 255)')
@@ -952,7 +952,7 @@
     // Seen on every element selected while it is dragged, not on the first alone; written once, when let go.
     slider.addEventListener('input', () => { for (const x of ed.sel.els) x.style.opacity = String(slider.value / 100) })
     slider.addEventListener('change', () => set({ opacity: String(slider.value / 100) }))
-    // A drop shadow as Figma's effect shows one: X, Y, Blur and Spread, and its colour, which keeps its see-through;
+    // A drop shadow as Figma's effect shows one: X, Y, Blur and Spread, and its color, which keeps its see-through;
     // none, + adds one; several shadows, or the selection's differing, stay as the CSS written out.
     function shadowFields() {
       const raw = across((x, k) => (k.boxShadow === 'none' ? '' : k.boxShadow))
@@ -979,7 +979,7 @@
       const rows = []
       shadows.forEach((sh, k) => {
         const write = (change) => writeAll(shadows.map((q, j) => (j === k ? { ...q, ...change } : q)))
-        // A colour picked keeps the shadow's see-through (a picker has none of its own).
+        // A color picked keeps the shadow's see-through (a picker has none of its own).
         const alpha = /rgba\([^)]*,\s*([\d.]+)\)/.exec(sh.col)?.[1] ?? '1'
         const withAlpha = (v) => {
           const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(v).trim())
@@ -992,7 +992,7 @@
           field(`${name} type`, seg([['drop', 'Drop'], ['inner', 'Inner']], sh.inset ? 'inner' : 'drop', (v) => write({ inset: v === 'inner' ? ' inset' : '' })),
             last ? h('button', { type: 'button', class: 'mini', title: 'Add another shadow', onclick: () => writeAll([...shadows, { col: 'rgba(0, 0, 0, 0.12)', x: 0, y: 12, b: 32, s: 0, inset: '' }]) }, '+') : null),
           field(name, ...[['x', 'X', sh.x], ['y', 'Y', sh.y], ['b', 'Blur', sh.b], ['s', 'Spread', sh.s]].map(([key, title, v]) => h('label', { class: 'cap' }, input(n0(v), (nv) => write({ [key]: nv }), { class: 'n s', title, 'aria-label': `${name} ${title}` }), h('small', {}, title)))),
-          field(`${name} colour`, color(sh.col, (v) => write({ col: withAlpha(v) }), () => writeAll(shadows.filter((_, j) => j !== k)))))
+          field(`${name} color`, color(sh.col, (v) => write({ col: withAlpha(v) }), () => writeAll(shadows.filter((_, j) => j !== k)))))
       })
       return rows
     }
@@ -1021,7 +1021,7 @@
       const litOf = (k) => S.find((s) => has(k, s))
       const lit = litOf(c)
       const style = lit ? c.getPropertyValue(`border-${lit}-style`) : 'none'
-      const colour = lit ? c.getPropertyValue(`border-${lit}-color`) : ''
+      const lineColor = lit ? c.getPropertyValue(`border-${lit}-color`) : ''
       const pick = (v) => (v === 'none'
         ? set({ border: 'none' })
         : eachOwn((k) => {
@@ -1032,7 +1032,7 @@
       if (!lit) return rows
       const same = S.every((s) => has(c, s) && c.getPropertyValue(`border-${s}-width`) === c.borderTopWidth)
       if (borderSides || !same) {
-        // A side given a width takes the style and colour of a side that has one.
+        // A side given a width takes the style and color of a side that has one.
         const side = (s) => (v) => {
           const n = Number(String(v).replace(/px$/, ''))
           if (!Number.isFinite(n) || n < 0) return
@@ -1043,14 +1043,14 @@
         }
         rows.push(
           field('Border sides', ...S.map((s) => input(across((x, k) => (has(k, s) ? num(k.getPropertyValue(`border-${s}-width`)) : 0)), side(s), { class: 'n s', title: s, 'aria-label': `Border ${s}` })), same ? h('button', { type: 'button', class: 'mini', title: 'One width', onclick: () => { borderSides = false; renderProps() } }, '▢') : null),
-          field('Border colour', color(colour, (v) => set({ 'border-color': v }))))
+          field('Border color', color(lineColor, (v) => set({ 'border-color': v }))))
       } else {
-        rows.push(field('Width · Color', input(across((x, k) => num(k.borderTopWidth)), (v) => set({ 'border-width': px(v) }), { class: 'n' }), color(colour, (v) => set({ 'border-color': v })), h('button', { type: 'button', class: 'mini', title: 'Each side', onclick: () => { borderSides = true; renderProps() } }, '⊞')))
+        rows.push(field('Width · Color', input(across((x, k) => num(k.borderTopWidth)), (v) => set({ 'border-width': px(v) }), { class: 'n' }), color(lineColor, (v) => set({ 'border-color': v })), h('button', { type: 'button', class: 'mini', title: 'Each side', onclick: () => { borderSides = true; renderProps() } }, '⊞')))
       }
       return rows
     }
     host.append(section('Appearance',['background', 'box-shadow', 'filter', 'backdrop-filter', 'mix-blend-mode', 'outline', 'cursor', 'overflow'],
-      field('Fill', color(bg, (v) => set({ 'background-color': v }), bg !== 'rgba(0, 0, 0, 0)' ? () => set({ 'background-color': '', background: '' }) : null, lever(el, 'background-color') ?? lever(el, 'background')), grad || mesh || lattice ? null : h('button', { type: 'button', class: 'mini', title: 'Gradient: fade this colour into another', onclick: startGradient }, '◐'), grad || mesh || lattice ? null : h('button', { type: 'button', class: 'mini', title: 'Mesh: colours blended from points you drag', onclick: startMesh }, '◍'), grad || mesh || lattice ? null : h('button', { type: 'button', class: 'mini', title: 'Grid mesh: a lattice of colours whose points bend them, as an Illustrator gradient mesh', onclick: startGrid }, '◫')),
+      field('Fill', color(bg, (v) => set({ 'background-color': v }), bg !== 'rgba(0, 0, 0, 0)' ? () => set({ 'background-color': '', background: '' }) : null, lever(el, 'background-color') ?? lever(el, 'background')), grad || mesh || lattice ? null : h('button', { type: 'button', class: 'mini', title: 'Gradient: fade this color into another', onclick: startGradient }, '◐'), grad || mesh || lattice ? null : h('button', { type: 'button', class: 'mini', title: 'Mesh: colors blended from points you drag', onclick: startMesh }, '◍'), grad || mesh || lattice ? null : h('button', { type: 'button', class: 'mini', title: 'Grid mesh: a lattice of colors whose points bend them, as an Illustrator gradient mesh', onclick: startGrid }, '◫')),
       ...gradFields,
       ...meshFields,
       ...gridFields,
@@ -1066,8 +1066,8 @@
       ...blurFields(),
       motionField(el, c),
       ...entranceFields(el, c)))
-    // Figma's Selection colors: every colour in what is selected and inside it (text where it starts, fills, borders),
-    // most used first; a colour changed here is changed on every element of the selection that has it, in one edit.
+    // Figma's Selection colors: every color in what is selected and inside it (text where it starts, fills, borders),
+    // most used first; a color changed here is changed on every element of the selection that has it, in one edit.
     if (state === 'default') {
       const scope = [...new Set(ed.sel.els.filter((x) => x.isConnected).flatMap((x) => [x, ...x.querySelectorAll('*')]))].filter((x) => !ed.SKIP?.has?.(x.localName) && ed.editable(x) && ed.cvOf(x) != null).slice(0, 400)
       const uses = new Map()
@@ -1080,8 +1080,8 @@
       }
       for (const x of scope) {
         const k = cs(x)
-        // Text colour counts on what holds words of its own (and on what is selected), as Figma recolours each text
-        // layer: a heading whose CSS gives it the same colour as its card changes with it.
+        // Text color counts on what holds words of its own (and on what is selected), as Figma recolors each text
+        // layer: a heading whose CSS gives it the same color as its card changes with it.
         if (ed.sel.els.includes(x) || [...x.childNodes].some((t) => t.nodeType === 3 && t.textContent.trim())) add(k.color, x, 'color')
         add(k.backgroundColor, x, 'background-color')
         if (k.borderTopStyle !== 'none' && parseFloat(k.borderTopWidth) > 0) add(k.borderTopColor, x, 'border-color')
@@ -1096,7 +1096,7 @@
           for (const [x, prop] of u.at) byEl.set(x, { ...(byEl.get(x) ?? {}), [prop]: to })
           ed.send({ op: 'styles', items: [...byEl].map(([x, props]) => ({ cv: ed.cvOf(x), props })) }, { then: ed.reselect() })
         }
-        host.append(section('Selection colours', null,
+        host.append(section('Selection colors', null,
           ...list.slice(0, 12).map((u) => field(`${[...new Set(u.at.map(([, prop]) => ({ color: 'Text', 'background-color': 'Fill', 'border-color': 'Border' })[prop]))].join(', ')} · ${u.n}`, color(u.v, swap(u))))))
       }
     }
@@ -1579,7 +1579,7 @@
       host.append(field(name, leverControl(value, live, commit)))
     }
   }
-  /** A colour lever keeps its alpha; a number lever gets a slider sized to its unit, beside a field for an exact value. */
+  /** A color lever keeps its alpha; a number lever gets a slider sized to its unit, beside a field for an exact value. */
   function leverControl(value, live, commit) {
     if (/^(#|rgb|hsl)/i.test(value)) {
       const ctx = document.createElement('canvas').getContext('2d')

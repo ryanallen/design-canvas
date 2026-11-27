@@ -213,7 +213,7 @@ export async function check(options, { buildCanvas, serveCanvas } = {}) {
       await undoBack('the text')
     })
 
-    await step('Text: bold and a coloured run while typing', async () => {
+    await step('Text: bold and a colored run while typing', async () => {
       const { p } = await pick(textSel)
       await page.mouse.dblclick(p.x, p.y)
       await wait(200)
@@ -232,9 +232,9 @@ export async function check(options, { buildCanvas, serveCanvas } = {}) {
         s.removeAllRanges()
         s.addRange(r)
       })
-      await page.click('#float label[title="Text colour"]', { trial: true }).catch(() => {})
+      await page.click('#float label[title="Text color"]', { trial: true }).catch(() => {})
       await page.evaluate(() => {
-        const input = document.querySelector('#float label[title="Text colour"] input')
+        const input = document.querySelector('#float label[title="Text color"] input')
         input.value = '#cc0000'
         input.dispatchEvent(new Event('change'))
       })
@@ -244,7 +244,7 @@ export async function check(options, { buildCanvas, serveCanvas } = {}) {
       const now = mem(file)
       const inner = now.slice(el.openEnd, now.length - (original.length - el.closeStart))
       must(now.startsWith(original.slice(0, el.openEnd)) && now.endsWith(original.slice(el.closeStart)), 'bytes outside the element changed')
-      must(/<b>/.test(inner) && /<span style="color: (rgb\(204, 0, 0\)|#cc0000);?">/.test(inner), `no <b> and coloured span in ${inner}`)
+      must(/<b>/.test(inner) && /<span style="color: (rgb\(204, 0, 0\)|#cc0000);?">/.test(inner), `no <b> and colored span in ${inner}`)
       await undoBack('the bold run')
       return inner
     })
@@ -480,7 +480,7 @@ export async function check(options, { buildCanvas, serveCanvas } = {}) {
       must(!(await page.evaluate(() => window.designCanvas.items.some((i) => i.text === 'note from the check'))), 'the note was not deleted')
     })
 
-    await step('Whiteboard: a section, labelled boxes, an arrow that follows, a drag box asked about and deleted', async () => {
+    await step('Whiteboard: a section, labeled boxes, an arrow that follows, a drag box asked about and deleted', async () => {
       await page.evaluate(() => { const dc = window.designCanvas; dc.view.y = 900 - Math.max(...dc.frames.map((f) => (f.y + f.H) * dc.view.z)) - 400; dc.apply() })
       const dragOn = async (a, b) => {
         await page.mouse.move(a[0], a[1])
@@ -692,7 +692,7 @@ export async function check(options, { buildCanvas, serveCanvas } = {}) {
         await p2.waitForTimeout(300)
         const button = p2.locator('#props .note button.start-edit')
         must(await button.count(), 'no Edit here button in the note')
-        must(!(await button.isDisabled()), 'Edit here is greyed out')
+        must(!(await button.isDisabled()), 'Edit here is grayed out')
         await button.click({ timeout: 3000 })
         await p2.waitForFunction(() => /Editing/.test(document.querySelector('#canvas-mode').textContent), null, { timeout: 8000 })
         editingOn = true

@@ -38,7 +38,7 @@ body:has(#thread.open) #float.open, body:has(#thread.open) #itembar.open { displ
 #float { max-width: calc(100vw - 16px); overflow-x: auto; scrollbar-width: none; }
 #float::-webkit-scrollbar { display: none; }
 /* When it scrolls sideways (a narrow screen), a soft light edge shows on each side that has more of it: the panel
-   colour scrolls with the tools and covers the edge once the end is reached. */
+   color scrolls with the tools and covers the edge once the end is reached. */
 #float {
   background:
     linear-gradient(to right, var(--panel) 40%, transparent) left / 32px 100% no-repeat local,
@@ -154,14 +154,14 @@ body:has(#thread.open) #float.open, body:has(#thread.open) #itembar.open { displ
 .colorf .swatches .swrow { display: flex; flex-wrap: wrap; gap: 4px; }
 .colorf .swatches .sw { width: 20px; height: 20px; padding: 0; border-radius: 4px; border: 1px solid rgb(128 128 128 / 0.45); cursor: pointer; }
 .colorf .swatches .sw:hover { outline: 2px solid var(--accent, #3b82f6); outline-offset: 1px; }
-/* Every colour field is a round swatch of its colour, not the browser's grey box. */
+/* Every color field is a round swatch of its color, not the browser's gray box. */
 #panel input[type='color'] { width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: none; flex: none; cursor: pointer; box-shadow: 0 0 0 1px var(--line); }
 #panel input[type='color']::-webkit-color-swatch-wrapper { padding: 0; }
 #panel input[type='color']::-webkit-color-swatch { border: 0; border-radius: 50%; }
 #panel input[type='color']::-moz-color-swatch { border: 0; border-radius: 50%; }
 #panel .colorf input:not([type]) { flex: 1; width: 0; min-width: 64px; }
 .colorf .alpha { font-size: 11px; color: var(--ink-3); flex: none; }
-/* No colour set: an empty swatch crossed by a line, as Figma shows none. */
+/* No color set: an empty swatch crossed by a line, as Figma shows none. */
 #panel input[type='color'].clear::-webkit-color-swatch { background: linear-gradient(135deg, transparent 46%, #e5484d 46% 54%, transparent 54%) !important; }
 #panel input[type='color'].clear::-moz-color-swatch { background: linear-gradient(135deg, transparent 46%, #e5484d 46% 54%, transparent 54%) !important; }
 .contrast { margin: 0 0 4px 84px; font-size: 11px; }

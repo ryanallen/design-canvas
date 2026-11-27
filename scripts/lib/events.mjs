@@ -223,12 +223,12 @@ export function foldBoard(events) {
   return { items: [...items.values()], moved: Object.fromEntries(moved), pages: [...pages.values()], name, locked: [...locked] }
 }
 
-/** A board object's colour: a hex, a colour name, or rgb()/hsl() numbers. Anything else is refused,
- * since the colour is drawn into a style and an SVG. */
+/** A board object's color: a hex, a color name, or rgb()/hsl() numbers. Anything else is refused,
+ * since the color is drawn into a style and an SVG. */
 const colorOf = (value) => {
   const c = typeof value === 'string' ? value.trim() : ''
   if (c === '' || /^(#[0-9a-f]{3,8}|[a-z]{3,20}|(?:rgb|hsl)a?\([\d.,%\s/]+\))$/i.test(c)) return c
-  throw new Error('color is not a colour')
+  throw new Error('color is not a color')
 }
 const BOARD_KINDS = ['note', 'title', 'rect', 'ellipse', 'diamond', 'triangle', 'stamp', 'section', 'line', 'arrow', 'pencil', 'guide', 'image']
 /** An image on the board: a picture file in the canvas's folder, by its path there, never an address elsewhere. */
@@ -280,7 +280,7 @@ export function makeBoardEvent(input, { now = new Date(), newId = randomId } = {
         if (!['', 'highlight'].includes(input.pen)) throw new Error('pen must be highlight or empty')
         event.pen = input.pen
       }
-      // A shape's inside: clear (empty) or filled with a tint of its colour.
+      // A shape's inside: clear (empty) or filled with a tint of its color.
       if (input.fill != null) {
         if (!['', 'solid'].includes(input.fill)) throw new Error('fill must be solid or empty')
         event.fill = input.fill

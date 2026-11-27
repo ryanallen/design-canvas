@@ -3,30 +3,30 @@ import test from 'node:test'
 import { rebase } from './rebase.mjs'
 
 const before = '<section>\n  <h1>Know when to paddle out.</h1>\n  <p>Tides, swell and wind.</p>\n  <a>Free</a>\n</section>\n'
-const coloured = before.replace('<h1>', '<h1 style="color: red">')
+const colored = before.replace('<h1>', '<h1 style="color: red">')
 
 test('nothing changed since: the change is made as it was', () => {
-  assert.equal(rebase(coloured, coloured, before), before)
+  assert.equal(rebase(colored, colored, before), before)
 })
 
 test('a change made after it, or before it, elsewhere in the file: the change is undone and the other kept', () => {
-  const below = coloured.replace('<a>Free</a>', '<a>Free</a>\n  <small>New</small>')
-  assert.equal(rebase(below, coloured, before), before.replace('<a>Free</a>', '<a>Free</a>\n  <small>New</small>'))
-  const above = coloured.replace('<section>\n', '<section>\n  <p class="eyebrow">New this week</p>\n')
-  assert.equal(rebase(above, coloured, before), before.replace('<section>\n', '<section>\n  <p class="eyebrow">New this week</p>\n'))
+  const below = colored.replace('<a>Free</a>', '<a>Free</a>\n  <small>New</small>')
+  assert.equal(rebase(below, colored, before), before.replace('<a>Free</a>', '<a>Free</a>\n  <small>New</small>'))
+  const above = colored.replace('<section>\n', '<section>\n  <p class="eyebrow">New this week</p>\n')
+  assert.equal(rebase(above, colored, before), before.replace('<section>\n', '<section>\n  <p class="eyebrow">New this week</p>\n'))
 })
 
 test('changes on both sides of it: found by what stands next to it', () => {
-  const both = coloured.replace('<section>\n', '<section>\n  <p class="eyebrow">New</p>\n').replace('<a>Free</a>', '<a>Gratis</a>')
-  assert.equal(rebase(both, coloured, before), before.replace('<section>\n', '<section>\n  <p class="eyebrow">New</p>\n').replace('<a>Free</a>', '<a>Gratis</a>'))
+  const both = colored.replace('<section>\n', '<section>\n  <p class="eyebrow">New</p>\n').replace('<a>Free</a>', '<a>Gratis</a>')
+  assert.equal(rebase(both, colored, before), before.replace('<section>\n', '<section>\n  <p class="eyebrow">New</p>\n').replace('<a>Free</a>', '<a>Gratis</a>'))
   // A redo onto words rewritten right after it and a line added right before it.
   const close = before.replace('<section>\n', '<section>\n  <p>x</p>\n').replace('Know when to paddle out.', 'Paddle out at dawn.')
-  assert.equal(rebase(close, before, coloured), close.replace('<h1>', '<h1 style="color: red">'))
+  assert.equal(rebase(close, before, colored), close.replace('<h1>', '<h1 style="color: red">'))
 })
 
 test('the part it changed was itself changed: null, nothing made', () => {
-  const recoloured = coloured.replace('color: red', 'color: blue')
-  assert.equal(rebase(recoloured, coloured, before), null)
+  const recolored = colored.replace('color: red', 'color: blue')
+  assert.equal(rebase(recolored, colored, before), null)
 })
 
 test('the same words elsewhere are not taken for the part when its own place was rewritten', () => {

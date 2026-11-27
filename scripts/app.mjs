@@ -21,7 +21,7 @@ const option = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : u
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
 const ask = async (q) => (await rl.question(q)).trim()
 
-/** The system's own folder picker; null when cancelled. */
+/** The system's own folder picker; null when canceled. */
 function pickFolder(start) {
   try {
     if (process.platform === 'win32') {

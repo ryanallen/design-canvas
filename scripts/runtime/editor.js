@@ -1032,7 +1032,8 @@
   function addText(frame, point) {
     let el = elementAt(frame, point) || frame.doc.body
     const where = isText(el) || ['img', 'svg', 'input', 'hr', 'br'].includes(el.localName) ? 'after' : 'inside'
-    if (cvOf(el) == null) return hint(notEditable(el), 3000)
+    // A locked part (or one inside it, or a locked screen) takes no new text, beside it or in it: said here, not sent.
+    if (!editable(el)) return hint(notEditable(el), 3000)
     dc.setTool('select')
     send({ op: 'insert', cv: cvOf(el), where, html: '<p>Text</p>' }, {
       file: frame.file, key: frame.key,

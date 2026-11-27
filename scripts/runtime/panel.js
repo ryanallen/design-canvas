@@ -1642,4 +1642,10 @@
     render()
   }
   dc.renderPanel = render
+  // Ctrl+R: the panel opens on Layers if it is shut or elsewhere, and the selected element's row is renamed in place.
+  dc.renameLayer = () => {
+    if (!document.body.classList.contains('panel-open') || !['properties', 'code'].includes(dc.currentTab())) dc.openPanel('properties')
+    renderLayers()
+    layersEl()?.querySelector('.lrow.on:not(.lframe):not(.board)')?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+  }
 })()

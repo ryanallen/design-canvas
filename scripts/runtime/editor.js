@@ -1444,6 +1444,11 @@
     // By the key's place, so a layout where Ctrl+Alt types a character still reaches them.
     else if (mod && e.altKey && e.code === 'KeyC') ops.copyProps()
     else if (mod && e.altKey && e.code === 'KeyV') ops.pasteProps()
+    // Figma's Rename (Ctrl+R): the selected element's row in Layers takes its name, as a double-click on it does.
+    else if (mod && !e.shiftKey && !e.altKey && k === 'r') {
+      if (sel.els.length !== 1 || el.localName === 'body' || cvOf(el) == null) hint('Select one part to rename it', 1600)
+      else dc.renameLayer?.()
+    }
     // Figma's Show/Hide: hides what is selected, or shows it when all of it is hidden.
     else if (mod && e.shiftKey && k === 'h') setHidden(sel.frame, sel.els, sel.els.some((x) => cs(x).display !== 'none'))
     // Figma's Lock (Ctrl+Shift+L): the owner locks the selected part, or unlocks it, as the toolbar's padlock does.

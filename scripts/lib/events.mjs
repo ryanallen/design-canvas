@@ -280,6 +280,11 @@ export function makeBoardEvent(input, { now = new Date(), newId = randomId } = {
         if (!['', 'highlight'].includes(input.pen)) throw new Error('pen must be highlight or empty')
         event.pen = input.pen
       }
+      // A line's stroke: solid (empty) or dashed.
+      if (input.dash != null) {
+        if (!['', 'dash'].includes(input.dash)) throw new Error('dash must be dash or empty')
+        event.dash = input.dash
+      }
       // An arrow's heads: at its end alone (empty), or at both ends.
       if (input.ends != null) {
         if (!['', 'both'].includes(input.ends)) throw new Error('ends must be both or empty')

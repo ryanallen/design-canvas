@@ -206,6 +206,8 @@ test("an arrow's heads: at its end, or at both ends", () => {
   assert.equal(a.ends, 'both')
   assert.equal(board({ op: 'item', id: a.id, ends: '' }).ends, '')
   assert.throws(() => board({ op: 'item', id: a.id, ends: 'start' }), /ends must be/)
+  assert.equal(board({ op: 'item', id: a.id, dash: 'dash' }).dash, 'dash')
+  assert.throws(() => board({ op: 'item', id: a.id, dash: 'dots' }), /dash must be/)
 })
 
 test('a stamp keeps its place on what it sits on', () => {

@@ -1414,7 +1414,7 @@
         svg.append(s('defs', {}, marker))
       }
       svg.append(
-        s('path', { class: 'ink', d, fill: 'none', stroke: color, 'stroke-width': Number(it.weight) || (it.kind === 'pencil' ? 5 : 4), ...(it.pen === 'highlight' ? { 'stroke-opacity': 0.4 } : {}), 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'marker-end': it.kind === 'arrow' ? `url(#${markerId})` : null, 'marker-start': it.kind === 'arrow' && it.ends === 'both' ? `url(#${markerId})` : null }),
+        s('path', { class: 'ink', d, fill: 'none', stroke: color, 'stroke-width': Number(it.weight) || (it.kind === 'pencil' ? 5 : 4), ...(it.pen === 'highlight' ? { 'stroke-opacity': 0.4 } : {}), 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'marker-end': it.kind === 'arrow' ? `url(#${markerId})` : null, 'marker-start': it.kind === 'arrow' && it.ends === 'both' ? `url(#${markerId})` : null, 'stroke-dasharray': it.dash === 'dash' && it.kind !== 'pencil' ? `${(Number(it.weight) || 4) * 3} ${(Number(it.weight) || 4) * 2.5}` : null }),
         s('path', { class: 'hit', d, fill: 'none', stroke: 'transparent', 'stroke-width': Math.max(24, Number(it.weight) || 0) }),
       )
       // A line or arrow's label, as Figma's connector text: on its middle, over a backing so it reads across the line.
@@ -1535,7 +1535,7 @@
   /** What is selected on the board: a drag box's or Shift's objects, or the one picked with its group. */
   const selectedItems = () => (chosen ? [...chosen.items] : picked ? withGroup(picked) : []).map((id) => board.items.find((i) => i.id === id)).filter((i) => i && i.kind !== 'guide')
   // Everything an object is, but where it is bound and which group it is in, which a copy is given anew; a guide's frame stays its own.
-  const COPIED = ['kind', 'x', 'y', 'w', 'h', 'text', 'color', 'points', 'from', 'to', 'group', 'size', 'z', 'cols', 'gutter', 'margin', 'frame', 'src', 'route', 'dx', 'dy', 'weight', 'pen', 'ends']
+  const COPIED = ['kind', 'x', 'y', 'w', 'h', 'text', 'color', 'points', 'from', 'to', 'group', 'size', 'z', 'cols', 'gutter', 'margin', 'frame', 'src', 'route', 'dx', 'dy', 'weight', 'pen', 'ends', 'dash']
   /** New objects like these, moved by dx, dy: a group copied is a new group, and a line holding an
    * object copied with it holds the copy; one holding something left behind lets go where it is. */
   async function placeCopies(list, dx, dy) {
@@ -1915,6 +1915,9 @@
       ...(it.kind === 'line' || it.kind === 'arrow' ? [h('span', { class: 'sep' }), ...[['line', '', 'No heads', '—'], ['arrow', '', 'Head at the end', '→'], ['arrow', 'both', 'Heads at both ends', '↔']].map(([kind, ends, label, glyph]) => {
         const on = it.kind === kind && (kind === 'line' || (it.ends || '') === ends)
         return h('button', { type: 'button', class: `tool${on ? ' on' : ''}`, title: label, 'aria-label': label, 'aria-pressed': String(on), onclick: () => updateItem(it.id, { kind, ends }) }, glyph)
+      }), ...[['', 'Solid line', '━'], ['dash', 'Dashed line', '┅']].map(([dash, label, glyph]) => {
+        const on = (it.dash || '') === dash
+        return h('button', { type: 'button', class: `tool${on ? ' on' : ''}`, title: label, 'aria-label': label, 'aria-pressed': String(on), onclick: () => updateItem(it.id, { dash }) }, glyph)
       })] : []),
       // A line or arrow's way: Straight, Elbow or Curve.
       ...((it.kind === 'line' || it.kind === 'arrow') && (it.points?.length ?? 0) === 4 ? [h('span', { class: 'sep' }), ...[['', 'Straight'], ['elbow', 'Elbow'], ['curve', 'Curve']].map(([route, label]) => h('button', { type: 'button', class: `tool${(it.route || '') === route ? ' on' : ''}`, title: `${label} line`, 'aria-pressed': String((it.route || '') === route), onclick: () => updateItem(it.id, { route }) }, label))] : []),
@@ -2664,7 +2667,7 @@
   const future = []
   let openStep = null
   let replaying = false
-  const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points', 'size', 'src', 'route', 'dx', 'dy', 'weight', 'pen', 'ends']
+  const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points', 'size', 'src', 'route', 'dx', 'dy', 'weight', 'pen', 'ends', 'dash']
   /** The one thing a line touches, as a board says it is: an object's fields, a frame's place, or null for nothing there. */
   function stateOf(b, ev) {
     if (ev.op === 'item' || ev.op === 'remove') {

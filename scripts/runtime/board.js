@@ -1584,11 +1584,30 @@
       renderItems()
     }
     if (made.length) chooseItems(made)
+    made.pairs = [...ids]
     return made
   }
-  const duplicateItems = () => {
+  // Figma's duplicate in steps: Ctrl+D puts copies 24 down and right; with those copies still what is selected (moved
+  // or not), Ctrl+D again puts the next ones as far again from them as they are from their originals, so a row or a
+  // stair of copies is a key press each.
+  let lastCopies = null
+  const duplicateItems = async () => {
     const list = selectedItems()
-    if (list.length) placeCopies(list, 24, 24)
+    if (!list.length) return
+    let dx = 24
+    let dy = 24
+    const now = new Set(list.map((i) => i.id))
+    if (lastCopies && lastCopies.length === now.size && lastCopies.every(([, copy]) => now.has(copy))) {
+      const [from, copy] = lastCopies[0]
+      const a = board.items.find((i) => i.id === from)
+      const b = board.items.find((i) => i.id === copy)
+      if (a && b && (b.x !== a.x || b.y !== a.y)) {
+        dx = b.x - a.x
+        dy = b.y - a.y
+      }
+    }
+    const made = await placeCopies(list, dx, dy)
+    lastCopies = made?.pairs?.length ? made.pairs : null
   }
   /** Ctrl+D on screens: each prototype file copied whole to <name>-copy.html, placed to the right of its original,
    *  past any screen in the way, as Figma duplicates a frame. */

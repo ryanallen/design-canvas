@@ -3603,7 +3603,7 @@
 
   // ── keyboard shortcuts (Shift+?): every key the canvas answers, in one sheet ──
   const SHORTCUTS = [
-    ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['E', 'Stamp'], ['R', 'Rectangle'], ['S', 'Section'], ['A', 'Artboard'], ['C', 'Comment']]],
+    ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['E', 'Stamp'], ['R', 'Rectangle'], ['O', 'Ellipse'], ['L, Shift+L', 'Line, arrow'], ['S', 'Section'], ['A', 'Artboard'], ['C', 'Comment']]],
     ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['Page Down, Page Up', 'Next, previous screen'], ['+ and −, Ctrl+= and Ctrl+−', 'Zoom in and out'], ['0, Shift+0 or Ctrl+0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+\\', 'Panel']]],
     ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Ctrl+Alt+A', 'Select matching: same kind and color'], ['Tab, Shift+Tab', 'Next or previous object'], ['Enter', 'Type in the one picked'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centers, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Shift+drag', 'Move straight across or down; resize in proportion'], ['Alt+drag a corner', 'Resize from the middle'], ['Delete', 'Delete']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Alt+drag', 'Drop a copy'], ['Shift+drag', 'Straight across or down; resize in proportion'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste after it'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+R', 'Rename in Layers'], ['Ctrl+Shift+H', 'Hide or show'], ['Ctrl+Shift+L', 'Lock or unlock a part'], ['Shift+A', 'Add auto layout'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
@@ -4072,7 +4072,10 @@
       setPinsShown(document.body.classList.contains('pins-off'))
     } else if (TOOL_KEYS[k]) {
       if (usable(TOOL_KEYS[k])) setTool(TOOL_KEYS[k])
-    } else if (k === 'r' && serve) setShape(SHAPES.includes(tool) && tool !== 'section' ? tool : shapeKind === 'section' ? 'rect' : shapeKind)
+    // Figma's shape keys: R the rectangle, O the ellipse, L the line, Shift+L the arrow, S a section.
+    } else if (k === 'r' && serve) setShape('rect')
+    else if (k === 'o' && serve) setShape('ellipse')
+    else if (k === 'l' && serve) setShape(e.shiftKey ? 'arrow' : 'line')
     else if (k === 's' && serve) setShape('section')
     else if (k === 'f' || (e.key === '!' && e.shiftKey)) fitAll()
     else if (e.shiftKey && e.code === 'Digit2') zoomToSelection()

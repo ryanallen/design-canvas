@@ -94,7 +94,10 @@
   let boardEvents = []
   /** The board the lines say, with each stamp at its place on the object it sits on, wherever that object now is. */
   function foldPlaced(events) {
-    const b = foldBoard(events)
+    return placeStamps(foldBoard(events))
+  }
+  /** Each stamp put at its place on what it sits on, as that is now (also while moves are drawn ahead of saving). */
+  function placeStamps(b) {
     const byId = new Map(b.items.map((i) => [i.id, i]))
     for (const it of b.items) {
       const on = it.kind === 'stamp' && it.to ? byId.get(it.to) : null
@@ -1584,10 +1587,12 @@
         sends.push({ op: 'item', id, x: it.x, y: it.y })
       }
     }
+    placeStamps(board)
     if (chosen) chosen.box = boxAround([...chosen.items], [...chosen.frames])
     renderItems()
     try {
       await sendAll(sends)
+      renderItems()
     } catch (err) {
       hint(err.message, 3000)
       takeBoardAgain()
@@ -1619,6 +1624,28 @@
       return { members: u.members, dx: axis === 'x' ? d : 0, dy: axis === 'y' ? d : 0 }
     }))
   }
+  // Figma's Tidy up (Ctrl+Alt+T): what is selected put in a grid in reading order, a row or a column where it already
+  // lies in one, each in a cell as big as the biggest, 40 apart, from where the selection starts. A stamp held by
+  // something stays on it.
+  function tidyChosen() {
+    const units = selectedUnits().filter((u) => !u.members.every((id) => { const it = board.items.find((i) => i.id === id); return it?.kind === 'stamp' && it.to }))
+    if (units.length < 2) return hint('Select two or more to tidy them up', 1600)
+    const GAP = 40
+    const all = boxAround(units.flatMap((u) => u.members))
+    const cw = Math.max(...units.map((u) => u.box.w))
+    const ch = Math.max(...units.map((u) => u.box.h))
+    const mid = (u) => ({ x: u.box.x + u.box.w / 2, y: u.box.y + u.box.h / 2 })
+    const inRow = units.every((u) => Math.abs(mid(u).y - mid(units[0]).y) < ch / 2)
+    const inColumn = units.every((u) => Math.abs(mid(u).x - mid(units[0]).x) < cw / 2)
+    const cols = inRow ? units.length : inColumn ? 1 : Math.ceil(Math.sqrt(units.length))
+    // Reading order: by bands a cell high, then left to right.
+    units.sort((a, b) => Math.floor((mid(a).y - all.y) / ch) - Math.floor((mid(b).y - all.y) / ch) || mid(a).x - mid(b).x)
+    moveUnits(units.map((u, i) => ({
+      members: u.members,
+      dx: Math.round(all.x + (i % cols) * (cw + GAP) - u.box.x),
+      dy: Math.round(all.y + Math.floor(i / cols) * (ch + GAP) - u.box.y),
+    })))
+  }
   function alignMenu(anchor) {
     const n = selectedUnits().length
     openMenu(anchor, [
@@ -1630,6 +1657,8 @@
       { label: 'Align middles', key: 'Alt+V', run: () => alignChosen('middle') },
       { label: 'Align bottom', key: 'Alt+S', run: () => alignChosen('bottom') },
       ...(n >= 3 ? ['-', { label: 'Space evenly across', key: 'Alt+Shift+H', run: () => distributeChosen('x') }, { label: 'Space evenly down', key: 'Alt+Shift+V', run: () => distributeChosen('y') }] : []),
+      '-',
+      { label: 'Tidy up', key: 'Ctrl+Alt+T', run: tidyChosen },
     ])
   }
   /** One colour for every selected object that takes one. */
@@ -2282,6 +2311,7 @@
         board.moved = { ...(board.moved ?? {}), [key]: m }
       }
     }
+    placeStamps(board)
   }
   /** Every line of one action: all of it drawn at once, then saved in order, so what is drawn never steps back while
    *  the later lines are on their way (a deletion of several, a colour, an align, a drag). */
@@ -3358,7 +3388,7 @@
   const SHORTCUTS = [
     ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['E', 'Stamp'], ['R', 'Rectangle'], ['S', 'Section'], ['A', 'Artboard'], ['C', 'Comment']]],
     ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['+ and −, Ctrl+= and Ctrl+−', 'Zoom in and out'], ['0 or Ctrl+0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+\\', 'Panel']]],
-    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+], Ctrl+[', 'Front, back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Delete', 'Delete']]],
+    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+], Ctrl+[', 'Front, back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Delete', 'Delete']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste after it'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+Shift+H', 'Hide or show'], ['Shift+A', 'Add auto layout'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
     ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['C', 'Comment on it, then click where'], ['Esc', 'Back to the canvas']]],
     ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+?', 'This sheet']]],
@@ -3752,6 +3782,10 @@
       if (done) return e.preventDefault()
     }
     // Figma's align keys, by the key's place so a Mac's Option characters do not matter.
+    if (e.altKey && (e.ctrlKey || e.metaKey) && !e.shiftKey && e.code === 'KeyT' && serve && chosen?.items.size > 1) {
+      e.preventDefault()
+      return tidyChosen()
+    }
     if (e.altKey && !e.ctrlKey && !e.metaKey && serve && chosen?.items.size > 1) {
       const how = e.shiftKey ? { KeyH: 'x', KeyV: 'y' }[e.code] : { KeyA: 'left', KeyH: 'centre', KeyD: 'right', KeyW: 'top', KeyV: 'middle', KeyS: 'bottom' }[e.code]
       if (how) {

@@ -5,7 +5,7 @@ description: Lay a folder of HTML prototypes out on one canvas to view, play, ed
 
 # Design canvas
 
-Every `.html` in a folder on one board. Built, it is one self-contained `canvas.html` that opens from disk and fetches nothing. Served, it edits: select an element, retype it, restyle it, move it, group it, comment on it, and the change is written into that prototype's `.html` at the bytes it touches, nothing else.
+Every `.html` in a folder on one board. Built, it is one self-contained `canvas.html` that opens from disk and fetches nothing. Served, it edits: select an element, retype it, restyle it, move it, group it, comment on it, and the change is written into that prototype's `.html` at the bytes it touches, nothing else. Served, the server answers the folder's own files the prototypes ask for (pictures, fonts, modules; never hidden ones) and, outside the folder, only the pictures and clips a prototype names there (a design's `../imgs/`), so they show with their paths as written.
 
 It works the way HTML and CSS work: the layers are the DOM, the properties are the element's CSS, elements flow the way the browser lays them out, and only an element that is already positioned moves by `left` and `top`.
 

@@ -360,6 +360,33 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
       .replace(/<link\b[^>]*__RC_ASSET__\(([^)]+)\)[^>]*>/g, (all, a) => (sentAssets.has(a) || !payload.assets[a] ? all : `<style data-dc-sheet="${esc(a)}">${payload.assets[a].text.replace(/<\/style/gi, '<\\/style')}</style>`))
       .replace(/<html\b/i, (m) => `${m} data-dc-v="${sha(src)}"`)
   }
+  // The pictures and clips the canvas's prototypes name from outside the folder, by the path the browser asks for
+  // (a top-level prototype's paths are read from the canvas's own address), each to its file; worked out again at
+  // most every two seconds, so one added to a prototype shows.
+  let outsideCache = { at: 0, map: new Map() }
+  const outsideMedia = () => {
+    if (Date.now() - outsideCache.at < 2000) return outsideCache.map
+    const map = new Map()
+    const root = path.resolve(folder) + path.sep
+    for (const file of Object.keys(payload.files)) {
+      if (file.includes('/')) continue
+      let src
+      try { src = readShown(file) } catch { continue }
+      for (const m of src.matchAll(/<(?:img|source|video|audio)\b[^>]*?\s(?:src|poster)="([^"]+)"/gi)) {
+        const ref = m[1]
+        if (/^(data:|https?:|\/\/|\/)/i.test(ref)) continue
+        let clean
+        try { clean = decodeURIComponent(ref.split(/[?#]/)[0]) } catch { continue }
+        const full = path.resolve(folder, clean)
+        if (full.startsWith(root) || !fs.existsSync(full) || !fs.statSync(full).isFile()) continue
+        let asked
+        try { asked = decodeURIComponent(new URL(ref, 'http://canvas/').pathname.slice(1)) } catch { continue }
+        map.set(asked, full)
+      }
+    }
+    outsideCache = { at: Date.now(), map }
+    return map
+  }
   const servedPage = () => renderPage({ ...payload, serve: true, memory, webFonts: memory ? [] : WEB_FONTS, canvas: path.basename(out), files: Object.fromEntries(Object.keys(payload.files).map((f) => [f, servedFile(f)])) }, lines)
   // Rebuild from the prototypes and the layout, keeping every line, and tell every open page.
   const rebuild = async () => {
@@ -905,6 +932,14 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
           res.writeHead(200, { 'content-type': type, 'cache-control': 'no-cache' })
           return res.end(fs.readFileSync(full))
         }
+      }
+      // A picture or clip a prototype names from outside the folder (a design's ../imgs/): the page keeps its path, the
+      // browser asks for it where that path leads from the canvas, and that file alone is answered, nothing else
+      // outside the folder.
+      const named = req.method === 'GET' && type && /^(image|video|audio)\//.test(type) ? outsideMedia().get(asked) : null
+      if (named) {
+        res.writeHead(200, { 'content-type': type, 'cache-control': 'no-cache' })
+        return res.end(fs.readFileSync(named))
       }
       if (url.pathname === '/' || url.pathname.endsWith('.html')) {
         const page = servedPage()

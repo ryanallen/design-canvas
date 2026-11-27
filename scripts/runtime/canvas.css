@@ -234,6 +234,7 @@ body.tiny .item.locked::after { display: none; }
 .pin.active { outline: 3px solid color-mix(in srgb, var(--pin) 45%, transparent); }
 .pin.pending { opacity: 0.6; }
 body.hide-resolved .pin.resolved { display: none; }
+body.pins-off .pins .pin { display: none; }
 
 /* ── chrome ────────────────────────────────────────────────── */
 #topbar {

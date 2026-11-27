@@ -750,7 +750,15 @@
   let spaceHeld = false
   const DRAW = ['note', 'rect', 'ellipse', 'diamond', 'triangle', 'section', 'line', 'arrow', 'pencil', 'artboard', 'stamp']
   const SHAPES = ['rect', 'ellipse', 'diamond', 'triangle', 'section', 'line', 'arrow', 'guide']
+  /** Figma's Shift+C: the comment pins on the board shown or hidden, kept in this browser; the comment tool and the
+   * Comments tab show them again. */
+  function setPinsShown(on, quiet = false) {
+    document.body.classList.toggle('pins-off', !on)
+    store.set('pins-off', !on)
+    if (!quiet) hint(on ? 'Comments shown' : 'Comments hidden (Shift+C shows them)', 1400)
+  }
   function setTool(t) {
+    if (t === 'comment' && document.body.classList.contains('pins-off')) setPinsShown(true, true)
     tool = t
     document.body.className = document.body.className.replace(/\btool-\S+/g, '').trim()
     document.body.classList.add(`tool-${t}`)
@@ -3545,7 +3553,7 @@
     ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Ctrl+Alt+A', 'Select matching: same kind and colour'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centres, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Shift+drag', 'Move straight across or down; resize in proportion'], ['Alt+drag a corner', 'Resize from the middle'], ['Delete', 'Delete']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Alt+drag', 'Drop a copy'], ['Shift+drag', 'Straight across or down; resize in proportion'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste after it'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+R', 'Rename in Layers'], ['Ctrl+Shift+H', 'Hide or show'], ['Ctrl+Shift+L', 'Lock or unlock a part'], ['Shift+A', 'Add auto layout'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
     ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['C', 'Comment on it, then click where'], ['Esc', 'Back to the canvas']]],
-    ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+?', 'This sheet']]],
+    ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+C', 'Show or hide comments'], ['Shift+?', 'This sheet']]],
   ]
   const keysSheet = h('dialog', { id: 'keys-sheet', 'aria-label': 'Keyboard shortcuts' })
   document.body.append(keysSheet)
@@ -3852,6 +3860,7 @@
     $('#tool-comments').setAttribute('aria-pressed', String(tab === 'comments' && document.body.classList.contains('panel-open')))
     setPanel(true)
     $('#tool-comments').setAttribute('aria-pressed', String(tab === 'comments'))
+    if (tab === 'comments' && document.body.classList.contains('pins-off')) setPinsShown(true, true)
     call('onTab', tab)
   }
   const currentTab = () => document.querySelector('#panel [role=tab][aria-selected=true]')?.dataset.tab ?? 'properties'
@@ -3995,6 +4004,8 @@
       removeChosen()
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && picked) {
       removeItem(picked)
+    } else if (e.shiftKey && k === 'c') {
+      setPinsShown(document.body.classList.contains('pins-off'))
     } else if (TOOL_KEYS[k]) {
       if (usable(TOOL_KEYS[k])) setTool(TOOL_KEYS[k])
     } else if (k === 'r' && serve) setShape(SHAPES.includes(tool) && tool !== 'section' ? tool : shapeKind === 'section' ? 'rect' : shapeKind)
@@ -4140,6 +4151,7 @@
       apply()
     } else firstView()
     goScreenFromHash()
+    if (store.get('pins-off')) document.body.classList.add('pins-off')
     const tab = store.get('tab')
     if (store.get('panel')) openPanel(tab || 'properties')
     refresh()

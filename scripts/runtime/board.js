@@ -1381,12 +1381,12 @@
     if (it.kind === 'image') return h('div', { class: cls, 'data-id': it.id, style: box }, /^(?:[\w-]+\/)*[\w-][\w.-]*\.(?:png|jpe?g|gif|webp|avif|svg)$/i.test(String(it.src ?? '')) ? h('img', { src: (data.pictures && /^data:image\//.test(data.pictures[it.src] ?? '') ? data.pictures[it.src] : null) ?? it.src, alt: '', draggable: 'false' }) : null, grip)
     if (it.kind === 'note') return h('div', { class: cls, 'data-id': it.id, style: `${box};background:${it.color || NOTE_COLORS[0]}` }, it.text ?? '', grip)
     if (it.kind === 'title') return h('div', { class: cls, 'data-id': it.id, style: `left:${it.x}px;top:${it.y}px;${it.color ? `color:${it.color};` : ''}${it.size ? `font-size:${num(it.size)}px` : ''}` }, it.text || 'Title')
-    if (it.kind === 'rect' || it.kind === 'ellipse') return h('div', { class: cls, 'data-id': it.id, style: `${box};--c:${it.color || SHAPE_COLORS[0]}` }, h('span', { class: 'txt' }, it.text ?? ''), grip)
+    if (it.kind === 'rect' || it.kind === 'ellipse') return h('div', { class: `${cls}${it.fill === 'solid' ? ' filled' : ''}`, 'data-id': it.id, style: `${box};--c:${it.color || SHAPE_COLORS[0]}` }, h('span', { class: 'txt' }, it.text ?? ''), grip)
     if (it.kind === 'stamp') return h('div', { class: cls, 'data-id': it.id, style: box, title: `${it.text ?? ''} from ${it.name || 'someone'}`, 'aria-label': `${STAMPS.find(([g]) => g === it.text)?.[1] ?? 'Stamp'} from ${it.name || 'someone'}` }, it.text === '+1' ? h('b', { style: 'font-size:20px' }, '+1') : it.text ?? '')
     if (FORMS[it.kind]) {
       const form = s('svg', { class: 'form', viewBox: '0 0 100 100', preserveAspectRatio: 'none', 'aria-hidden': 'true' })
       form.append(s('polygon', { points: FORMS[it.kind].map((q) => q.join(',')).join(' ') }))
-      return h('div', { class: cls, 'data-id': it.id, style: `${box};--c:${it.color || SHAPE_COLORS[0]}` }, form, h('span', { class: 'txt' }, it.text ?? ''), grip)
+      return h('div', { class: `${cls}${it.fill === 'solid' ? ' filled' : ''}`, 'data-id': it.id, style: `${box};--c:${it.color || SHAPE_COLORS[0]}` }, form, h('span', { class: 'txt' }, it.text ?? ''), grip)
     }
     if (it.kind === 'section') return h('div', { class: cls, 'data-id': it.id, style: `${box};--c:${it.color || SECTION_COLORS[0]}` }, h('span', { class: 'txt' }, it.text ?? ''), grip)
     if (it.kind === 'guide') {
@@ -1537,7 +1537,7 @@
   /** What is selected on the board: a drag box's or Shift's objects, or the one picked with its group. */
   const selectedItems = () => (chosen ? [...chosen.items] : picked ? withGroup(picked) : []).map((id) => board.items.find((i) => i.id === id)).filter((i) => i && i.kind !== 'guide')
   // Everything an object is, but where it is bound and which group it is in, which a copy is given anew; a guide's frame stays its own.
-  const COPIED = ['kind', 'x', 'y', 'w', 'h', 'text', 'color', 'points', 'from', 'to', 'group', 'size', 'z', 'cols', 'gutter', 'margin', 'frame', 'src', 'route', 'dx', 'dy', 'weight', 'pen', 'ends', 'dash']
+  const COPIED = ['kind', 'x', 'y', 'w', 'h', 'text', 'color', 'points', 'from', 'to', 'group', 'size', 'z', 'cols', 'gutter', 'margin', 'frame', 'src', 'route', 'dx', 'dy', 'weight', 'pen', 'ends', 'dash', 'fill']
   /** New objects like these, moved by dx, dy: a group copied is a new group, and a line holding an
    * object copied with it holds the copy; one holding something left behind lets go where it is. */
   async function placeCopies(list, dx, dy) {
@@ -1911,6 +1911,11 @@
       ...(it.kind === 'title' ? [h('span', { class: 'sep' }), ...[['S', 48], ['M', 96], ['L', 160], ['XL', 240]].map(([label, px]) => h('button', { type: 'button', class: `tool${(it.size || 96) === px ? ' on' : ''}`, title: `${px} px`, 'aria-pressed': String((it.size || 96) === px), onclick: () => updateItem(it.id, { size: px }) }, label))] : []),
       // A shape's kind, changed in place as FigJam's shape menu does: its box, words and the lines bound to it kept.
       ...(['rect', 'ellipse', 'diamond', 'triangle'].includes(it.kind) ? [h('span', { class: 'sep' }), ...['rect', 'ellipse', 'diamond', 'triangle'].map((k) => h('button', { type: 'button', class: `tool${it.kind === k ? ' on' : ''}`, title: SHAPE_NAMES[k].replace(/ \(.\)$/, ''), 'aria-label': SHAPE_NAMES[k].replace(/ \(.\)$/, ''), 'aria-pressed': String(it.kind === k), onclick: () => updateItem(it.id, { kind: k }) }, icon(k)))] : []),
+      // A shape's inside, as FigJam's fill: clear, or filled with a tint of its colour.
+      ...(['rect', 'ellipse', 'diamond', 'triangle'].includes(it.kind) ? [h('span', { class: 'sep' }), ...[['', 'Outline only', '▢'], ['solid', 'Filled', '■']].map(([fill, label, glyph]) => {
+        const on = (it.fill || '') === fill
+        return h('button', { type: 'button', class: `tool${on ? ' on' : ''}`, title: label, 'aria-label': label, 'aria-pressed': String(on), onclick: () => updateItem(it.id, { fill }) }, glyph)
+      })] : []),
       // A stroke, line or arrow's thickness: S, M, L (a highlighter keeps its width as its own).
       ...(['pencil', 'line', 'arrow'].includes(it.kind) && it.pen !== 'highlight' ? [h('span', { class: 'sep' }), ...[['S', 3], ['M', it.kind === 'pencil' ? 5 : 4], ['L', 10]].map(([label, w]) => h('button', { type: 'button', class: `tool${(Number(it.weight) || (it.kind === 'pencil' ? 5 : 4)) === w ? ' on' : ''}`, title: `${w} px thick`, 'aria-pressed': String((Number(it.weight) || (it.kind === 'pencil' ? 5 : 4)) === w), onclick: () => updateItem(it.id, { weight: w }) }, label))] : []),
       // A line's ends, as FigJam's: none (a line), a head at its end (an arrow), or heads at both.
@@ -2685,7 +2690,7 @@
   const future = []
   let openStep = null
   let replaying = false
-  const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points', 'size', 'src', 'route', 'dx', 'dy', 'weight', 'pen', 'ends', 'dash']
+  const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points', 'size', 'src', 'route', 'dx', 'dy', 'weight', 'pen', 'ends', 'dash', 'fill']
   /** The one thing a line touches, as a board says it is: an object's fields, a frame's place, or null for nothing there. */
   function stateOf(b, ev) {
     if (ev.op === 'item' || ev.op === 'remove') {

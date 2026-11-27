@@ -210,6 +210,13 @@ test("an arrow's heads: at its end, or at both ends", () => {
   assert.throws(() => board({ op: 'item', id: a.id, dash: 'dots' }), /dash must be/)
 })
 
+test("a shape's inside: clear or filled", () => {
+  const r = board({ op: 'item', kind: 'rect', x: 0, y: 0, w: 100, h: 60, fill: 'solid' })
+  assert.equal(r.fill, 'solid')
+  assert.equal(board({ op: 'item', id: r.id, fill: '' }).fill, '')
+  assert.throws(() => board({ op: 'item', id: r.id, fill: 'striped' }), /fill must be/)
+})
+
 test('a stamp keeps its place on what it sits on', () => {
   const st = board({ op: 'item', kind: 'stamp', x: 10, y: 20, w: 48, h: 48, text: '👍', to: 'b-note', dx: 10, dy: 20 })
   assert.equal(st.kind, 'stamp')

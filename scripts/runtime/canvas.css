@@ -184,6 +184,9 @@ body.tiny .item.locked::after { display: none; }
 .item.triangle { padding: 42% 22% 6%; }
 .item .form { position: absolute; left: 2px; top: 2px; width: calc(100% - 4px); height: calc(100% - 4px); overflow: visible; pointer-events: none; }
 .item .form polygon { fill: none; stroke: var(--c, #8a8a96); stroke-width: 4px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+/* A filled shape: a light tint of its colour inside its outline, its words still dark enough to read. */
+.item.rect.filled, .item.ellipse.filled { background: color-mix(in srgb, var(--c, #8a8a96) 32%, var(--bg)); }
+.item.filled .form polygon { fill: color-mix(in srgb, var(--c, #8a8a96) 32%, var(--bg)); }
 .item .txt { font-size: 28px; line-height: 1.3; color: var(--ink); text-align: center; white-space: pre-wrap; overflow-wrap: anywhere; min-width: 1ch; outline: none; }
 .item.section {
   border: 3px solid color-mix(in srgb, var(--c, #8a8a96) 70%, transparent); border-radius: 16px;

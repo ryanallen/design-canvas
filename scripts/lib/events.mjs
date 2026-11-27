@@ -280,6 +280,11 @@ export function makeBoardEvent(input, { now = new Date(), newId = randomId } = {
         if (!['', 'highlight'].includes(input.pen)) throw new Error('pen must be highlight or empty')
         event.pen = input.pen
       }
+      // A shape's inside: clear (empty) or filled with a tint of its colour.
+      if (input.fill != null) {
+        if (!['', 'solid'].includes(input.fill)) throw new Error('fill must be solid or empty')
+        event.fill = input.fill
+      }
       // A line's stroke: solid (empty) or dashed.
       if (input.dash != null) {
         if (!['', 'dash'].includes(input.dash)) throw new Error('dash must be dash or empty')

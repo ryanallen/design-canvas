@@ -649,6 +649,20 @@
     send({ op: 'styles', items }, { file: frame.file, key: frame.key, then: sel?.frame === frame ? reselect() : undefined })
   }
   /** The picture of the selection, as a PNG from the server; null, with a hint, when there is none. */
+  /** Every element on the element's screen with its fill, its text colour (on what holds words) or its type. */
+  function sameAs(el, how) {
+    const k = cs(el)
+    const key = (x) => {
+      const c = cs(x)
+      if (how === 'fill') return c.backgroundColor === 'rgba(0, 0, 0, 0)' ? null : c.backgroundColor
+      const words = [...x.childNodes].some((t) => t.nodeType === 3 && t.textContent.trim())
+      if (!words) return null
+      return how === 'color' ? c.color : `${c.fontFamily}|${c.fontSize}|${c.fontWeight}`
+    }
+    const want = key(el) ?? (how === 'fill' ? null : how === 'color' ? k.color : `${k.fontFamily}|${k.fontSize}|${k.fontWeight}`)
+    if (want == null) return []
+    return [...el.ownerDocument.body.querySelectorAll('*')].filter((x) => !SKIP.has(x.localName) && live(x) && key(x) === want)
+  }
   async function pngOf() {
     if (!dc.serve || dc.local) {
       hint('A picture is made by node: serve the folder (node scripts/canvas.mjs serve <folder>)', 5000)
@@ -2022,6 +2036,12 @@
       dc.serve && !dc.local ? { label: 'Export the screen as PDF', run: ops.exportPdf } : null,
       sel.els.length > 1 ? { label: 'Select this one alone', run: () => select(sel.frame, [primary()]) } : null,
       copiesOf(primary()).length > 1 && sel.els.length === 1 ? { label: 'Select every copy', key: 'Ctrl+Alt+A', run: () => select(sel.frame, copiesOf(primary())) } : null,
+      // Figma's Select all with the same properties: everything on this screen with the selected element's fill, its
+      // text colour, or its type (font, size and weight).
+      ...(sel.els.length === 1 && primary().localName !== 'body' ? [['fill', 'Select all with the same fill'], ['color', 'Select all with the same text colour'], ['type', 'Select all with the same type']].map(([how, label]) => {
+        const same = sameAs(primary(), how)
+        return same.length > 1 ? { label: `${label} (${same.length})`, run: () => select(sel.frame, [primary(), ...same.filter((x) => x !== primary())]) } : null
+      }).filter(Boolean) : []),
       componentOf(primary())?.copies.length > 1 && sel.els.length === 1 ? { label: `Select all ${componentOf(primary()).copies.length} ${componentOf(primary()).name}`, run: () => { const c = componentOf(primary()); select(sel.frame, [c.root, ...c.copies.filter((x) => x !== c.root)]) } } : null,
       dc.commenting || can ? '-' : null,
       dc.commenting ? { label: 'Ask agent about it', run: () => dc.openAsk() } : null,

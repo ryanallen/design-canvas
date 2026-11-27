@@ -327,7 +327,9 @@
     for (const f of allFrames.values()) {
       f.el?.remove()
       f.labelEl?.remove()
-      f.el = f.labelEl = f.iframe = null
+      // Its document goes with its iframe: one kept would be read as the screen (its version sent with an edit, its
+      // elements measured) after the file had changed, and its window is gone.
+      f.el = f.labelEl = f.iframe = f.doc = null
       f.loaded = false
     }
     world.replaceChildren()

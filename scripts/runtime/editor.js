@@ -1194,6 +1194,8 @@
     },
     group: (style, name) => {
       if (!needEditable()) return
+      // The page itself is never wrapped (Ctrl+G, or Shift+A on the whole screen): said here, before anything is sent.
+      if (sel.els.some((x) => x.localName === 'body')) return hint('The whole screen cannot be wrapped: select parts of it', 2500)
       const parent = primary().parentElement
       if (!sel.els.every((x) => x.parentElement === parent)) return hint('Only elements side by side in one parent group together', 3000)
       // As in Figma, grouping moves nothing: in a grid or flex row a plain box would take one cell or item for all

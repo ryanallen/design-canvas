@@ -1586,9 +1586,13 @@
   }
   /** Ctrl+D on screens: each prototype file copied whole to <name>-copy.html, placed to the right of its original,
    *  past any screen in the way, as Figma duplicates a frame. */
+  // A canvas held in memory (served read only) writes no files, so a new screen is said to need the folder before
+  // anything is asked or sent.
+  const NO_FILES = 'This canvas is held in memory, so it cannot make new screens. Serve it from its folder to add them.'
   async function duplicateScreens(list) {
     list = list.filter((f) => f && !f.crop && !f.key.includes('#'))
     if (!list.length) return
+    if (data.memory) return hint(NO_FILES, 4000)
     const taken = frames().map((f) => ({ x: f.x, y: f.y, w: f.W, h: f.H }))
     const copies = list.map((f) => {
       const spot = { x: f.x + f.W + 80, y: f.y, w: f.W, h: f.H }
@@ -2408,6 +2412,7 @@
     viewport.setPointerCapture(e.pointerId)
   }
   async function newArtboard(x, y, w, hgt) {
+    if (data.memory) return hint(NO_FILES, 4000)
     const name = await question('Name the new prototype file. It is made in the canvas folder.', 'untitled')
     if (!name) return
     try {

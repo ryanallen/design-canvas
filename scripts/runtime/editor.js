@@ -1062,8 +1062,11 @@
       if (Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < 5 && !target && !moving) return
       moving = true
       if (positioned) {
-        el.style.left = `${Math.round(left0 + dx)}px`
-        el.style.top = `${Math.round(top0 + dy)}px`
+        // Shift held keeps it straight across or straight down, as in Figma.
+        const level = ev.shiftKey && Math.abs(dx) >= Math.abs(dy)
+        const plumb = ev.shiftKey && !level
+        el.style.left = `${Math.round(left0 + (plumb ? 0 : dx))}px`
+        el.style.top = `${Math.round(top0 + (level ? 0 : dy))}px`
         draw()
         return
       }
@@ -1130,6 +1133,7 @@
       h: n(c.paddingTop) + n(c.paddingBottom) + n(c.borderTopWidth) + n(c.borderBottomWidth),
     }
     const start = { x: e.clientX, y: e.clientY }
+    let both = false
     const move = (ev) => {
       const mx = (ev.clientX - start.x) / dc.view.z / f.s
       const my = (ev.clientY - start.y) / dc.view.z / f.s
@@ -1137,16 +1141,25 @@
       const dy = -mx * Math.sin(turn) + my * Math.cos(turn)
       const sx = hd.includes('w') ? -1 : hd.includes('e') ? 1 : 0
       const sy = hd.includes('n') ? -1 : hd.includes('s') ? 1 : 0
-      if (sx) el.style.width = `${Math.max(0, Math.round(r.width + sx * dx - inner.w))}px`
-      if (sy) el.style.height = `${Math.max(0, Math.round(r.height + sy * dy - inner.h))}px`
+      let w = r.width + sx * dx
+      let hh = r.height + sy * dy
+      // Shift held keeps its proportions, as in Figma: the side pulled further sets the scale, and both sides follow.
+      both = ev.shiftKey && r.width > 0 && r.height > 0
+      if (both) {
+        const k = !sy || (sx && Math.abs(w / r.width - 1) >= Math.abs(hh / r.height - 1)) ? w / r.width : hh / r.height
+        w = r.width * k
+        hh = r.height * k
+      }
+      if (sx || both) el.style.width = `${Math.max(0, Math.round(w - inner.w))}px`
+      if (sy || both) el.style.height = `${Math.max(0, Math.round(hh - inner.h))}px`
       draw()
     }
     const up = () => {
       removeEventListener('pointermove', move, true)
       removeEventListener('pointerup', up, true)
       const props = {}
-      if (/[ew]/.test(hd)) props.width = el.style.width
-      if (/[ns]/.test(hd)) props.height = el.style.height
+      if (both || /[ew]/.test(hd)) props.width = el.style.width
+      if (both || /[ns]/.test(hd)) props.height = el.style.height
       send({ op: 'style', cv: cvOf(el), props })
     }
     addEventListener('pointermove', move, true)

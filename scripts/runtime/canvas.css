@@ -227,6 +227,10 @@ body.tiny .item.locked::after { display: none; }
 .snap-line.v { width: calc(1.5px / var(--z, 1)); margin-left: calc(-0.75px / var(--z, 1)); }
 .snap-line.h { height: calc(1.5px / var(--z, 1)); margin-top: calc(-0.75px / var(--z, 1)); }
 body.item-dragging .connect { display: none; }
+/* Alt measuring on the board: red where the snap marks are pink, the object pointed at outlined. */
+.snap-gap.measure { background: rgb(242 72 34); }
+.snap-gap.measure span { background: rgb(242 72 34); }
+.measure-to { position: absolute; pointer-events: none; z-index: 50; outline: calc(1.5px / var(--z, 1)) solid rgb(242 72 34); }
 /* An equal gap while dragging, as Figma's smart spacing: a pink bar across it, its width on a pink tag. */
 .snap-gap { position: absolute; pointer-events: none; z-index: 50; display: flex; align-items: center; justify-content: center; }
 .snap-gap.h { height: calc(1.5px / var(--z, 1)); margin-top: calc(-0.75px / var(--z, 1)); background: rgb(255 64 129); }

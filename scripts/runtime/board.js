@@ -2198,6 +2198,55 @@
       return { dx: dx + (sx?.d ?? (gx && !gx.skip ? gx.d : 0)), dy: dy + (sy?.d ?? (gy && !gy.skip ? gy.d : 0)) }
     }
   }
+  // ── measure on the board: Alt held, with board objects selected, over another object shows how far apart they are,
+  // as Figma's red lines: the gap across and the gap down where they face each other, or, one inside the other, its
+  // distance to each side; in board pixels, the one pointed at outlined.
+  let measureEls = []
+  const clearMeasure = () => { for (const e of measureEls) e.remove(); measureEls = [] }
+  function measureBoard(A, B) {
+    clearMeasure()
+    const line = (horiz, fixed, p, q) => {
+      if (Math.round(Math.abs(q - p)) < 1) return
+      const [s, e] = [Math.min(p, q), Math.max(p, q)]
+      const style = horiz ? `left:${s}px;top:${fixed}px;width:${e - s}px` : `top:${s}px;left:${fixed}px;height:${e - s}px`
+      measureEls.push(h('div', { class: `snap-gap measure ${horiz ? 'h' : 'v'}`, style }, h('span', {}, String(Math.round(e - s)))))
+    }
+    const r = (b) => ({ left: b.x, top: b.y, right: b.x + b.w, bottom: b.y + b.h })
+    const a = r(A)
+    const b = r(B)
+    const inside = (o, i) => i.left >= o.left && i.right <= o.right && i.top >= o.top && i.bottom <= o.bottom
+    if (inside(b, a) || inside(a, b)) {
+      const [i, o] = inside(b, a) ? [a, b] : [b, a]
+      const my = (i.top + i.bottom) / 2
+      const mx = (i.left + i.right) / 2
+      line(true, my, o.left, i.left)
+      line(true, my, i.right, o.right)
+      line(false, mx, o.top, i.top)
+      line(false, mx, i.bottom, o.bottom)
+    } else {
+      const oy = [Math.max(a.top, b.top), Math.min(a.bottom, b.bottom)]
+      const ox = [Math.max(a.left, b.left), Math.min(a.right, b.right)]
+      const y = oy[0] < oy[1] ? (oy[0] + oy[1]) / 2 : (a.top + a.bottom) / 2
+      const x = ox[0] < ox[1] ? (ox[0] + ox[1]) / 2 : (a.left + a.right) / 2
+      if (b.left >= a.right) line(true, y, a.right, b.left)
+      else if (a.left >= b.right) line(true, y, b.right, a.left)
+      if (b.top >= a.bottom) line(false, x, a.bottom, b.top)
+      else if (a.top >= b.bottom) line(false, x, b.bottom, a.top)
+    }
+    measureEls.push(h('div', { class: 'measure-to', style: `left:${B.x}px;top:${B.y}px;width:${B.w}px;height:${B.h}px` }))
+    world.append(...measureEls)
+  }
+  viewport.addEventListener('pointermove', (e) => {
+    const ids = selectedItems().map((i) => i.id)
+    if (!e.altKey || drag || !ids.length || call('selectedFile')) return measureEls.length && clearMeasure()
+    const id = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.item')?.dataset.id
+    const it = id && !ids.includes(id) ? board.items.find((i) => i.id === id) : null
+    if (!it || it.kind === 'guide') return measureEls.length && clearMeasure()
+    const g = geometryOf(it)
+    measureBoard(boxAround(ids, chosen ? [...chosen.frames] : []), { x: g.x, y: g.y, w: g.w ?? 0, h: g.h ?? 0 })
+  })
+  addEventListener('keyup', (e) => e.key === 'Alt' && clearMeasure())
+  addEventListener('blur', clearMeasure)
   /** The arrow keys move what is selected on the board, as Figma nudges: 1 px, 10 with Shift. A section takes what is
    *  inside it; a line bound to objects stays with them. One key press is one undo step. */
   /** Figma's arrows on a selected frame: the whole screen selected in it moves on the board, 1 or 10 at a time. */
@@ -3710,7 +3759,7 @@
   const SHORTCUTS = [
     ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['E', 'Stamp'], ['R', 'Rectangle'], ['O', 'Ellipse'], ['L, Shift+L', 'Line, arrow'], ['S', 'Section'], ['A', 'Artboard'], ['C', 'Comment']]],
     ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['Page Down, Page Up', 'Next, previous screen'], ['+ and −, Ctrl+= and Ctrl+−', 'Zoom in and out'], ['0, Shift+0 or Ctrl+0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+\\', 'Panel']]],
-    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Ctrl+Alt+A', 'Select matching: same kind and color'], ['Tab, Shift+Tab', 'Next or previous object'], ['Enter', 'Type in the one picked'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centers, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Shift+drag', 'Move straight across or down; resize in proportion'], ['Alt+drag a corner', 'Resize from the middle'], ['Delete', 'Delete']]],
+    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Ctrl+Alt+A', 'Select matching: same kind and color'], ['Tab, Shift+Tab', 'Next or previous object'], ['Enter', 'Type in the one picked'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centers, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Shift+drag', 'Move straight across or down; resize in proportion'], ['Alt+drag a corner', 'Resize from the middle'], ['Alt (held)', 'Measure to what is pointed at'], ['Delete', 'Delete']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Alt+drag', 'Drop a copy'], ['Shift+drag', 'Straight across or down; resize in proportion'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste after it'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+R', 'Rename in Layers'], ['Ctrl+Shift+H', 'Hide or show'], ['Ctrl+Shift+L', 'Lock or unlock a part'], ['Shift+A', 'Add auto layout'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
     ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['C', 'Comment on it, then click where'], ['R', 'Start over from the first screen'], ['Esc', 'Back to the canvas']]],
     ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+C', 'Show or hide comments'], ['Shift+?', 'This sheet']]],

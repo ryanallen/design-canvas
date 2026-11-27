@@ -1010,7 +1010,7 @@
       draw()
     }
     let moving = false
-    const up = () => {
+    const up = (ev) => {
       vp.removeEventListener('pointermove', move, true)
       removeEventListener('pointerup', up, true)
       dropLine = null
@@ -1019,7 +1019,8 @@
       if (!moving) return still ? still() : draw()
       if (positioned) return send({ op: 'style', cv: cvOf(el), props: { left: el.style.left, top: el.style.top } })
       draw()
-      if (target) send({ op: 'move', cv: cvOf(el), target: cvOf(target.el), where: target.where })
+      // Alt held as it is let go drops a copy there instead, as Figma's Alt+drag; the element stays where it was.
+      if (target) send({ op: 'move', cv: cvOf(el), target: cvOf(target.el), where: target.where, ...(ev?.altKey ? { copy: true } : {}) })
     }
     vp.addEventListener('pointermove', move, true)
     addEventListener('pointerup', up, true)

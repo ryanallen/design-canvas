@@ -462,7 +462,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
       case 'attr':
         return `${what} ${edit.name}=${JSON.stringify(edit.value ?? null)}`
       case 'move':
-        return `${what} moved ${edit.where} ${describe(src, edit.target)}`
+        return `${what} ${edit.copy ? 'copied' : 'moved'} ${edit.where} ${describe(src, edit.target)}`
       case 'insert':
         return `new ${edit.html.slice(0, 80)} ${edit.where ?? 'inside'} ${what}`
       case 'replaceText':

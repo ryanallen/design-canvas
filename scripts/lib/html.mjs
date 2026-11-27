@@ -569,6 +569,8 @@ function applyOne(src, edit) {
       const html = src.slice(el.start, el.end)
       const at = edit.where === 'before' ? target.start : edit.where === 'inside' ? target.closeStart : target.end
       if (at > el.start && at < el.end) throw new Error('an element cannot go inside itself')
+      // Alt held as it is let go (Figma's Alt+drag): a copy goes there, ids made unique, and the element stays.
+      if (edit.copy) return { src: splice(src, at, at, uniqueIds(src, html)).src, select: at }
       let out
       let sel
       if (at <= el.start) {

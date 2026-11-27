@@ -102,6 +102,16 @@ for (const [name, src] of [['fixture', fixture], ['home.html', real]]) {
     assert.ok(back.src.length === src.length)
   })
 
+  test(`${name}: move with copy puts a copy there and leaves the element`, () => {
+    const h1 = byTag(src, 'h1')
+    const next = h1.parent.children[h1.parent.children.indexOf(h1) + 1]
+    const r = applyEdit(src, { op: 'move', cv: next.start, target: h1.start, where: 'before', copy: true })
+    assert.equal(r.select, h1.start)
+    assert.equal(parse(r.src).byStart.get(r.select).tag, next.tag)
+    assert.ok(r.src.endsWith(src.slice(h1.start)))
+    assert.equal(r.src.slice(0, h1.start), src.slice(0, h1.start))
+  })
+
   test(`${name}: wrap groups siblings and unwrap gives back the file`, () => {
     const h1 = byTag(src, 'h1')
     const r = applyEdit(src, { op: 'wrap', cv: [h1.start], tag: 'div' })

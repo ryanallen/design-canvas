@@ -64,7 +64,9 @@ body:has(#thread.open) #float.open, body:has(#thread.open) #itembar.open { displ
 #panel .tab-body > .layers { flex: none; height: 38%; min-height: 120px; display: flex; flex-direction: column; border-bottom: 1px solid var(--line); }
 #panel .tab-body > .layers:empty { display: none; }
 #panel .tab-body > #props, #panel .tab-body > #code { flex: 1; min-height: 0; overflow: auto; }
-.lhead { flex: none; padding: 8px 12px 4px; font-size: 11px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.04em; }
+.lhead { flex: none; padding: 8px 12px 4px; font-size: 11px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.04em; display: flex; align-items: center; gap: 8px; }
+.lhead .lsearch { flex: 1; min-width: 0; height: 24px; padding: 2px 8px; border: 1px solid transparent; border-radius: 6px; background: var(--panel-2); color: var(--ink); font: 12px system-ui, sans-serif; text-transform: none; letter-spacing: 0; }
+.lrow .lwhere { margin-left: auto; padding-left: 8px; color: var(--ink-3); font-size: 11px; flex: none; }
 .lbody { flex: 1; min-height: 0; overflow: auto; padding: 0 4px 6px; }
 .lbody > .lrow { flex: none; }
 .lrow {

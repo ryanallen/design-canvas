@@ -20,6 +20,8 @@
   const layersEl = () => (dc.currentTab() === 'code' ? $('#layers-c') : $('#layers-p'))
   // A layer being renamed in its row: the list is not drawn again under the typing until the name is kept or left.
   let renaming = false
+  // What Find a layer holds, kept while the panel is drawn anew.
+  let layerQuery = ''
   function renderLayers() {
     if (renaming) return
     const host = layersEl()
@@ -31,13 +33,33 @@
       for (let k = ed.primary()?.parentElement; k; k = k.parentElement) open.add(k)
     }
     const rows = []
-    for (const it of dc.items) {
+    // Figma's layer search: what is typed finds board objects, screens and every element of a loaded screen by its
+    // name, listed flat with the screen it is on; a click selects it as a click in the tree does.
+    const q = layerQuery.trim().toLowerCase()
+    if (q) {
+      const hit = (t) => String(t ?? '').toLowerCase().includes(q)
+      const boardName = (it) => `${{ note: 'Note', title: 'Title', rect: 'Rectangle', ellipse: 'Ellipse', diamond: 'Diamond', triangle: 'Triangle', stamp: 'Stamp', section: 'Section', line: 'Line', arrow: 'Arrow', pencil: 'Drawing', guide: 'Layout guide', image: 'Picture' }[it.kind] ?? it.kind}${it.text ? ` "${String(it.text).slice(0, 24)}"` : ''}`
+      for (const it of dc.items) if (hit(boardName(it))) rows.push(h('button', { type: 'button', class: 'lrow board found', style: '--d:0', onclick: () => { ed.select(null, []); dc.pickItem(it.id) } }, h('span', { class: 'lk' }, '◇'), h('span', { class: 'ln' }, boardName(it))))
+      for (const f of dc.frames) {
+        if (hit(f.label)) rows.push(h('button', { type: 'button', class: 'lrow lframe found', style: '--d:0', onclick: () => { if (f.doc) ed.select(f, [f.doc.body]); dc.showFrame(f) } }, h('span', { class: 'lk' }, '#'), h('span', { class: 'ln' }, f.label)))
+        if (!f.doc?.body) continue
+        for (const c of f.doc.body.querySelectorAll('*')) {
+          if (rows.length > 200) break
+          if (ed.SKIP.has(c.localName) || c.closest(ed.SKIP.size ? [...ed.SKIP].join(',') : 'script')) continue
+          const n = ed.nameOf(c)
+          if (!hit(n.text)) continue
+          rows.push(h('button', { type: 'button', class: `lrow found${sel?.frame === f && sel.els.includes(c) ? ' on' : ''}`, style: '--d:0', onclick: (e) => { dc.showFrame(f); ed.pick(f, c, { add: e.shiftKey }) }, onpointerenter: () => ed.hover(f, c), onpointerleave: () => ed.hover(null, null) },
+            h('span', { class: 'lk' }, kindGlyph(n.kind)), h('span', { class: 'ln' }, n.text), h('span', { class: 'lwhere' }, f.label)))
+        }
+      }
+    }
+    for (const it of q ? [] : dc.items) {
       const label = { note: 'Note', title: 'Title', rect: 'Rectangle', ellipse: 'Ellipse', diamond: 'Diamond', triangle: 'Triangle', stamp: 'Stamp', section: 'Section', line: 'Line', arrow: 'Arrow', pencil: 'Drawing', guide: 'Layout guide' }[it.kind] ?? it.kind
       rows.push(h('button', { type: 'button', class: 'lrow board', style: '--d:0', onclick: () => { ed.select(null, []); dc.pickItem(it.id) } },
         h('span', { class: 'tw' }), h('span', { class: 'lk' }, '◇'), h('span', { class: 'ln' }, `${label}${it.text ? ` "${it.text.slice(0, 18)}${it.text.length > 18 ? '…' : ''}"` : ''}`)))
     }
     let count = 0
-    for (const f of dc.frames) {
+    for (const f of q ? [] : dc.frames) {
       const isOpen = openFrames.has(f.key)
       rows.push(h('button', { type: 'button', class: `lrow lframe${sel?.frame === f && sel.els[0]?.localName === 'body' ? ' on' : ''}`, style: '--d:0', onclick: () => { if (f.doc) ed.select(f, [f.doc.body]) } },
         h('span', { class: 'tw', onclick: (e) => { e.stopPropagation(); isOpen ? openFrames.delete(f.key) : openFrames.add(f.key); renderLayers() } }, isOpen ? '▾' : '▸'),
@@ -66,7 +88,16 @@
       }
       walk(f.doc.body, 1)
     }
-    host.append(h('div', { class: 'lhead' }, 'Layers'), h('div', { class: 'lbody' }, rows.length ? rows : h('div', { class: 'empty' }, 'Nothing on this page.')))
+    const find = h('input', { type: 'search', class: 'lsearch', placeholder: 'Find a layer', 'aria-label': 'Find a layer', value: layerQuery, spellcheck: 'false' })
+    find.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') { layerQuery = ''; renderLayers() } })
+    find.addEventListener('input', () => {
+      layerQuery = find.value
+      renderLayers()
+      const again = layersEl().querySelector('.lsearch')
+      again?.focus()
+      again?.setSelectionRange(again.value.length, again.value.length)
+    })
+    host.append(h('div', { class: 'lhead' }, h('span', {}, 'Layers'), find), h('div', { class: 'lbody' }, rows.length ? rows : h('div', { class: 'empty' }, q ? 'No layer by that name.' : 'Nothing on this page.')))
     host.querySelector('.lrow.on:not(.lframe)')?.scrollIntoView({ block: 'nearest' })
   }
   /** Hide or show a layer, as Figma's eye (the editor's setHidden); on a layer in the selection, the whole selection. */

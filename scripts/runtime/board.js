@@ -2282,6 +2282,31 @@
   })
   addEventListener('keyup', (e) => e.key === 'Alt' && clearMeasure())
   addEventListener('blur', clearMeasure)
+  /** A corner pulled, as Figma's: the right and bottom edges catch on other objects' and frames' edges and centers near
+   *  them, the line caught on drawn. Returns how far each edge moves to catch. */
+  function edgeCatcher(id) {
+    const others = [
+      ...items().filter((i) => i.id !== id && i.kind !== 'guide' && !['line', 'arrow', 'pencil'].includes(i.kind)).map(geometryOf).filter((i) => i.w && i.h),
+      ...frames().map((f) => ({ x: f.x, y: f.y, w: f.W, h: f.H })),
+    ]
+    const xs = others.flatMap((o) => [o.x, o.x + o.w / 2, o.x + o.w].map((v) => ({ v, o })))
+    const ys = others.flatMap((o) => [o.y, o.y + o.h / 2, o.y + o.h].map((v) => ({ v, o })))
+    const near = (m, list) => list.reduce((best, t) => (Math.abs(t.v - m) <= SNAP_PX / view.z && (!best || Math.abs(t.v - m) < Math.abs(best.v - m)) ? t : best), null)
+    return (it) => {
+      const sx = near(it.x + it.w, xs)
+      const sy = near(it.y + it.h, ys)
+      clearSnap()
+      if (sx) {
+        const top = Math.min(it.y, sx.o.y) - 12 / view.z
+        snapEls.push(h('div', { class: 'snap-line v', style: `left:${sx.v}px;top:${top}px;height:${Math.max(it.y + it.h, sx.o.y + sx.o.h) + 12 / view.z - top}px` }))
+      }
+      if (sy) {
+        const left = Math.min(it.x, sy.o.x) - 12 / view.z
+        snapEls.push(h('div', { class: 'snap-line h', style: `top:${sy.v}px;left:${left}px;width:${Math.max(it.x + it.w, sy.o.x + sy.o.w) + 12 / view.z - left}px` }))
+      }
+      return { dw: sx ? Math.round(sx.v - (it.x + it.w)) : 0, dh: sy ? Math.round(sy.v - (it.y + it.h)) : 0 }
+    }
+  }
   /** The arrow keys move what is selected on the board, as Figma nudges: 1 px, 10 with Shift. A section takes what is
    *  inside it; a line bound to objects stays with them. One key press is one undo step. */
   /** Figma's arrows on a selected frame: the whole screen selected in it moves on the board, 1 or 10 at a time. */
@@ -2369,6 +2394,7 @@
     const frameStarts = new Map(frameList.map((f) => [f.key, { x: f.x, y: f.y }]))
     const boxStart = group ? { ...group.box } : null
     const snap = resize ? null : snapper(moving.map((m) => m.id), frameList.map((f) => f.key))
+    const catchEdge = resize ? edgeCatcher(id) : null
     drag = {
       kind: 'item', id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false,
       move: (ev, dx, dy) => {
@@ -2380,8 +2406,14 @@
           const w = Math.max(40, Math.round(w0 + dx * twice))
           Object.assign(it, { w, h: Math.max(20, Math.round((w * h0) / Math.max(1, w0))) })
         } else if (resize) Object.assign(it, { w: Math.max(40, Math.round(w0 + dx * twice)), h: Math.max(30, Math.round(h0 + dy * twice)) })
-        if (resize) Object.assign(it, ev.altKey ? { x: Math.round(x0 + (w0 - it.w) / 2), y: Math.round(y0 + (h0 - it.h) / 2) } : { x: x0, y: y0 })
-        else {
+        if (resize) {
+          Object.assign(it, ev.altKey ? { x: Math.round(x0 + (w0 - it.w) / 2), y: Math.round(y0 + (h0 - it.h) / 2) } : { x: x0, y: y0 })
+          // A plain corner pull catches the edges near it; Shift, Alt and Ctrl keep their own ways.
+          if (catchEdge && !ev.shiftKey && !ev.altKey && !(ev.ctrlKey || ev.metaKey) && it.kind !== 'image') {
+            const c = catchEdge(it)
+            Object.assign(it, { w: Math.max(40, it.w + c.dw), h: Math.max(30, it.h + c.dh) })
+          }
+        } else {
           ;({ dx, dy } = straight(ev, dx, dy))
           const across = ev.shiftKey && !dy
           // Edges and centers catch on other objects' and frames' edges and centers; Ctrl or ⌘ held lets go.
@@ -2403,7 +2435,9 @@
         renderItems()
         // Resizing, its size under it as it changes, as Figma's: width × height in board pixels.
         if (resize) {
-          clearSnap()
+          if (!catchEdge || ev.shiftKey || ev.altKey || ev.ctrlKey || ev.metaKey || it.kind === 'image') clearSnap()
+          for (const e of snapEls.filter((x) => x.classList.contains('size-tag'))) e.remove()
+          snapEls = snapEls.filter((x) => !x.classList.contains('size-tag'))
           snapEls.push(h('div', { class: 'size-tag', style: `left:${it.x + it.w / 2}px;top:${it.y + it.h}px` }, `${it.w} × ${it.h}`))
         }
         if (snapEls.length) world.append(...snapEls)

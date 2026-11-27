@@ -193,8 +193,8 @@
           const v = document.querySelector('.shot.first video')
           if (matchMedia('(prefers-reduced-motion: reduce)').matches) { v.removeAttribute('autoplay'); v.pause(); v.controls = true }
           // With a mouse, the screen leans toward the pointer and the light follows it, once a frame at most.
-          // The first quarter second of the screen standing up is timed: a browser drawing without the graphics card,
-          // slow at this, has every movement stopped there and is shown the page still. Where it keeps up, a mouse makes
+          // The screen standing up is timed: a browser drawing without the graphics card, slow at this, has every
+          // movement stopped there and is shown the page still. Where it keeps up, a mouse makes
           // the screen lean toward it, and if the lean falls behind later, it stops.
           else {
             const hero = document.querySelector('.panel.night')
@@ -219,13 +219,18 @@
               if (!queued) { queued = true; requestAnimationFrame(draw) }
               if (!metering && performance.now() - metered > 3000) { metering = true; gaps.length = 0; last = 0; requestAnimationFrame(meter) }
             }
-            let begun = 0
+            // The first six frames, busy with the page loading, are passed over; then a quarter second is timed. Calm when
+            // a frame typically takes over 19 ms (a browser without the graphics card takes about 21 where it would take
+            // 7) or one in five takes over 25.
+            let begun = 0, skip = 6
             const probe = (now) => {
+              if (skip > 0) { skip--; return requestAnimationFrame(probe) }
               if (last) gaps.push(now - last)
               last = now
               begun ||= now
               if (now - begun < 250) return requestAnimationFrame(probe)
-              if (gaps.filter((g) => g > 25).length >= 3) return document.documentElement.classList.add('calm')
+              const g = [...gaps].sort((p, q) => p - q)
+              if (g[Math.floor(g.length / 2)] > 19 || slow()) return document.documentElement.classList.add('calm')
               document.documentElement.classList.add('fx')
               if (matchMedia('(hover: hover) and (pointer: fine)').matches) hero.addEventListener('pointermove', move)
             }

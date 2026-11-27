@@ -167,6 +167,13 @@ body.tiny .item.locked::after { display: none; }
 /* A stamp, as FigJam's: a glyph in a round badge, over what it is put on. */
 .item.stamp { display: grid; place-items: center; border-radius: 50%; background: #fff; box-shadow: 0 2px 8px rgb(0 0 0 / 0.25); font-size: 28px; line-height: 1; z-index: 5; user-select: none; }
 .item.stamp.on { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* A picked note or shape's connector dots, a fixed size on the screen at any zoom. */
+.connect { position: absolute; z-index: 6; width: calc(14px / var(--z, 1)); height: calc(14px / var(--z, 1)); margin: calc(-7px / var(--z, 1)) 0 0 calc(-7px / var(--z, 1)); border-radius: 50%; background: #fff; box-shadow: 0 0 0 calc(2px / var(--z, 1)) var(--accent, #3b82f6); cursor: crosshair; opacity: 0.85; }
+.connect[data-side='n'] { translate: 0 calc(-22px / var(--z, 1)); }
+.connect[data-side='s'] { translate: 0 calc(22px / var(--z, 1)); }
+.connect[data-side='e'] { translate: calc(22px / var(--z, 1)) 0; }
+.connect[data-side='w'] { translate: calc(-22px / var(--z, 1)) 0; }
+.connect:hover { opacity: 1; background: var(--accent, #3b82f6); }
 #stamp-bar .tool { width: 36px; font-size: 18px; }
 /* A diamond or triangle: its outline drawn to its box, its words in the part of it wide enough to hold them. */
 .item.diamond, .item.triangle { display: grid; place-items: center; padding: 25%; }

@@ -502,6 +502,9 @@
 
   // ── view: pan and zoom ──
   const viewport = $('#viewport')
+  // The board moves by its view alone: a focus or a selection out of sight would scroll the viewport itself, and
+  // everything placed from the view (bars, dots, pins) would then sit that far from what it belongs to.
+  viewport.addEventListener('scroll', () => { if (viewport.scrollTop || viewport.scrollLeft) viewport.scrollTo(0, 0) })
   const view = { x: 0, y: 0, z: 0.1 }
   const MIN_Z = 0.02
   const MAX_Z = 4
@@ -1170,6 +1173,17 @@
         const grouped = members.length > 1 && members.every((i) => i?.group && i.group === members[0].group)
         itemLayer.append(h('div', { class: `chosen-box${grouped ? ' grouped' : ''}`, style: `left:${b.x}px;top:${b.y}px;width:${b.w}px;height:${b.h}px` }))
       }
+      // FigJam's quick connectors: a dot beyond each side of a picked note or shape; dragged, it draws an arrow held by
+      // this one, to what it is let go on, or to a new one like it there.
+      const it = !chosen && serve && picked ? board.items.find((i) => i.id === picked) : null
+      if (it && CONNECTS.includes(it.kind) && !isLocked(it.id) && (it.page ?? firstPage()) === pageId) {
+        // Each at the middle of a side, set out from it and sized by the stylesheet in screen pixels, whatever the zoom.
+        const at = { n: [it.x + it.w / 2, it.y], e: [it.x + it.w, it.y + it.h / 2], s: [it.x + it.w / 2, it.y + it.h], w: [it.x, it.y + it.h / 2] }
+        for (const [side, [x, y]] of Object.entries(at)) {
+          itemLayer.append(h('span', { class: 'connect', 'data-side': side, title: 'Drag to connect', style: `left:${x}px;top:${y}px`,
+            onpointerdown: (e) => { if (e.button !== 0) return; e.stopPropagation(); e.preventDefault(); startDraw(e, { x, y }, null, { kind: 'arrow', from: it.id }) } }))
+        }
+      }
       for (const f of frames()) f.el?.classList.toggle('chosen', !!chosen?.frames.has(f.key))
     } finally {
       drawingItems = false
@@ -1200,6 +1214,7 @@
   }
   // ── arrows that hold on: an end bound to an object or a frame is drawn at that one's edge ──
   const BINDS = ['note', 'rect', 'ellipse', 'diamond', 'triangle', 'section']
+  const CONNECTS = ['note', 'rect', 'ellipse', 'diamond', 'triangle']
   // A diamond's and a triangle's corners, in hundredths of its box.
   const FORMS = { diamond: [[50, 0], [100, 50], [50, 100], [0, 50]], triangle: [[50, 0], [100, 100], [0, 100]] }
   /** The box a `from` or `to` names on this page: a board object's (with its kind, for its outline), or a frame's. */
@@ -2077,7 +2092,7 @@
     box.querySelector('.grip')?.remove()
     box.classList.add('editing')
     el.contentEditable = 'plaintext-only'
-    el.focus()
+    el.focus({ preventScroll: true })
     document.getSelection().selectAllChildren(el)
     const done = () => {
       el.removeEventListener('blur', done)
@@ -2113,9 +2128,9 @@
       editItemText(id)
     }
   }
-  function startDraw(e, p, f) {
+  function startDraw(e, p, f, from = null) {
     if (!serve) return
-    const kind = tool
+    const kind = from?.kind ?? tool
     if (kind === 'stamp') {
       const x = Math.round(p.x - 24)
       const y = Math.round(p.y - 24)
@@ -2175,10 +2190,18 @@
           item = { kind, x, y, w, h: hgt, points: all.map((v, i) => Math.round(v - (i % 2 ? y : x))) }
           // A line or arrow begun or ended on an object or a frame holds on to it.
           if (kind !== 'pencil') {
-            const from = bindAt(p)
-            const to = bindAt(last)
-            if (from) item.from = from
-            if (to && to !== from) item.to = to
+            const start = from?.from ?? bindAt(p)
+            let to = bindAt(last)
+            if (start) item.from = start
+            // Drawn from a connector dot and let go on empty board: a new one like the first, there, held at that end.
+            if (from && (!to || to === start)) {
+              const src = board.items.find((i) => i.id === from.from)
+              if (src) {
+                const made = await addItem({ kind: src.kind, x: Math.round(last.x - src.w / 2), y: Math.round(last.y - src.h / 2), w: src.w, h: src.h, text: '', ...(src.color ? { color: src.color } : {}) })
+                if (made) { to = made; from.made = made }
+              }
+            }
+            if (to && to !== start) item.to = to
           }
         } else {
           if (!moved || w < 10) {
@@ -2191,6 +2214,12 @@
         }
         const id = await addItem(item)
         if (kind !== 'pencil') setTool('select')
+        // A new one made at the arrow's end is picked, to type in.
+        if (from?.made) {
+          renderItems()
+          pickItem(from.made)
+          return editItemText(from.made)
+        }
         if (id) {
           renderItems()
           if (kind !== 'pencil') pickItem(id)

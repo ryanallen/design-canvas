@@ -390,7 +390,7 @@
       h('button', { type: 'button', title: 'Download this prototype', onclick: (e) => { e.stopPropagation(); downloadFile(f.file) } }, icon('download')),
       h('button', { type: 'button', title: 'Full screen', onclick: (e) => { e.stopPropagation(); openPlay(f, 'fill') } }, icon('full')),
       m.levers?.length ? h('button', { type: 'button', title: 'Tweaks', onclick: (e) => { e.stopPropagation(); call('onTweaks', f); openPanel('tweaks') } }, icon('tweaks')) : null,
-      m.play ? h('button', { type: 'button', class: 'play', title: 'Play it: click through it at full size', onclick: (e) => { e.stopPropagation(); openPlay(f) } }, '▷ PLAY') : null,
+      m.play ? h('button', { type: 'button', class: 'play', title: 'Play it: click through it at full size', onclick: (e) => { e.stopPropagation(); openPlay(f) } }, '▷', h('span', { class: 'word' }, ' PLAY')) : null,
     )
     f.labelEl.addEventListener('pointerdown', (e) => startFrameDrag(e, f))
     drawLock(f)
@@ -538,6 +538,9 @@
       }
       const stack = !!f.actsW && f.W * view.z < f.actsW + f.nameW
       l.classList.toggle('stack', stack)
+      // A screen drawn narrower than a label's least width (phones zoomed out) keeps its label to its own width, so it
+      // does not run over the next screen's: its name cut short, Play as ▷ alone, its other buttons left to its menu.
+      l.classList.toggle('narrow', f.W * view.z < 120)
       any ||= stack
     }
     document.body.classList.toggle('labels-stacked', any)

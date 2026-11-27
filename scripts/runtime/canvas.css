@@ -110,6 +110,10 @@ body.tool-text #viewport { cursor: text; }
 /* Too narrow for the name and its buttons side by side: the name has its own line, the buttons under it. */
 .frame-label.stack { flex-wrap: wrap; row-gap: 2px; }
 .frame-label.stack .name { flex: 1 0 100%; }
+.frame-label.narrow { min-width: 0; }
+.frame-label.narrow button:not(.play) { display: none; }
+.frame-label.narrow button.play { padding: 0 8px; }
+.frame-label.narrow button.play .word { display: none; }
 .frame-label button {
   flex: none; border: 0; background: transparent; border-radius: 5px;
   padding: 0 5px; height: 22px; font-size: 11px; color: var(--ink-2); display: inline-flex; align-items: center; gap: 4px;

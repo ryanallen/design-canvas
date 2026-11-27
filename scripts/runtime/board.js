@@ -1076,6 +1076,8 @@
       free ? { label: 'Send to back', key: 'Ctrl+Shift+[', run: () => restack(false) } : null,
       free && many ? { label: 'Group', key: 'Ctrl+G', run: () => groupChosen(true) } : null,
       free && grouped && chosen ? { label: 'Ungroup', key: 'Ctrl+Shift+G', run: () => groupChosen(false) } : null,
+      free ? { label: 'Flip across', key: 'Shift+H', run: () => flipChosen('x') } : null,
+      free ? { label: 'Flip up and down', key: 'Shift+V', run: () => flipChosen('y') } : null,
       { label: 'Zoom to selection', key: 'Shift+2', run: zoomToSelection },
       matching().length > ids.length ? { label: `Select matching (${matching().length})`, key: 'Ctrl+Alt+A', run: selectMatching } : null,
       '-',
@@ -1741,6 +1743,39 @@
         sends.push({ op: 'item', id, x: it.x, y: it.y })
       }
     }
+    placeStamps(board)
+    if (chosen) chosen.box = boxAround([...chosen.items], [...chosen.frames])
+    renderItems()
+    try {
+      await sendAll(sends)
+      renderItems()
+    } catch (err) {
+      hint(err.message, 3000)
+      takeBoardAgain()
+    }
+  }
+  // Figma's flips (Shift+H across, Shift+V up and down): what is selected mirrored within the box round it, each
+  // object's place turned over and a free line, arrow or stroke's own points with it; a line held by objects follows
+  // them, a stamp stays on what it sits on, a locked one stays. One undo step.
+  async function flipChosen(axis) {
+    const list = selectedItems()
+    if (!list.length) return
+    const all = boxAround(list.map((i) => i.id))
+    const sends = []
+    for (const it of list) {
+      if (isLocked(it.id) || (it.kind === 'stamp' && it.to) || (['line', 'arrow'].includes(it.kind) && (it.from || it.to))) continue
+      const change = { op: 'item', id: it.id }
+      if (axis === 'x') it.x = change.x = Math.round(2 * all.x + all.w - it.x - (it.w ?? 0))
+      else it.y = change.y = Math.round(2 * all.y + all.h - it.y - (it.h ?? 0))
+      if (Array.isArray(it.points) && it.points.length >= 4) {
+        const k = axis === 'x' ? 0 : 1
+        const own = it.points.filter((_, i) => i % 2 === k)
+        const sum = Math.min(...own) + Math.max(...own)
+        it.points = change.points = it.points.map((v, i) => (i % 2 === k ? sum - v : v))
+      }
+      sends.push(change)
+    }
+    if (!sends.length) return hint('Nothing selected can be flipped', 1600)
     placeStamps(board)
     if (chosen) chosen.box = boxAround([...chosen.items], [...chosen.frames])
     renderItems()
@@ -3616,7 +3651,7 @@
   const SHORTCUTS = [
     ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['E', 'Stamp'], ['R', 'Rectangle'], ['O', 'Ellipse'], ['L, Shift+L', 'Line, arrow'], ['S', 'Section'], ['A', 'Artboard'], ['C', 'Comment']]],
     ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['Page Down, Page Up', 'Next, previous screen'], ['+ and −, Ctrl+= and Ctrl+−', 'Zoom in and out'], ['0, Shift+0 or Ctrl+0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+\\', 'Panel']]],
-    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Ctrl+Alt+A', 'Select matching: same kind and color'], ['Tab, Shift+Tab', 'Next or previous object'], ['Enter', 'Type in the one picked'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centers, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Shift+drag', 'Move straight across or down; resize in proportion'], ['Alt+drag a corner', 'Resize from the middle'], ['Delete', 'Delete']]],
+    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Ctrl+Alt+A', 'Select matching: same kind and color'], ['Tab, Shift+Tab', 'Next or previous object'], ['Enter', 'Type in the one picked'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centers, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Shift+drag', 'Move straight across or down; resize in proportion'], ['Alt+drag a corner', 'Resize from the middle'], ['Delete', 'Delete']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Alt+drag', 'Drop a copy'], ['Shift+drag', 'Straight across or down; resize in proportion'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste after it'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+R', 'Rename in Layers'], ['Ctrl+Shift+H', 'Hide or show'], ['Ctrl+Shift+L', 'Lock or unlock a part'], ['Shift+A', 'Add auto layout'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
     ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['C', 'Comment on it, then click where'], ['R', 'Start over from the first screen'], ['Esc', 'Back to the canvas']]],
     ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+C', 'Show or hide comments'], ['Shift+?', 'This sheet']]],
@@ -4079,6 +4114,8 @@
       removeChosen()
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && picked) {
       removeItem(picked)
+    } else if (e.shiftKey && (k === 'h' || k === 'v') && serve && selectedItems().length && !call('selectedFile')) {
+      flipChosen(k === 'h' ? 'x' : 'y')
     } else if (e.shiftKey && k === 'c') {
       setPinsShown(document.body.classList.contains('pins-off'))
     } else if (TOOL_KEYS[k]) {

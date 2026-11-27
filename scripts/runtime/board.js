@@ -2515,26 +2515,42 @@
     const svgGhost = h('div', { class: 'item svg', style: 'left:0;top:0' })
     world.append(kind === 'pencil' || kind === 'line' || kind === 'arrow' ? svgGhost : ghost)
     let last = p
+    // Where a box is drawn from: the press, or, with Alt held, the point opposite the pointer through it (Figma draws
+    // from the middle).
+    let from0 = p
     drag = {
       kind: 'draw', id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false,
       move: (ev) => {
         last = toWorld(ev.clientX, ev.clientY)
+        // Shift held, as in Figma: a line or arrow keeps to every 45°, a shape, note, section or screen is square.
+        if (ev.shiftKey && (kind === 'line' || kind === 'arrow')) {
+          const step = Math.PI / 4
+          const ang = Math.round(Math.atan2(last.y - p.y, last.x - p.x) / step) * step
+          const len = Math.hypot(last.x - p.x, last.y - p.y)
+          last = { x: Math.round(p.x + Math.cos(ang) * len), y: Math.round(p.y + Math.sin(ang) * len) }
+        } else if (ev.shiftKey && kind !== 'pencil') {
+          const dx = last.x - p.x
+          const dy = last.y - p.y
+          const side = Math.max(Math.abs(dx), Math.abs(dy))
+          last = { x: p.x + Math.sign(dx || 1) * side, y: p.y + Math.sign(dy || 1) * side }
+        }
+        from0 = ev.altKey && !['pencil', 'line', 'arrow'].includes(kind) ? { x: 2 * p.x - last.x, y: 2 * p.y - last.y } : p
         if (kind === 'pencil') pts.push(Math.round(last.x), Math.round(last.y))
         if (kind === 'pencil' || kind === 'line' || kind === 'arrow') {
           const all = kind === 'pencil' ? pts : [p.x, p.y, last.x, last.y]
           const d = all.reduce((s, v, i) => s + (i % 2 ? `,${v}` : `${i ? ' L' : 'M'}${v}`), '')
           svgGhost.innerHTML = `<svg style="overflow:visible;position:absolute;left:0;top:0" width="1" height="1"><path d="${d}" fill="none" stroke="${kind === 'pencil' ? penColor() : '#3b82f6'}" stroke-opacity="${kind === 'pencil' && penNow()[3] ? 0.4 : 1}" stroke-width="${kind === 'pencil' ? penNow()[2] : 4 / Math.max(view.z, 0.2)}" stroke-linecap="round" stroke-linejoin="round"/></svg>`
         } else {
-          Object.assign(ghost.style, { left: `${Math.min(p.x, last.x)}px`, top: `${Math.min(p.y, last.y)}px`, width: `${Math.abs(last.x - p.x)}px`, height: `${Math.abs(last.y - p.y)}px` })
+          Object.assign(ghost.style, { left: `${Math.min(from0.x, last.x)}px`, top: `${Math.min(from0.y, last.y)}px`, width: `${Math.abs(last.x - from0.x)}px`, height: `${Math.abs(last.y - from0.y)}px` })
         }
       },
       end: async (_, moved) => {
         ghost.remove()
         svgGhost.remove()
-        let x = Math.min(p.x, last.x)
-        let y = Math.min(p.y, last.y)
-        let w = Math.abs(last.x - p.x)
-        let hgt = Math.abs(last.y - p.y)
+        let x = Math.round(Math.min(from0.x, last.x))
+        let y = Math.round(Math.min(from0.y, last.y))
+        let w = Math.round(Math.abs(last.x - from0.x))
+        let hgt = Math.round(Math.abs(last.y - from0.y))
         if (kind === 'artboard') {
           if (!moved || w < 40) {
             ;[, w, hgt] = artboardSize()
@@ -3797,7 +3813,7 @@
 
   // ── keyboard shortcuts (Shift+?): every key the canvas answers, in one sheet ──
   const SHORTCUTS = [
-    ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['E', 'Stamp'], ['R', 'Rectangle'], ['O', 'Ellipse'], ['L, Shift+L', 'Line, arrow'], ['S', 'Section'], ['A', 'Artboard'], ['C', 'Comment']]],
+    ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['E', 'Stamp'], ['R', 'Rectangle'], ['O', 'Ellipse'], ['L, Shift+L', 'Line, arrow'], ['S', 'Section'], ['Shift, Alt while drawing', 'Square or level, from the middle'], ['A', 'Artboard'], ['C', 'Comment']]],
     ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['Page Down, Page Up', 'Next, previous screen'], ['+ and −, Ctrl+= and Ctrl+−', 'Zoom in and out'], ['0, Shift+0 or Ctrl+0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+\\', 'Panel']]],
     ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Ctrl+Alt+A', 'Select matching: same kind and color'], ['Tab, Shift+Tab', 'Next or previous object'], ['Enter', 'Type in the one picked'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+Alt+G', 'Wrap in a section'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centers, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Shift+drag', 'Move straight across or down; resize in proportion'], ['Alt+drag a corner', 'Resize from the middle'], ['Alt (held)', 'Measure to what is pointed at'], ['Delete', 'Delete']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Alt+drag', 'Drop a copy'], ['Shift+drag', 'Straight across or down; resize in proportion'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste after it'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+R', 'Rename in Layers'], ['Ctrl+Shift+H', 'Hide or show'], ['Ctrl+Shift+L', 'Lock or unlock a part'], ['Shift+A', 'Add auto layout'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],

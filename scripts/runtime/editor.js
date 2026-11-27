@@ -1991,6 +1991,13 @@
     floatBar.style.left = `${best.x}px`
     floatBar.style.top = `${best.y}px`
   }
+  // On a narrow screen the toolbar scrolls sideways: a mouse wheel over it scrolls it, rather than zooming the board.
+  floatBar.addEventListener('wheel', (e) => {
+    if (floatBar.scrollWidth <= floatBar.clientWidth) return
+    e.preventDefault()
+    e.stopPropagation()
+    floatBar.scrollLeft += Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
+  }, { passive: false })
   /** The selected frame's text and pictures, outside the selection, in its own pixels; kept until the selection or the page changes. */
   let inkCache = null
   let lastSpot = { el: null, at: 0 }

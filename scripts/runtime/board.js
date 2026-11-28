@@ -4869,7 +4869,8 @@
   // picture with stamps on it, most first, each kind of stamp with how many; Show goes to it.
   function openStampCount() {
     const on = new Map()
-    for (const st of items().filter((i) => i.kind === 'stamp' && i.to)) {
+    // Votes are counted by their own vote (and others' kept from sight while it goes on), not here.
+    for (const st of items().filter((i) => i.kind === 'stamp' && i.to && !i.vote)) {
       const it = board.items.find((i) => i.id === st.to)
       if (!it) continue
       const c = on.get(it.id) ?? { it, n: 0, by: new Map() }
@@ -4912,7 +4913,7 @@
       peers.size ? { label: spotlit ? 'Stop the spotlight' : 'Spotlight me', run: () => { spotlit = !spotlit; roomSend({ t: 'spotlight', on: spotlit }); if (spotlit) sendView(true); hint(spotlit ? 'Everyone here is following you.' : 'Everyone can look around on their own again.', 2000) } } : null,
       // The owner's canvas, host of a hosted room: the hosted copy's address with the invite key.
       serve && !local && data.room && data.url ? { label: 'Copy invite link', run: copyInvite } : null,
-      items().some((i) => i.kind === 'stamp') ? { label: 'Stamps, counted', run: openStampCount } : null,
+      items().some((i) => i.kind === 'stamp' && !i.vote) ? { label: 'Stamps, counted', run: openStampCount } : null,
       // FigJam's voting session, for everyone on the canvas.
       serve && !board.voting ? { label: 'Start voting…', run: () => setTimeout(() => openMenu($('#title-btn'), [{ note: 'Votes for each person' }, ...[3, 5, 10].map((n) => ({ label: `${n} votes`, run: () => startVoting(n) }))]), 0) } : null,
       serve && board.voting ? { label: 'End voting', run: endVoting } : null,

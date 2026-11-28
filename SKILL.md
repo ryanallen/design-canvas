@@ -221,6 +221,8 @@ An `id` already on the page gets a new one.
 
 Ctrl+Shift+C copies a picture of the selection as a PNG, like Figma's Copy as PNG. **Export PNG** under … saves it. It takes the element alone, or the whole screen when its label was clicked. The picture is the size its frame is drawn, doubled for sharpness. Properties ends with **Export**, as in Figma: pick a scale from 0.5x to 4x and PNG or JPG, then press Export. A file at any scale but 1x is named with it, like `home@3x.png`. A whole screen can also be saved as a PDF there. Export needs a canvas run with `serve`, because the server's browser makes the picture.
 
+Board objects have **Copy as PNG** (Ctrl+Shift+C) and **Export PNG** in their right-click menu too, as in FigJam. The picture shows what is selected, notes, shapes, sections and screens alike, with 24 px of board round it, at twice its size. A retro board or a section of one comes out as one picture.
+
 A whole screen selected by its label moves on the board with the arrow keys (10 at a time with Shift), as a Figma frame does. Ctrl+Shift+G and Alt+arrows leave it whole.
 
 A screen selected this way has **Mode** in Properties' Screen section, like a Figma frame's variable mode. The choices are Auto, Light and Dark. Light or Dark turns the screen's own `prefers-color-scheme` rules on or off for that screen alone, whatever this computer is set to. Only what is seen changes, never the file. The mode is kept per screen in this browser, and a PNG or PDF of the screen comes out in that mode.

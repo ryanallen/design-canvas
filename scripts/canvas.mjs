@@ -745,6 +745,32 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
           await page?.close().catch(() => {})
         }
       }
+      // A picture of part of the board, as FigJam's Copy as PNG and Export: this canvas opened in the same browser,
+      // that part of the page shown at 100% from its top left with nothing of the canvas's own over it, at twice the
+      // size. Up to 4000 board px a side.
+      if (url.pathname === '/api/board-png' && req.method === 'GET') {
+        const n = (k) => Number(url.searchParams.get(k))
+        const box = { x: n('x'), y: n('y'), w: Math.min(4000, Math.max(16, n('w'))), h: Math.min(4000, Math.max(16, n('h'))) }
+        if (![box.x, box.y, box.w, box.h].every(Number.isFinite)) return json(res, 400, { error: 'x, y, w and h are needed' })
+        const pageId = String(url.searchParams.get('page') ?? '').replace(/[^\w-]/g, '')
+        let page
+        try {
+          shooter ??= launchChromium(folder).then((r) => r.browser)
+          page = await (await shooter).newPage({ viewport: { width: Math.ceil(box.w), height: Math.ceil(box.h) }, deviceScaleFactor: 2 })
+          await page.goto(`http://127.0.0.1:${server.address().port}/?dc-shot${pageId ? `#page=${pageId}` : ''}`, { waitUntil: 'load', timeout: 20000 })
+          await page.waitForFunction(() => window.designCanvas?.shootBoard && (window.designCanvas.allFrames ?? []).every((f) => !f.el || f.doc), null, { timeout: 20000 })
+          await page.evaluate((b) => window.designCanvas.shootBoard(b), box)
+          await page.evaluate(() => document.fonts?.ready)
+          await page.waitForTimeout(400)
+          const png = await page.screenshot({ type: 'png' })
+          res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'no-store' })
+          return res.end(png)
+        } catch (e) {
+          return json(res, 422, { error: `no picture was made (${String(e.message).split('\n')[0]})` })
+        } finally {
+          await page?.close().catch(() => {})
+        }
+      }
       // A screen as a PDF, as Figma's Export: the prototype as served, at its frame's width, printed by the same
       // browser as one page as tall as the screen, its look as on screen (not its print styles), its words as type.
       if (url.pathname === '/api/pdf' && req.method === 'GET') {

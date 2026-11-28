@@ -672,3 +672,8 @@ body.has-banner #panel { top: 88px; }
 @keyframes timer-pulse { 50% { transform: scale(1.08); } }
 @media (prefers-reduced-motion: reduce) { #timer-chip.done { animation: none; } }
 body.pointers-off .peer-cursor { display: none; }
+
+/* The server's browser making a picture of the board: the board alone, from the window's top left. */
+body.shooting > *:not(#viewport) { display: none !important; }
+body.shooting #viewport { position: fixed; inset: 0; }
+body.shooting #overlay, body.shooting .frame-label, body.shooting .frame-edge, body.shooting .pin, body.shooting .peer-cursor { display: none !important; }

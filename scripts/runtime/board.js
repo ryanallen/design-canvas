@@ -166,7 +166,7 @@
     return at < 0 ? (top ? '' : hist) + go + cut + withHist : withHist.slice(0, at) + (top ? '' : hist) + go + cut + withHist.slice(at)
   }
   const save = (name, text, type = 'text/html') => {
-    const a = h('a', { href: URL.createObjectURL(new Blob([text], { type })), download: name })
+    const a = h('a', { href: URL.createObjectURL(text instanceof Blob ? text : new Blob([text], { type })), download: name })
     document.body.append(a)
     a.click()
     a.remove()
@@ -1135,6 +1135,8 @@
       free ? { label: 'Flip up and down', key: 'Shift+V', run: () => flipChosen('y') } : null,
       { label: 'Wrap in a section', key: 'Ctrl+Alt+G', run: sectionAround },
       { label: 'Zoom to selection', key: 'Shift+2', run: zoomToSelection },
+      !local ? { label: 'Copy as PNG', key: 'Ctrl+Shift+C', run: copyBoardPng } : null,
+      !local ? { label: 'Export PNG', run: exportBoardPng } : null,
       matching().length > ids.length ? { label: `Select matching (${matching().length})`, key: 'Ctrl+Alt+A', run: selectMatching } : null,
       '-',
       owner() && free ? { label: 'Lock', run: () => setLock(ids, true) } : null,
@@ -1810,6 +1812,53 @@
     }
     await placeCopies(boardClip.items, to.cx - from.cx, to.cy - from.cy)
     return true
+  }
+  /** For the server's browser making a picture of part of the board: that part at 100% from the window's top left,
+      with nothing of the canvas's own over it. */
+  function shootBoard(box) {
+    picked = null
+    chosen = null
+    document.body.classList.add('shooting')
+    view.z = 1
+    view.x = -box.x
+    view.y = -box.y
+    apply()
+    renderItems()
+  }
+  /** FigJam's Copy as PNG and Export for board objects: the selection with 24 px round it, made by the server's
+      browser from this canvas at twice its size. The clipboard is asked at once, with the picture to come. */
+  function boardPng() {
+    const ids = chosen ? [...chosen.items] : picked ? withGroup(picked) : []
+    const keys = chosen ? [...chosen.frames] : []
+    if (!ids.length && !keys.length) return null
+    if (!serve || local) { hint('To make a picture, run the canvas from its folder with node scripts/canvas.mjs serve <folder>', 5000); return null }
+    const b = boxAround(ids, keys)
+    const q = new URLSearchParams({ page: pageId, x: String(Math.floor(b.x - 24)), y: String(Math.floor(b.y - 24)), w: String(Math.ceil(b.w + 48)), h: String(Math.ceil(b.h + 48)) })
+    hint('Making the picture…', 8000)
+    return fetch(`/api/board-png?${q}`).then(async (res) => {
+      if (!res.ok) { hint((await res.json().catch(() => ({}))).error || 'No picture was made', 5000); return null }
+      return res.blob()
+    })
+  }
+  const NO_PICTURES = "This browser won't copy pictures. Use Export PNG in the right-click menu instead."
+  function copyBoardPng() {
+    const made = boardPng()
+    if (!made) return
+    try {
+      navigator.clipboard.write([new ClipboardItem({ 'image/png': made.then((b) => b ?? Promise.reject(new Error('no picture'))) })])
+        .then(() => hint('Copied as PNG', 1200), () => made.then((b) => b && hint(NO_PICTURES, 5000)))
+    } catch {
+      hint(NO_PICTURES, 5000)
+    }
+  }
+  async function exportBoardPng() {
+    const made = boardPng()
+    const blob = made && (await made)
+    if (!blob) return
+    const first = board.items.find((i) => i.id === (chosen ? [...chosen.items][0] : picked))
+    const name = (String(first?.text ?? '').trim().split('\n')[0].replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'board') + '.png'
+    save(name, blob, 'image/png')
+    hint(`Saved ${name}`, 1600)
   }
   /** Shift+2: the board objects or the prototype elements selected fill the window, never past 400%. */
   function zoomToSelection() {
@@ -3482,6 +3531,8 @@
   let pendingCursor = null
   const roomUrl = () => data.room || (data.serve && web && !local ? `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/room` : null)
   function joinRoom() {
+    // The server's own browser taking a picture of the board is nobody to the others here.
+    if (/[?&]dc-shot\b/.test(location.search)) return
     const url = roomUrl()
     if (!url || typeof WebSocket === 'undefined') return
     const ws = new WebSocket(url)
@@ -5004,6 +5055,11 @@
         return e.shiftKey ? distributeChosen(how) : alignChosen(how)
       }
     }
+    // Copy as PNG, for board objects.
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.code === 'KeyC' && selectedItems().length && !call('selectedFile')) {
+      e.preventDefault()
+      return copyBoardPng()
+    }
     // Outlines on or off.
     if (e.altKey && (e.ctrlKey || e.metaKey) && !e.shiftKey && e.code === 'KeyO') {
       e.preventDefault()
@@ -5170,7 +5226,7 @@
     get pages() { return pages() },
     get threads() { return threads },
     overlay, viewport, world,
-    toWorld, toScreen, frameAt, findFrame, showFrame, docFor, plainFile, reloadFile, reloadSheet, duplicateScreens, setFrameWidth, schemeOf, setScheme, ARTBOARD_SIZES, relayout, downloadFile,
+    toWorld, toScreen, frameAt, shootBoard, findFrame, showFrame, docFor, plainFile, reloadFile, reloadSheet, duplicateScreens, setFrameWidth, schemeOf, setScheme, ARTBOARD_SIZES, relayout, downloadFile,
     setTool, openPanel, setPanel, currentTab, nudgeScreen, openMenu, closeMenu, question, sure, openPlay, goPage, moveFrameToPage,
     startComment, commentOn, openAsk, renderPins, pickItem, apply, sendBoard, showEmpty,
     setName: (n) => setName(n),

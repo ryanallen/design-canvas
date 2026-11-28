@@ -325,7 +325,7 @@
       }
     }
     const deep = elementAt(frame, point)
-    // Clicks pick the card: a press inside the block selected drags that block, as Figma drags a selected group from
+    // Click selects the whole block: a press inside the block selected drags that block, as Figma drags a selected group from
     // any of its layers; only a click that does not move goes one level in.
     const cur = sel?.frame === frame && sel.els.length === 1 ? primary() : null
     if (dc.store?.get('clickDepth') === 'outer' && cur && deep && cur !== deep && cur.contains(deep) && !e.shiftKey && !e.altKey && editable(cur) && cur.localName !== 'body') {
@@ -359,7 +359,7 @@
     more({ x: e.clientX, y: e.clientY })
     return true
   }
-  /** With "Clicks pick the card" (as Figma): a click outside the selection picks the outermost block holding the
+  /** With "Click selects the whole block" (as Figma): a click outside the selection picks the outermost block holding the
       element under the pointer, passing over wrappers that fill the page; a click inside the selection picks the
       next one in on the way to it. Otherwise the element under the pointer, as before. */
   function byDepth(frame, deep) {

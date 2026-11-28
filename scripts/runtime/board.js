@@ -3934,8 +3934,8 @@
       serve ? { label: 'Templates…', run: () => setTimeout(() => templateMenu($('#title-btn')), 0) } : null,
       // Which element a click in a prototype picks: the one under the pointer, or the outermost block (as Figma), a
       // click inside the selection then going one level in. Kept in this browser.
-      { label: `Clicks pick the line${store.get('clickDepth') === 'outer' ? '' : '  ✓'}`, run: () => { store.set('clickDepth', 'inner'); hint('A click now selects exactly what you click. Press Esc to select what holds it.', 2200) } },
-      { label: `Clicks pick the card${store.get('clickDepth') === 'outer' ? '  ✓' : ''}`, run: () => { store.set('clickDepth', 'outer'); hint('A click now selects the whole block, as in Figma. Click inside it again to go deeper.', 2600) } },
+      { label: `Click selects the exact item${store.get('clickDepth') === 'outer' ? '' : '  ✓'}`, run: () => { store.set('clickDepth', 'inner'); hint('A click now selects exactly what you click. Press Esc to select what holds it.', 2200) } },
+      { label: `Click selects the whole block${store.get('clickDepth') === 'outer' ? '  ✓' : ''}`, run: () => { store.set('clickDepth', 'outer'); hint('A click now selects the whole block, as in Figma. Click inside it again to go deeper.', 2600) } },
       { label: 'Keyboard shortcuts', key: 'Shift+?', run: openKeys },
       window.designCanvas?.startOver ? { label: 'Start over', run: () => window.designCanvas.startOver() } : null,
       serve && !data.memory && !local ? { label: 'Refresh from the prototypes', run: rebuild } : null,

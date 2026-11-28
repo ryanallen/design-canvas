@@ -4107,6 +4107,12 @@
     if (!t) return
     markSeen(t)
     const p0 = anchorOf(t)
+    // A thread on a page someone has deleted: read where it is listed, with nothing to fly to.
+    if (p0.page && !pages().some((p) => p.id === p0.page)) {
+      renderPins()
+      showThread({ id })
+      return hint('This comment is on a page that has been deleted.', 3000)
+    }
     if (p0.page !== pageId) goPage(p0.page)
     if (fly) {
       const p = anchorOf(t)

@@ -414,7 +414,8 @@ body.panel-open #panel { display: flex; }
 }
 #thread.open { display: flex; }
 #thread .head { display: flex; align-items: center; gap: 4px; padding: 6px 6px 6px 12px; border-bottom: 1px solid var(--line); }
-#thread .head b { flex: 1; }
+#thread .head b { flex: 1; min-width: 0; white-space: nowrap; }
+#thread .head b .state { font-weight: 400; font-size: 11px; color: var(--ink-3); }
 #thread .head .tool { height: 26px; min-width: 26px; padding: 0 6px; font-size: 12px; }
 #thread .msgs { overflow: auto; padding: 4px 12px; }
 .msg { padding: 8px 0; border-bottom: 1px solid var(--line); }
@@ -424,6 +425,7 @@ body.panel-open #panel { display: flex; }
 .msg .who span { color: var(--ink-3); font-size: 11px; flex: 1; }
 .msg .who button { border: 0; background: none; color: var(--ink-3); font-size: 11px; padding: 0; }
 .msg .who button:hover { color: var(--danger); }
+.msg .who button.copy-link:hover { color: var(--ink); }
 .msg p { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .msg .on { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
 .msg .editing-msg { display: grid; gap: 6px; margin-top: 4px; }

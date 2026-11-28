@@ -76,6 +76,8 @@ Measuring each prototype's height needs a Chromium. `scripts/lib/browser.mjs` fi
   Page Down and Page Up go to the next and previous screen on the page, filling the window.
 
   `&screen=<file>` (or `#screen=<file>` alone) opens on that screen instead, zoomed to it, like a Figma link to a frame. **Copy link to this screen** under the toolbar's … puts such a link on the clipboard.
+
+  `#comment=<thread id>` opens on that comment thread, open and in view, like a Figma link to a comment. **Copy link** at the top of a thread puts such a link on the clipboard.
 - **Levers.** `<meta name="canvas-levers" content="--accent, --gap">` names the CSS variables shown under Tweaks. A color gets a picker that keeps its alpha. A number gets a slider sized to its unit, plus a field for an exact value. A bare fraction slides from 0 to 1 in hundredths, and a negative number's slider goes below zero.
 
   A change is written where the prototype's `:root` declares the variable, so the file keeps one value for it. If the variable is declared in the `:root` of a stylesheet the screens link from the folder, it changes in that sheet, and every screen linking it follows.

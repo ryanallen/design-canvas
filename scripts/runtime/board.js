@@ -3232,7 +3232,8 @@
         events = body.events
         threads = foldEvents(events)
         renderPins()
-        if (activeId) {
+        if (linkedComment && threads.some((t) => t.id === linkedComment)) goCommentFromHash()
+        else if (activeId) {
           if (threads.some((t) => t.id === activeId)) showThread({ id: activeId }, true)
           else closeThread()
         }
@@ -3412,6 +3413,16 @@
         }
         msgs.append(h('div', { class: 'msg' },
           h('div', { class: 'who' }, h('b', {}, m.name), h('span', {}, when(m.at), m.edited ? ' · edited' : ''),
+            // A link that opens the canvas on this thread, as Figma's Copy link on a comment.
+            m.root ? h('button', { type: 'button', class: 'copy-link', title: 'Copy a link to this thread', onclick: async () => {
+              const url = `${location.origin}${location.pathname}#comment=${encodeURIComponent(t.id)}`
+              try {
+                await navigator.clipboard.writeText(url)
+                hint('Link copied. It opens the canvas on this thread.', 1800)
+              } catch {
+                hint(url, 8000)
+              }
+            } }, 'Copy link') : null,
             api && me && m.name === me ? h('button', { type: 'button', title: 'Edit what you wrote', onclick: edit }, 'Edit') : null,
             // As in Figma, people delete what they wrote; the owner deletes anything.
             api && (owner() || (me && m.name === me)) ? h('button', { type: 'button', title: m.root ? 'Delete the whole thread' : 'Delete this reply', onclick: async () => {
@@ -3428,7 +3439,7 @@
       }
     }
     const head = h('div', { class: 'head' },
-      h('b', {}, t ? `#${number(t)}${t.resolved ? ' · resolved' : ''}` : 'New comment'),
+      h('b', {}, t ? `#${number(t)}` : 'New comment', t?.resolved ? h('span', { class: 'state' }, ' · resolved') : null),
       t && api ? h('button', { type: 'button', class: 'tool', 'aria-pressed': String(!!t.agent), title: t.agent ? 'Marked for the agent: click to clear' : 'Mark it as work for the agent', onclick: async () => {
         try {
           await send({ op: 'agent', to: t.id, name: me || 'someone', agent: !t.agent })
@@ -4032,7 +4043,24 @@
     showFrame(f)
     return true
   }
+  /** The thread `#comment=<id>` names, as Figma's link to a comment: the canvas opens on it with the thread showing. Shared
+   * comments can arrive after the page starts, so a link to one not yet loaded waits for the next refresh. */
+  let linkedComment = null
+  function goCommentFromHash() {
+    const m = /(?:^#|&)comment=([^&]+)/.exec(location.hash)
+    if (!m) return false
+    let want = m[1]
+    try { want = decodeURIComponent(want) } catch {}
+    if (!threads.some((t) => t.id === want)) {
+      linkedComment = want
+      return false
+    }
+    linkedComment = null
+    openThread(want, true)
+    return true
+  }
   addEventListener('hashchange', () => {
+    if (goCommentFromHash()) return
     if (goScreenFromHash()) return
     const id = pageFromHash()
     if (id) goPage(id)
@@ -4497,6 +4525,7 @@
       apply()
     } else firstView()
     goScreenFromHash()
+    goCommentFromHash()
     if (store.get('pins-off')) document.body.classList.add('pins-off')
     const tab = store.get('tab')
     if (store.get('panel')) openPanel(tab || 'properties')

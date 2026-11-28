@@ -323,6 +323,7 @@ Text has these.
 
 - **Paragraph** sets the space after it (`margin-bottom`) and how far its first line is pushed in (`text-indent`).
 - **Vertical** puts the text at the top, middle or bottom of a box taller than it (`align-content`). A flex or grid box sets this in Layout instead.
+- **List** makes a line of text, or a list, into no list, a bulleted list or a numbered one, as Ctrl+Shift+8 and Ctrl+Shift+7 do. A list selected has the same row in a List section of its own.
 - **Case** shows it in upper, lower or title case. The words in the file stay unchanged.
 - **Truncate** (Lines) stops the text with an ellipsis past so many lines.
 - **Text shadow** is a shadow that follows the letters (`text-shadow`, with X, Y, Blur and its color).

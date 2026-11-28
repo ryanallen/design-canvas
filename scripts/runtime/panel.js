@@ -917,6 +917,12 @@
           : null))
     }
 
+    // Figma's List style: a line of text or a list as no list, bullets or numbers, as Ctrl+Shift+8 and 7 make them.
+    const listRow = () => (ed.sel.els.length === 1 && (ed.isText(el) || ['ul', 'ol'].includes(el.localName)) && !['li', 'button', 'a', 'label'].includes(el.localName) && state === 'default'
+      ? field('List', seg([['p', '—', 'No list'], ['ul', '•', 'Bulleted list'], ['ol', '1.', 'Numbered list']], ['ul', 'ol'].includes(el.localName) ? el.localName : 'p', (v) => { const now = ['ul', 'ol'].includes(el.localName) ? el.localName : 'p'; if (v !== now) ed.listAs(v === 'p' ? now : v) }))
+      : null)
+    if (['ul', 'ol'].includes(el.localName) && !ed.isText(el)) host.append(section('List', ['list-style-type', 'list-style-position', 'padding-left'], listRow()))
+
     // Text
     if (ed.isText(el) || ['input', 'textarea', 'select', 'button'].includes(el.localName)) {
       const fams = [...new Set([...el.ownerDocument.querySelectorAll('body *')].slice(0, 400).map((x) => cs(x).fontFamily))]
@@ -936,6 +942,7 @@
         contrast(el),
         field('Emphasis', seg([['underline', 'U̲', 'Underline'], ['line-through', 'S̶', 'Strikethrough']], deco.includes('underline') ? 'underline' : deco.includes('line-through') ? 'line-through' : '', (v) => set({ 'text-decoration': deco.includes(v) ? 'none' : v }))),
         field('Align', seg([['left', '⇤', 'Left'], ['center', '↔', 'Center'], ['right', '⇥', 'Right'], ['justify', '☰', 'Justify']], c.textAlign === 'start' ? 'left' : c.textAlign, (v) => set({ 'text-align': v }))),
+        listRow(),
         // Figma's Case: the letters as typed, or shown upper, lower or title case without changing the words.
         field('Case', seg([['none', '—', 'As typed'], ['uppercase', 'AG', 'Upper case'], ['lowercase', 'ag', 'Lower case'], ['capitalize', 'Ag', 'Title case']], across((x, k) => k.textTransform), (v) => set({ 'text-transform': v }))),
         // Figma's Truncate text: past so many lines the text stops with an ellipsis.

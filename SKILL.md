@@ -84,7 +84,7 @@ Measuring each prototype's height needs a Chromium. `scripts/lib/browser.mjs` fi
 
   A change is written where the prototype's `:root` declares the variable, so the file keeps one value for it. If the variable is declared in the `:root` of a stylesheet the screens link from the folder, it changes in that sheet, and every screen linking it follows.
 - **Fluid.** `<meta name="canvas-fluid">` marks a prototype that reflows to any width.
-- **Width.** `<meta name="canvas-width" content="390">` draws a prototype that wide on the board, from 240 to 3840, and measures its height at that width. Without it, the width is 1440.
+- **Width.** `<meta name="canvas-width" content="390">` draws a prototype that wide on the board, from 240 to 3840, and measures its height at that width. Without it, the width is 1440. On a served canvas, drag a screen's right edge to change it, as you would a Figma frame. The page is laid out at each width as you drag, and it snaps to the preset widths (hold Ctrl not to). Letting go writes the width as one undo step.
 
   The artboard tool (A) offers Desktop 1440, Laptop 1280, Tablet 834 and Phone 390. A click on the board makes a new prototype of the chosen size. A drag makes one of any size. A new prototype that is not 1440 wide carries this tag.
 

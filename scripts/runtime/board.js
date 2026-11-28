@@ -357,6 +357,7 @@
     for (const f of allFrames.values()) {
       f.el?.remove()
       f.labelEl?.remove()
+      f.edgeEl?.remove()
       // Its document goes with its iframe: one kept would be read as the screen (its version sent with an edit, its
       // elements measured) after the file had changed, and its window is gone.
       f.el = f.labelEl = f.iframe = f.doc = null
@@ -417,9 +418,12 @@
       m.play ? h('button', { type: 'button', class: 'play', title: 'Play it: click through it at full size', onclick: (e) => { e.stopPropagation(); openPlay(f) } }, '▷', h('span', { class: 'word' }, ' PLAY')) : null,
     )
     f.labelEl.addEventListener('pointerdown', (e) => startFrameDrag(e, f))
+    // Its right edge, dragged as a Figma frame's: the screen is shown at the width as it goes, and written on release.
+    f.edgeEl = serve && !f.crop ? h('div', { class: 'frame-edge', title: 'Drag to change its width' }) : null
+    f.edgeEl?.addEventListener('pointerdown', (e) => startEdgeDrag(e, f))
     drawLock(f)
     positionFrame(f)
-    world.append(f.el, f.labelEl)
+    world.append(f.el, f.labelEl, ...(f.edgeEl ? [f.edgeEl] : []))
   }
   function widthMenu(anchor, f) {
     openMenu(anchor, [
@@ -512,6 +516,7 @@
     if (!f.el) return
     Object.assign(f.el.style, { left: `${f.x}px`, top: `${f.y}px`, width: `${f.W}px`, height: `${f.H}px` })
     Object.assign(f.labelEl.style, { left: `${f.x}px`, top: `${f.y}px` })
+    if (f.edgeEl) Object.assign(f.edgeEl.style, { left: `${f.x + f.W}px`, top: `${f.y}px`, height: `${f.H}px` })
     f.labelEl.style.setProperty('--w', `${f.W}px`)
     if (f.iframe) {
       f.iframe.style.width = `${f.w}px`
@@ -1248,6 +1253,41 @@
           hint(err.message, 3000)
           takeBoardAgain()
         }
+      },
+    }
+    viewport.setPointerCapture(e.pointerId)
+  }
+
+  /** A screen's right edge dragged: its prototype laid out at each width on the way (snapping to the preset widths
+      within 12 px, Ctrl held to not snap), and the width written once, as the width menu writes it, on release. */
+  function startEdgeDrag(e, f) {
+    if (e.button !== 0 || !serve || !f.iframe || tool !== 'select') return
+    e.stopPropagation()
+    if (isLocked(f.key)) return hint(LOCKED, 2000)
+    const w0 = f.w
+    let w = w0
+    const btn = f.labelEl?.querySelector('.width')
+    const show = (n) => {
+      f.iframe.style.width = `${n}px`
+      Object.assign(f.el.style, { width: `${n * f.s}px` })
+      f.edgeEl.style.left = `${f.x + n * f.s}px`
+      f.labelEl.style.setProperty('--w', `${n * f.s}px`)
+      if (btn) btn.textContent = String(n)
+    }
+    f.edgeEl.classList.add('dragging')
+    drag = {
+      kind: 'edge', id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false,
+      move: (ev, dx) => {
+        w = Math.max(240, Math.min(3840, Math.round(w0 + dx / f.s)))
+        const near = ev.ctrlKey || ev.metaKey ? null : ARTBOARD_SIZES.find(([, pw]) => Math.abs(pw - w) <= 12)
+        if (near) w = near[1]
+        show(w)
+        hint(`${near ? `${near[0]} · ` : ''}${w}`, 800)
+      },
+      end: (_, moved) => {
+        f.edgeEl.classList.remove('dragging')
+        if (!moved || w === w0) return show(w0)
+        setFrameWidth(f, w).then(() => { if (f.w !== w) show(f.w) })
       },
     }
     viewport.setPointerCapture(e.pointerId)

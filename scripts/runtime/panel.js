@@ -17,6 +17,7 @@
   const open = new WeakSet()
   const openFrames = new Set()
   let tweaksFrame = null
+  let tweaksShown = null
   const layersEl = () => (dc.currentTab() === 'code' ? $('#layers-c') : $('#layers-p'))
   // A layer being renamed in its row: the list is not drawn again under the typing until the name is kept or left.
   let renaming = false
@@ -1620,13 +1621,17 @@
   function renderTweaks() {
     const host = $('#tweaks')
     host.replaceChildren()
-    const f = ed.sel?.frame ?? tweaksFrame ?? dc.frames.find((x) => x.meta.levers?.length) ?? null
+    // The frame shown last stays shown when a change draws it again and the selection goes with it.
+    const f = ed.sel?.frame ?? tweaksFrame ?? dc.frames.find((x) => x.key === tweaksShown) ?? dc.frames.find((x) => x.meta.levers?.length) ?? null
+    tweaksShown = f?.key ?? null
     if (!f) return host.append(h('div', { class: 'empty' }, 'Select a frame to see its tweaks.'))
     const levers = f.meta.levers ?? []
     host.append(h('div', { class: 'ptitle' }, f.label))
-    if (!levers.length) {
-      host.append(h('div', { class: 'empty' }, dc.commenting ? 'This design has no tweakable controls yet. Describe what you want to adjust and the agent will add levers for it.' : 'This design has no tweakable controls.'),
-        dc.commenting ? h('div', { class: 'row pad' }, h('button', { type: 'button', class: 'btn', onclick: () => askForLevers(f) }, 'Ask the agent for levers')) : null)
+    const ask = () => (dc.commenting ? h('div', { class: 'row pad' }, h('button', { type: 'button', class: 'btn', onclick: () => askForLevers(f) }, 'Ask the agent for levers')) : null)
+    // Every other variable its own :root rules set, as Figma's Variables lists them all, not only the levers.
+    const others = f.doc ? rootVars(f.doc).filter((n) => !levers.includes(n)) : []
+    if (!levers.length && !others.length) {
+      host.append(h('div', { class: 'empty' }, !f.doc && f.el ? 'Scroll the frame into view to load it.' : dc.commenting ? 'This design has no tweakable controls yet. Describe what you want to adjust and the agent will add levers for it.' : 'This design has no tweakable controls.'), f.doc || !f.el ? ask() : null)
       return
     }
     if (!f.doc) return host.append(h('div', { class: 'empty' }, 'Scroll the frame into view to load it.'))
@@ -1655,12 +1660,9 @@
       }
       return home
     }
-    for (const name of levers) {
+    const row = (name) => {
       const value = cs(root).getPropertyValue(name).trim()
-      if (!dc.serve) {
-        host.append(field(name, h('span', { class: 'val' }, value)))
-        continue
-      }
+      if (!dc.serve) return host.append(field(name, h('span', { class: 'val' }, value)))
       const home = homeOf(name)
       const commit = (v) => (home && !dc.local && !home.sheet.split('/').includes('..')
         ? ed.sendSheet(home.sheet, ':root', home.nth, name, v)
@@ -1668,6 +1670,28 @@
       const live = (v) => root.style.setProperty(name, v)
       host.append(field(name, leverControl(value, live, commit)))
     }
+    levers.forEach(row)
+    if (others.length) {
+      host.append(h('div', { class: 'chead' }, levers.length ? 'Its other variables' : 'Its variables'))
+      others.forEach(row)
+    }
+    if (!levers.length) host.append(ask())
+  }
+  /** The custom properties the page's own :root rules set (not the canvas's, nor inside @media), in the order written. */
+  function rootVars(doc) {
+    const key = sameSelector(':root')
+    const names = []
+    for (const sheet of doc.styleSheets) {
+      const node = sheet.ownerNode
+      if (node?.localName !== 'style' || node.hasAttribute('data-canvas') || node.id === 'rc-screen' || node.id === 'dc-hotspots') continue
+      let rules
+      try { rules = sheet.cssRules } catch { continue }
+      for (const r of rules) {
+        if (!r.selectorText || sameSelector(r.selectorText) !== key) continue
+        for (const p of r.style) if (p.startsWith('--') && !p.startsWith('--dc') && !names.includes(p)) names.push(p)
+      }
+    }
+    return names
   }
   /** A color lever keeps its alpha; a number lever gets a slider sized to its unit, beside a field for an exact value. */
   function leverControl(value, live, commit) {
@@ -1750,6 +1774,7 @@
   hooks.onPage = (id) => {
     onPage?.(id)
     tweaksFrame = null
+    tweaksShown = null
     render()
   }
   dc.renderPanel = render

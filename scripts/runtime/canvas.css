@@ -252,6 +252,7 @@ body.item-dragging .connect { display: none; }
 }
 .pin.agent { background: var(--agent); }
 .pin.resolved { background: var(--pin-done); }
+.pin.dragging { pointer-events: none; cursor: grabbing; opacity: 0.85; }
 .pin.detached { border-style: dashed; }
 .pin.active { outline: 3px solid color-mix(in srgb, var(--pin) 45%, transparent); }
 .pin.pending { opacity: 0.6; }

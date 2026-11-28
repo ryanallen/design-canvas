@@ -3214,7 +3214,9 @@
         'data-thread': t.id,
         style: `left:${p.x}px;top:${p.y}px`,
         title: `${t.name}: ${t.text}${p.detached ? ' (its element is gone; pinned where it was left)' : ''}`,
-        onclick: (e) => { e.stopPropagation(); openThread(t.id) },
+        onpointerdown: (e) => pinPress(e, t),
+        // The click that ends a drag does not open the thread.
+        onclick: (e) => { e.stopPropagation(); if (e.currentTarget.dataset.dragged) delete e.currentTarget.dataset.dragged; else openThread(t.id) },
       }, String(number(t))))
     }
     if (draft) pinLayer.append(h('div', { class: 'pin active', style: `left:${draft.wx}px;top:${draft.wy}px` }, '+'))
@@ -3250,14 +3252,55 @@
       : [h('div', { class: 'empty' }, q || mine ? 'No comment matches.' : api ? 'No comments yet. Press C, then click anywhere.' : 'No comments.')]))
   }
 
-  function startComment(sx, sy, agent = false) {
-    if (!api) return hint(readOnly, 3000)
+  /** Where a comment left at this point on the screen is: on a screen (and its element), on a board object, or on the
+   *  board itself. */
+  function commentPlace(sx, sy) {
     const p = toWorld(sx, sy)
     const f = frameAt(sx, sy)
     const pin = f ? call('commentAnchor', f, p) : null
     // Dropped on a board object (a note, a shape, a section): the pin goes with it when it moves.
     const on = f ? null : board.items.find((i) => i.id === document.elementFromPoint(sx, sy)?.closest('.item')?.dataset.id && i.kind !== 'line' && i.kind !== 'arrow' && i.kind !== 'pencil')
-    draft = { wx: p.x, wy: p.y, frame: f ? f.key : null, x: f ? Math.round((p.x - f.x) / f.s) : p.x, y: f ? Math.round((p.y - f.y) / f.s) : p.y, page: pageId, agent, ...(on ? { item: on.id, dx: Math.round(p.x - on.x), dy: Math.round(p.y - on.y) } : {}), ...(pin ?? {}) }
+    return { wx: p.x, wy: p.y, frame: f ? f.key : null, x: f ? Math.round((p.x - f.x) / f.s) : Math.round(p.x), y: f ? Math.round((p.y - f.y) / f.s) : Math.round(p.y), page: pageId, ...(on ? { item: on.id, dx: Math.round(p.x - on.x), dy: Math.round(p.y - on.y) } : {}), ...(pin ?? {}) }
+  }
+  /** Figma's comment drag: whoever wrote a thread drags its pin somewhere else; a press without a drag opens it. */
+  function pinPress(e, t) {
+    if (e.button !== 0) return
+    const pin = e.currentTarget
+    const mine = api && me && t.name === me
+    const sx = e.clientX
+    const sy = e.clientY
+    let moved = false
+    const move = (ev) => {
+      if (!mine) return
+      if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return
+      moved = true
+      pin.classList.add('dragging')
+      const p = toWorld(ev.clientX, ev.clientY)
+      pin.style.left = `${p.x}px`
+      pin.style.top = `${p.y}px`
+    }
+    const up = async (ev) => {
+      removeEventListener('pointermove', move)
+      removeEventListener('pointerup', up)
+      if (!moved) return
+      pin.dataset.dragged = '1'
+      setTimeout(() => delete pin.dataset.dragged, 0)
+      const place = commentPlace(ev.clientX, ev.clientY)
+      pin.classList.remove('dragging')
+      try {
+        const { wx, wy, ...at } = place
+        await send({ op: 'place', to: t.id, name: me, ...at })
+      } catch (err) { hint(err.message, 3000) }
+      renderPins()
+      if (activeId === t.id) showThread({ id: t.id }, true)
+    }
+    e.stopPropagation()
+    addEventListener('pointermove', move)
+    addEventListener('pointerup', up)
+  }
+  function startComment(sx, sy, agent = false) {
+    if (!api) return hint(readOnly, 3000)
+    draft = { ...commentPlace(sx, sy), agent }
     activeId = null
     renderPins()
     showThread({ draft })

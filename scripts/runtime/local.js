@@ -236,7 +236,7 @@
         if (!post) return answer(200, { events: parseEvents(lines.join('\n')), viewer: null })
         const event = makeEvent(body.event)
         // A visitor answers the owner's comments but does not delete or resolve them.
-        if (play && (event.op === 'delete' || event.op === 'resolve')) {
+        if (play && (event.op === 'delete' || event.op === 'resolve' || event.op === 'place')) {
           const own = parseEvents(lines.slice(0, builtLines).join('\n')).flatMap((e) => [e.id].filter(Boolean))
           if (own.includes(event.to)) return answer(403, { error: 'That comment belongs to the owner' })
         }

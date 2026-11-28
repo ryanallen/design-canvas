@@ -31,7 +31,7 @@
 export const CANVAS_MARK = 'review-canvas'
 export const EVENT_PREFIX = 'comment '
 export const LIMITS = { name: 80, text: 4000, frame: 240, events: 5000 }
-const OPS = ['add', 'reply', 'resolve', 'delete', 'agent']
+const OPS = ['add', 'reply', 'resolve', 'delete', 'agent', 'edit', 'react', 'place']
 const KINDS = ['comment', 'edit', 'board']
 /** The emoji a comment can be reacted to with. */
 export const REACTIONS = ['👍', '❤️', '🎉', '👀', '✅']
@@ -148,11 +148,24 @@ export function makeEvent(input, { now = new Date(), newId = randomId } = {}) {
       if (!REACTIONS.includes(input.emoji)) throw new Error(`emoji must be one of ${REACTIONS.join(' ')}`)
       return { op: 'react', to: id(input.to, 'to'), at, name, emoji: input.emoji, on: input.on !== false }
     }
+    // A thread's pin moved, as a Figma comment is dragged: where it now is, in the same terms as add. The fold takes it
+    // only from whoever wrote the thread.
+    case 'place': {
+      const frame = input.frame == null ? null : text(input.frame, LIMITS.frame, 'frame')
+      const event = { op: 'place', to: id(input.to, 'to'), at, name, frame, x: coord(input.x, 'x'), y: coord(input.y, 'y') }
+      const anchor = anchorOf(input.anchor)
+      if (anchor) Object.assign(event, { file: text(input.file ?? (frame ?? '').split('#')[0], LIMITS.frame, 'file'), anchor })
+      if (frame == null) {
+        if (input.page != null) event.page = text(input.page, LIMITS.frame, 'page')
+        if (input.item != null) Object.assign(event, { item: text(input.item, LIMITS.frame, 'item'), dx: coord(input.dx ?? 0, 'dx'), dy: coord(input.dy ?? 0, 'dy') })
+      }
+      return event
+    }
     // New words for a comment or reply; the fold takes them only from whoever wrote it.
     case 'edit':
       return { op: 'edit', to: id(input.to, 'to'), at, name, text: text(input.text, LIMITS.text, 'text') }
     default:
-      throw new Error('op must be add, reply, resolve, delete, agent, edit or react')
+      throw new Error('op must be add, reply, resolve, delete, agent, edit, react or place')
   }
 }
 
@@ -191,6 +204,9 @@ export function foldEvents(events) {
       // As in Figma, a comment is edited only by the one who wrote it; anyone else's edit line changes nothing.
       const m = threads.get(e.to) ?? threads.get(owner.get(e.to))?.replies.find((r) => r.id === e.to)
       if (m && m.name === e.name) Object.assign(m, { text: e.text, edited: e.at })
+    } else if (e.op === 'place') {
+      const t = threads.get(e.to)
+      if (t && t.name === e.name) Object.assign(t, { frame: e.frame ?? null, x: e.x, y: e.y, file: e.file ?? null, anchor: e.anchor ?? null, page: e.page ?? null, item: e.item ?? null, dx: e.dx ?? 0, dy: e.dy ?? 0 })
     } else if (e.op === 'delete') {
       if (threads.has(e.to)) threads.delete(e.to)
       else if (owner.has(e.to)) {

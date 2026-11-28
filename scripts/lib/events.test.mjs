@@ -275,3 +275,11 @@ test("a board object keeps who made it as `by`, whoever changes it later; its au
   assert.equal(it.author, 'show')
   assert.throws(() => makeBoardEvent({ op: 'item', id: add.id, author: 'yes', name: 'Sam' }), /author must be/)
 })
+
+test('a pin is moved only by whoever wrote the thread', () => {
+  const add = makeEvent({ op: 'add', name: 'Ana', text: 'Here?', frame: 'home.html', x: 10, y: 20 }, { newId: () => 'c-ccccccc1' })
+  const byAna = makeEvent({ op: 'place', to: add.id, name: 'Ana', frame: null, page: 'p1', item: 'b-abcdef1', dx: 5, dy: 6, x: 300, y: 400 })
+  const bySam = makeEvent({ op: 'place', to: add.id, name: 'Sam', frame: 'other.html', x: 1, y: 1 })
+  const [t] = foldEvents([add, byAna, bySam])
+  assert.deepEqual([t.frame, t.page, t.item, t.dx, t.dy, t.x, t.y], [null, 'p1', 'b-abcdef1', 5, 6, 300, 400])
+})

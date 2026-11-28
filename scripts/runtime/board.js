@@ -3377,7 +3377,7 @@
     roomSocket = ws
     ws.onopen = () => {
       roomTries = 0
-      ws.send(JSON.stringify({ t: 'hello', name: me || 'Someone' }))
+      ws.send(JSON.stringify({ t: 'hello', name: me || 'Someone', ...(invite ? { key: invite } : {}) }))
     }
     ws.onmessage = (e) => {
       let m
@@ -3394,6 +3394,9 @@
     }
   }
   function onRoom(m) {
+    if (m.t === 'welcome' || m.t === 'host') hostSays(m)
+    if (m.t === 'answer') return answered(m)
+    if (m.t === 'tell') return told(m)
     if (m.t === 'welcome') {
       peers.clear()
       for (const p of m.peers ?? []) peers.set(p.id, p)
@@ -3451,6 +3454,83 @@
       const s = toScreen(c.x, c.y)
       el.style.transform = `translate(${Math.round(s.x)}px, ${Math.round(s.y)}px)`
     }
+  }
+  // ── editing through the room: opened with the owner's invite key (#invite=…), while the owner's canvas is in the
+  // room, every /api/ call this page makes goes through the room to the owner's server, which answers it as it
+  // answers its own page; its news (a file changed, new lines, the board) comes back the same way. The key is taken
+  // out of the address once read, so a link copied from here does not pass it on; it is kept for this tab. ──
+  var invite = (() => {
+    try {
+      const m = /(?:^#|&)invite=([^&]+)/.exec(location.hash)
+      if (!m) return sessionStorage.getItem('dc-invite') || ''
+      const key = decodeURIComponent(m[1])
+      sessionStorage.setItem('dc-invite', key)
+      const rest = location.hash.replace(/(^#|&)invite=[^&]*/, '$1').replace(/^#&/, '#')
+      // window.history: `history` in this script is the canvas's own undo history.
+      window.history.replaceState(null, '', `${location.pathname}${location.search}${rest === '#' ? '' : rest}`)
+      return key
+    } catch { return '' }
+  })()
+  let remote = false
+  let ownerHere = false
+  let callN = 0
+  const calls = new Map()
+  function hostSays(m) {
+    if (!invite) return
+    if (m.edit && !remote) startRemote()
+    if (remote) {
+      ownerHere = !!(m.on ?? m.host)
+      showRemote()
+    } else if (m.host === false || m.on === false) hint("The owner's canvas isn't open right now. You can look around, and edit once it is.", 4000)
+  }
+  function showRemote() {
+    $('#canvas-mode').textContent = ownerHere ? 'Editing live' : 'Owner offline'
+    $('#canvas-mode').title = ownerHere ? "Your changes go straight into the owner's files, and theirs show here." : "The owner's canvas isn't open right now, so changes can't be saved until it is."
+  }
+  function startRemote() {
+    remote = true
+    const before = window.fetch
+    window.fetch = (input, init = {}) => {
+      const url = typeof input === 'string' ? input : input.url
+      const path = url.startsWith(location.origin) ? url.slice(location.origin.length) : url
+      return remote && /^\/api\//.test(path) ? roomCall(init.method || 'GET', path, init.body) : before(input, init)
+    }
+    serve = true
+    api = '/api/canvas-comments'
+    document.body.classList.add('serving', 'commenting')
+    // What the owner's files say now, over what this page was built with.
+    for (const file of Object.keys(data.files)) fileChanged(file, { quiet: true })
+    refreshBoard()
+    refresh()
+  }
+  function roomCall(method, path, body) {
+    return new Promise((resolve) => {
+      const n = ++callN
+      const done = (status, text) => {
+        clearTimeout(c.timer)
+        calls.delete(n)
+        resolve(new Response(text, { status, headers: { 'content-type': 'application/json' } }))
+      }
+      const c = { parts: [], done, timer: setTimeout(() => done(504, JSON.stringify({ error: "The owner's canvas didn't answer in time." })), 30000) }
+      calls.set(n, c)
+      if (roomSocket?.readyState !== 1) return done(503, JSON.stringify({ error: 'Not connected to the room right now. Trying again.' }))
+      roomSocket.send(JSON.stringify({ t: 'call', n, method, path, body: typeof body === 'string' ? body : null }))
+    })
+  }
+  function answered(m) {
+    const c = calls.get(m.n)
+    if (!c) return
+    c.parts[m.part ?? 0] = m.body ?? ''
+    const of = m.of ?? 1
+    if (c.parts.filter((x) => x != null).length === of) c.done(m.status, c.parts.join(''))
+  }
+  function told(m) {
+    if (!remote) return
+    const d = m.data ?? {}
+    if (m.event === 'file' && d.file) fileChanged(d.file, { quiet: true })
+    else if (m.event === 'lines') refresh()
+    else if (m.event === 'board') refreshBoard()
+    else if (m.event === 'sheet' && d.sheet) reloadSheet(d.sheet, d.text)
   }
   /** A face clicked: to the page their pointer is on, with it in the middle of the window. */
   function goToPeer(id) {
@@ -4681,6 +4761,8 @@
     document.body.classList.add('serving', 'commenting')
     $('#canvas-mode').textContent = `Editing ${folderName}`
     $('#canvas-mode').title = title
+    // Editing live through the room says so, whichever came first.
+    if (remote) showRemote()
     showEmpty()
     for (const file of Object.keys(data.files)) {
       delete fileHtml[file]

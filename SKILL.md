@@ -96,7 +96,7 @@ Measuring each prototype's height needs a Chromium. `scripts/lib/browser.mjs` fi
 - **Where comments go.** Set `"comments": "<address>"` in `canvas.json`, or `--comments <address>` on build. When served by node, comments go to the server. When editing from disk, they go into `canvas.html` itself. Anywhere else, they go to that address, or to the hosting site's own `/api/canvas-comments` when none is set.
 - **Play.** `"play": true` in `canvas.json` lets every visitor edit the canvas when it is opened from any website, with nothing to pick. Edits, board objects, artboards and comments are kept in that visitor's browser (localStorage), and nobody else sees them.
 - **Links.** `"links": [{ "text": "★ Star", "href": "https://…" }]` in `canvas.json` puts those links at the right of the top bar.
-- **Room.** `"room": "wss://…/room/<room id>"` in `canvas.json` has everyone who opens the canvas join that hosted room, to see each other's pointers and faces. `worker/` holds the room as a Cloudflare Worker; HOSTING.md says how to put it up. Without it, a served canvas uses its own room and nothing else connects anywhere.
+- **Room.** `"room": "wss://…/room/<room id>"` in `canvas.json` has everyone who opens the canvas join that hosted room, to see each other's pointers and faces. `worker/` holds the room as a Cloudflare Worker; HOSTING.md says how to put it up. Without it, a served canvas uses its own room and nothing else connects anywhere. With a `.room-key` file beside the prototypes (or `DC_ROOM_KEY`), `serve` joins that room as its host, and people who open the hosted copy with `#invite=<key>` edit it live. HOSTING.md has the steps.
 
 ## The lines in `canvas.html`
 

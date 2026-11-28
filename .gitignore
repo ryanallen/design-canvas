@@ -13,3 +13,5 @@ examples/*/canvas.html
 *.key
 # The owner's own dev notes and tickets, kept off the public repository
 /.dev/
+# The owner key for a hosted room, read by serve
+.room-key

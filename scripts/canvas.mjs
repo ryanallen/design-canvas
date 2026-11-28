@@ -37,6 +37,7 @@ import { cropToOption } from './lib/crop.mjs'
 import { familyValue, fetchWebFont, WEB_FONTS } from './lib/webfont.mjs'
 import { rebase } from './lib/rebase.mjs'
 import { acceptSocket, makeRoom } from './lib/room.mjs'
+import { hostRoom } from './lib/hostroom.mjs'
 import { launchChromium } from './lib/browser.mjs'
 import { CANVAS_MARK, foldBoard, foldEvents, insertEvent, makeBoardEvent, makeEvent, parseEvents, parseLines, randomId, storedLines } from './lib/events.mjs'
 
@@ -319,7 +320,7 @@ export async function buildCanvas(options) {
 }
 
 /** Serve a built canvas and take comments, board objects and edits. Returns the http server. */
-export function serveCanvas(built, { port = 4410, strictPort = false, quiet = false, memory = false } = {}) {
+export function serveCanvas(built, { port = 4410, strictPort = false, quiet = false, memory = false, roomKey = process.env.DC_ROOM_KEY } = {}) {
   const { folder, out } = built
   let payload = built.payload
   let lines = [...built.lines]
@@ -423,8 +424,11 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
   }
   let selection = null
   const clients = new Set()
+  // The hosted room this canvas is the host of (canvas.json's room, with DC_ROOM_KEY): told the same news.
+  let hosted = null
   const tell = (event, data) => {
     for (const res of clients) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+    hosted?.tell(event, data)
   }
 
   // A prototype changed by something else (an agent, a build script): redraw it everywhere.
@@ -997,6 +1001,15 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
     console.error(err.code === 'EADDRINUSE' ? `Port ${at} is in use: close what holds it, or serve with --port <another>.` : `Could not serve: ${err.message}`)
     process.exitCode = 1
   })
+  server.on('listening', () => {
+    // The owner key: DC_ROOM_KEY, or a .room-key file beside the prototypes (kept out of git by .gitignore).
+    let key = roomKey
+    if (!key) try { key = fs.readFileSync(path.join(folder, '.room-key'), 'utf8').trim() } catch {}
+    if (!payload.room || !key || hosted) return
+    hosted = hostRoom({ room: payload.room, ownerKey: key, base: `http://127.0.0.1:${server.address().port}`, log: (m) => { if (!quiet) console.log(m) } })
+    server.hosted = hosted
+  })
+  server.on('close', () => hosted?.close())
   server.listen(port, '127.0.0.1', () => {
     if (!quiet) console.log(`Serving ${path.basename(out)} at http://127.0.0.1:${server.address().port}/${at !== port ? ` (${port} was in use)` : ''} : edits write into the prototypes in ${folder}, comments and edit lines into ${out}. Ctrl+C to stop.`)
   })

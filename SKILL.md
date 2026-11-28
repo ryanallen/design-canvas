@@ -283,6 +283,8 @@ Number fields in Properties work as in Figma.
 - ↑ and ↓ step the value (10 with Shift). Each step is written with its unit kept, and the field keeps keyboard focus.
 - Dragging across a number row's label scrubs the value (10 at a time with Shift). It is written once when you let go.
 
+An element placed absolutely or fixed has **Constraints** in Properties, as in Figma: which edges of what holds it it keeps to when that resizes. Across: Left, Right, Left and right (its width follows), Center or Scale (left and width as percentages). Down: Top, Bottom, Top and bottom, Center or Scale. Each is written from where the element sits, so picking one moves nothing.
+
 Properties' **Appearance** holds the element's look. Each change is one undo step.
 
 - **Fill** is a color. With ◐ it is a gradient (Linear, Radial or Angular, with two colors and an angle). With ◍ it is a point mesh. That means color points you drag on the element, each a radial gradient fading at its spread, in plain CSS. With ◫ it is a grid mesh, a lattice of 2 to 6 rows and columns whose points you drag to bend the colors. The grid mesh is drawn to a small picture in the element's own CSS, and the lattice is kept in `data-mesh` so you can edit it again.

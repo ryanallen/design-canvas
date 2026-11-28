@@ -773,8 +773,44 @@
       screen ? null : dimRow('height', 'Height'),
       field('Position', select(['static', 'relative', 'absolute', 'fixed', 'sticky'], c.position, (v) => set({ position: v }))),
       ['absolute', 'fixed', 'relative', 'sticky'].includes(c.position) ? field('Left · Top', input(across((x, k) => num(k.left)), (v) => set({ left: px(v) }), { class: 'n' }), input(across((x, k) => num(k.top)),(v) => set({ top: px(v) }), { class: 'n' })) : null,
+      constraintsRow(),
       parentFlex ? field('Grow', input(across((x, k) => k.flexGrow),(v) => set({ 'flex-grow': v }), { class: 'n' })) : null,
       screen ? null : turnRow()))
+
+    // Figma's constraints, for one element placed absolutely or fixed: which edges of what holds it it keeps to when
+    // that resizes. Each is written from where it sits now, so picking one moves nothing: Left (a left offset), Right
+    // (a right offset), Left and right (both, its width following), Center (calc(50% + offset)), Scale (left and
+    // width as percentages); the same down, with top, bottom and height.
+    function constraintsRow() {
+      if (ed.sel.els.length !== 1 || !['absolute', 'fixed'].includes(c.position)) return null
+      const fixed = c.position === 'fixed'
+      const holder = fixed ? null : el.offsetParent
+      const win = el.ownerDocument.documentElement
+      const free = (prop) => { const a = authored(el, prop); return a && a !== 'auto' }
+      const off = (prop) => (free(prop) ? 'auto' : '')
+      const round = (n) => Math.round(n * 100) / 100
+      const axis = (horizontal) => {
+        const [start, end, size] = horizontal ? ['left', 'right', 'width'] : ['top', 'bottom', 'height']
+        const at = horizontal ? el.offsetLeft : el.offsetTop
+        const len = horizontal ? el.offsetWidth : el.offsetHeight
+        const room = holder ? (horizontal ? holder.clientWidth : holder.clientHeight) : (horizontal ? win.clientWidth : win.clientHeight)
+        const names = horizontal ? ['Left', 'Right', 'Left and right', 'Center', 'Scale'] : ['Top', 'Bottom', 'Top and bottom', 'Center', 'Scale']
+        const a = authored(el, start) ?? ''
+        const now = /%/.test(a) && /%/.test(authored(el, size) ?? '') ? names[4] : /^calc\(50%/.test(a) ? names[3] : free(start) && free(end) ? names[2] : free(end) && !free(start) ? names[1] : names[0]
+        const keep = c[size]
+        const write = {
+          [names[0]]: { [start]: `${at}px`, [end]: off(end), [size]: keep },
+          [names[1]]: { [end]: `${room - at - len}px`, [start]: off(start), [size]: keep },
+          [names[2]]: { [start]: `${at}px`, [end]: `${room - at - len}px`, [size]: 'auto' },
+          [names[3]]: { [start]: `calc(50% + ${Math.round(at - room / 2)}px)`, [end]: off(end), [size]: keep },
+          [names[4]]: { [start]: `${round((at / room) * 100)}%`, [end]: off(end), [size]: `${round((len / room) * 100)}%` },
+        }
+        const pick = select(names, now, (v) => set(write[v]))
+        pick.setAttribute('aria-label', horizontal ? 'Horizontal constraint' : 'Vertical constraint')
+        return pick
+      }
+      return field('Constraints', axis(true), axis(false))
+    }
 
     // Layout
     const flex = c.display.includes('flex')

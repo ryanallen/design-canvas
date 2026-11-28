@@ -1,14 +1,22 @@
 # design-canvas
 
-A skill that lays any folder of HTML prototypes out on one board, to view, play, edit and comment on them as HTML and CSS, with every edit written back into the prototype's own `.html`. Every page is also a whiteboard (notes, shapes with text, sections, arrows that stay attached, a selection box to ask an agent about), and a folder with no prototypes builds as a whiteboard alone. Node only: nothing to install, no build step, nothing fetched by the canvas.
+A skill that puts a folder of HTML prototypes on one board. You can view them, click through them, edit them and comment on them. Every edit is saved back into the prototype's own `.html` file.
+
+Every page is also a whiteboard, with sticky notes, shapes with text, sections, arrows that stay attached, and a box you can draw to ask your agent about what's inside it. A folder with no prototypes opens as a plain whiteboard.
+
+It only needs Node. There's nothing to install, no build step, and the canvas never fetches anything from the internet.
 
 ## Install
 
-Clone or copy this folder into a project's `.agents/skills/design-canvas/` (or `.claude/skills/design-canvas/`). [SKILL.md](SKILL.md) is what an agent reads.
+Clone or copy this folder into a project's `.agents/skills/design-canvas/` folder (or `.claude/skills/design-canvas/`). Your agent reads [SKILL.md](SKILL.md) to learn how to use it.
 
 ## Use
 
-Double-click **Design Canvas.cmd** (Windows) or **Design Canvas.command** (Mac). It asks for the folder of prototypes in the system's folder picker, then offers: build the canvas and open it, open it as it is, check it, or serve it. A built `canvas.html` opened in Chrome or Edge edits itself: click **Viewing · Edit** at the top and pick its folder once; nothing is left running. Both need [Node](https://nodejs.org) installed.
+Double-click **Design Canvas.cmd** on Windows or **Design Canvas.command** on a Mac. It asks you to pick your folder of prototypes. Then you can build the canvas and open it, open it as it is, check it, or serve it.
+
+A built `canvas.html` opened in Chrome or Edge can edit itself. Click **Viewing · Edit** at the top and pick its folder once. Nothing is left running in the background.
+
+Both ways need [Node](https://nodejs.org) installed.
 
 The same from a terminal:
 
@@ -24,16 +32,16 @@ node scripts/canvas.mjs accept <folder> <prototype.html>
 | File | What it is |
 | --- | --- |
 | [SKILL.md](SKILL.md) | What it does, when to use it, the commands, the lines it keeps, the agent endpoints |
-| [HOSTING.md](HOSTING.md) | Putting a canvas on a website: play mode, locks, shared comments through a Cloudflare Worker or GitHub sign-in, and where a host's secrets go |
-| `Design Canvas.cmd`, `Design Canvas.command` | Double-click launchers for Windows and Mac: they run `scripts/app.mjs` |
-| [scripts/app.mjs](scripts/app.mjs) | The launcher: a folder from the system's picker, then a numbered menu |
-| [scripts/runtime/local.js](scripts/runtime/local.js) | Editing from disk with no server: the page writes into the folder it is given |
+| [HOSTING.md](HOSTING.md) | How to put a canvas on a website. Covers play mode, locks, shared comments through a Cloudflare Worker or GitHub sign-in, and where a host's secrets go |
+| `Design Canvas.cmd`, `Design Canvas.command` | Double-click launchers for Windows and Mac. They run `scripts/app.mjs` |
+| [scripts/app.mjs](scripts/app.mjs) | The launcher. It asks for a folder, then shows a numbered menu |
+| [scripts/runtime/local.js](scripts/runtime/local.js) | Editing from disk with no server. The page writes into the folder you give it |
 | [scripts/canvas.mjs](scripts/canvas.mjs) | `build`, `serve`, `check`, `accept`; `buildCanvas`, `serveCanvas` and `acceptFiles` for a caller that works its own layout out |
 | [scripts/check.mjs](scripts/check.mjs) | The gate, through a real browser, on a copy held in memory |
 | [scripts/lib/html.mjs](scripts/lib/html.mjs) | A prototype as elements with their source offsets, and every edit as a replacement at them |
 | [scripts/lib/html.test.mjs](scripts/lib/html.test.mjs) | Every edit op checked to change only its own bytes (`node --test scripts/lib/*.test.mjs`) |
 | [scripts/lib/events.mjs](scripts/lib/events.mjs) | Comment, edit and board lines: written, read, checked and folded |
-| [scripts/lib/write.mjs](scripts/lib/write.mjs) | Every file written whole or not at all: a hidden file beside it, flushed, renamed over it |
+| [scripts/lib/write.mjs](scripts/lib/write.mjs) | Writes every file whole or not at all, by writing a hidden file beside it and renaming it over the original |
 | [scripts/lib/inline.mjs](scripts/lib/inline.mjs) | A prototype made self-contained |
 | [scripts/lib/crop.mjs](scripts/lib/crop.mjs) | One option's column cut out of a comparison board |
 | [scripts/lib/browser.mjs](scripts/lib/browser.mjs) | Finds a Chromium the machine already has, to measure and to check |
@@ -44,5 +52,5 @@ node scripts/canvas.mjs accept <folder> <prototype.html>
 | [scripts/runtime/panel.js](scripts/runtime/panel.js) | The right panel: layers, Properties, Code, Tweaks |
 | [scripts/runtime/editor.css](scripts/runtime/editor.css) | The editor's and the panel's look |
 | [examples/plain/](examples/plain/) | Three small prototypes (levers, script and links, fluid) to build, serve and check against |
-| [index.html](index.html), [landing/](landing/) | The page at [ryanallen.com/design-canvas](https://ryanallen.com/design-canvas/): why the canvas exists, how it works, how to get it; static, with its pictures in `landing/` |
-| [site/](site/), [play/](play/) | The canvas at [ryanallen.com/design-canvas/play](https://ryanallen.com/design-canvas/play/), built in play mode: `node scripts/canvas.mjs build site --out play/index.html` |
+| [index.html](index.html), [landing/](landing/) | The page at [ryanallen.com/design-canvas](https://ryanallen.com/design-canvas/), which explains the canvas and how to get it. It's a static page, with its pictures in `landing/` |
+| [site/](site/), [play/](play/) | The live canvas at [ryanallen.com/design-canvas/play](https://ryanallen.com/design-canvas/play/), built in play mode with `node scripts/canvas.mjs build site --out play/index.html` |

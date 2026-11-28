@@ -1306,6 +1306,11 @@
   }
   const needEditable = () => {
     if (!sel) return false
+    // A part no longer in the page (its screen is being drawn again for someone else's edit) is acted on by nothing.
+    if (!sel.els.every(live)) {
+      hint('That part has changed since it was picked. Select it again.', 2400)
+      return false
+    }
     if (!sel.els.every(editable)) {
       if (dc.serve) hint(notEditable(primary()), 3000)
       return false

@@ -77,7 +77,7 @@ Measuring each prototype's height needs a Chromium. `scripts/lib/browser.mjs` fi
 
   Page Down and Page Up go to the next and previous screen on the page, filling the window.
 
-  `&screen=<file>` (or `#screen=<file>` alone) opens on that screen instead, zoomed to it, like a Figma link to a frame. **Copy link to this screen** under the toolbar's … puts such a link on the clipboard.
+  `&screen=<file>` (or `#screen=<file>` alone) opens on that screen instead, zoomed to it, like a Figma link to a frame. **Copy link to this screen** under the toolbar's … puts such a link on the clipboard. `#item=<id>` (several ids joined by commas) opens on those board objects, on their page, selected and in view. **Copy link to selection** in a board object's right-click menu copies one, as in FigJam.
 
   `#comment=<thread id>` opens on that comment thread, open and in view, like a Figma link to a comment. **Copy link** at the top of a thread puts such a link on the clipboard.
 - **Levers.** `<meta name="canvas-levers" content="--accent, --gap">` names the CSS variables shown under Tweaks. A color gets a picker that keeps its alpha. A number gets a slider sized to its unit, plus a field for an exact value. A bare fraction slides from 0 to 1 in hundredths, and a negative number's slider goes below zero. Under the levers, Tweaks lists every other variable the prototype's own `:root` sets, with the same controls, as Figma's Variables lists them all. A prototype with no levers shows its variables alone.

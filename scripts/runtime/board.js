@@ -1137,6 +1137,7 @@
       free ? { label: 'Flip up and down', key: 'Shift+V', run: () => flipChosen('y') } : null,
       { label: 'Wrap in a section', key: 'Ctrl+Alt+G', run: sectionAround },
       { label: 'Zoom to selection', key: 'Shift+2', run: zoomToSelection },
+      { label: 'Copy link to selection', run: copyItemsLink },
       !local ? { label: 'Copy as PNG', key: 'Ctrl+Shift+C', run: copyBoardPng } : null,
       !local ? { label: 'Export PNG', run: exportBoardPng } : null,
       matching().length > ids.length ? { label: `Select matching (${matching().length})`, key: 'Ctrl+Alt+A', run: selectMatching } : null,
@@ -4841,8 +4842,36 @@
     openThread(want, true)
     return true
   }
+  /** FigJam's link to a selection: `#item=<id>[,<id>…]` opens the canvas on those board objects, on their page,
+      selected and filling the view. */
+  function goItemsFromHash() {
+    const m = /(?:^#|&)item=([^&]+)/.exec(location.hash)
+    if (!m) return false
+    let ids = m[1]
+    try { ids = decodeURIComponent(ids) } catch {}
+    const list = ids.split(',').map((id) => board.items.find((i) => i.id === id)).filter(Boolean)
+    if (!list.length) return hint('That part of the board is not here any more', 2400), false
+    const pg = list[0].page ?? firstPage()
+    if (pg !== pageId) goPage(pg)
+    const here = list.filter((i) => (i.page ?? firstPage()) === pg).map((i) => i.id)
+    here.length > 1 ? chooseItems(here) : pickItem(here[0])
+    zoomToSelection()
+    return true
+  }
+  async function copyItemsLink() {
+    const ids = chosen ? [...chosen.items] : picked ? withGroup(picked) : []
+    if (!ids.length) return
+    const url = `${location.origin}${location.pathname}#item=${ids.map(encodeURIComponent).join(',')}`
+    try {
+      await navigator.clipboard.writeText(url)
+      hint('Link copied. It opens the canvas on what is selected.', 1800)
+    } catch {
+      hint(url, 8000)
+    }
+  }
   addEventListener('hashchange', () => {
     if (goCommentFromHash()) return
+    if (goItemsFromHash()) return
     if (goScreenFromHash()) return
     const id = pageFromHash()
     if (id) goPage(id)
@@ -5355,6 +5384,7 @@
       apply()
     } else firstView()
     goScreenFromHash()
+    goItemsFromHash()
     goCommentFromHash()
     if (store.get('pins-off')) document.body.classList.add('pins-off')
     const tab = store.get('tab')

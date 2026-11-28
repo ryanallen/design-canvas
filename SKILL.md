@@ -366,7 +366,7 @@ A section is a labeled area drawn under everything else. Dragged by its label or
 
 Undo, nudging, order and zoom work like this.
 
-- Ctrl+Z undoes and Ctrl+Shift+Z (or Ctrl+Y) redoes whatever was done last, on the board or in a prototype, in one history. A board step is everything one action changed, such as a group dragged, an align or a paste, put back as it was.
+- Ctrl+Z undoes and Ctrl+Shift+Z (or Ctrl+Y) redoes whatever was done last, on the board or in a prototype, in one history. A board step is everything one action changed, such as a group dragged, an align or a paste, put back as it was. Undoing or redoing a board step brings back the selection you had when you made it, as Figma does. If none of it is left, the objects it changed are selected.
 - The arrow keys nudge what is selected on the board 1 px, or 10 with Shift. A section moves with what is inside it. A locked object, or a line bound to objects, stays put. Each press is one undo step.
 - Ctrl+] brings the selected objects forward one place and Ctrl+[ sends them back one place. Ctrl+Shift+] and Ctrl+Shift+[ take them all the way to the front or back. The order is kept as a `z` on their board lines.
 - Shift+2 zooms to what is selected, on the board or in a prototype. Shift+1 zooms to everything.

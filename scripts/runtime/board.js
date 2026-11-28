@@ -2969,7 +2969,8 @@
     // A new object's id is only known from its line.
     if (before.id === null) before.id = after.id
     if (!openStep) {
-      openStep = { kind: 'board', changes: new Map() }
+      // What was selected as the step began comes back with it on undo and redo, as in Figma.
+      openStep = { kind: 'board', changes: new Map(), selection: { items: chosen ? [...chosen.items] : picked ? withGroup(picked) : [], frames: chosen ? [...chosen.frames] : [] } }
       history.push(openStep)
       future.length = 0
       if (history.length > 200) history.shift()
@@ -3046,6 +3047,19 @@
     try {
       await replay(top, !redo)
       hint(redo ? 'Redone' : 'Undone', 900)
+      // The selection comes back as it was when the step was made, as Figma's undo does, so it shows what came back:
+      // what of it is on this page after the step; else what the step changed that is still there; else nothing.
+      const here = (id) => board.items.some((i) => i.id === id && (i.page ?? firstPage()) === pageId && i.kind !== 'guide')
+      const onPage = (k) => frames().some((f) => f.key === k)
+      let ids = (top.selection?.items ?? []).filter(here)
+      let keys = (top.selection?.frames ?? []).filter(onPage)
+      if (!ids.length && !keys.length) {
+        const kept = [...top.changes.values()].filter((c) => !['page', 'name', 'lock'].includes(c.kind) && (redo ? c.after : c.before))
+        ids = kept.filter((c) => !c.key && here(c.id)).map((c) => c.id)
+        keys = kept.filter((c) => c.key && onPage(c.key)).map((c) => c.key)
+      }
+      if (ids.length || keys.length) chooseItems([...new Set(ids)], [...new Set(keys)])
+      else pickItem(null)
     } catch (err) {
       hint(err.message, 3000)
       takeBoardAgain()

@@ -916,6 +916,38 @@
           : null))
     }
 
+    // Figma's Navigate to, for a link: which screen on the canvas it opens (its address worked out from this file),
+    // a web address typed, or none.
+    if (el.localName === 'a' && ed.sel.els.length === 1 && state === 'default') {
+      const here = ed.sel.frame.file
+      const rel = (to) => {
+        const a = here.split('/').slice(0, -1)
+        const b = to.split('/')
+        let i = 0
+        while (i < a.length && i < b.length - 1 && a[i] === b[i]) i++
+        return [...a.slice(i).map(() => '..'), ...b.slice(i)].join('/')
+      }
+      const seen = new Set()
+      const screens = (dc.allFrames ?? dc.frames).filter((f) => !f.crop).map((f) => ({ label: f.label, href: `${f.file === here && f.hash ? '' : rel(f.file)}${f.hash ? `#${f.hash}` : ''}` })).filter((o) => o.href && !seen.has(o.href) && seen.add(o.href))
+      const now = el.getAttribute('href') ?? ''
+      const known = screens.some((o) => o.href === now)
+      const pick = h('select', { 'aria-label': 'Link to' },
+        h('option', { value: '', selected: !now }, 'None'),
+        ...screens.map((o) => h('option', { value: o.href, selected: o.href === now }, o.label)),
+        now && !known ? h('option', { value: now, selected: true }, now) : null,
+        h('option', { value: '\u0000web' }, 'Web address…'))
+      pick.addEventListener('change', async () => {
+        let v = pick.value
+        if (v === '\u0000web') {
+          const typed = await dc.question('Link to:', /^https?:/.test(now) ? now : 'https://')
+          if (typed == null || !typed.trim() || /^(javascript|vbscript|data):/i.test(typed.replace(/[\u0000-\u0020]/g, ''))) return renderProps()
+          v = typed.trim()
+        }
+        ed.send({ op: 'attr', cv: ed.cvOf(el), name: 'href', value: v || null }, { then: ed.reselect() })
+      })
+      host.append(section('Link', ['target', 'rel'], field('Opens', pick)))
+    }
+
     // Figma's List style: a line of text or a list as no list, bullets or numbers, as Ctrl+Shift+8 and 7 make them.
     const listRow = () => (ed.sel.els.length === 1 && (ed.isText(el) || ['ul', 'ol'].includes(el.localName)) && !['li', 'button', 'a', 'label'].includes(el.localName) && state === 'default'
       ? field('List', seg([['p', '—', 'No list'], ['ul', '•', 'Bulleted list'], ['ol', '1.', 'Numbered list']], ['ul', 'ol'].includes(el.localName) ? el.localName : 'p', (v) => { const now = ['ul', 'ol'].includes(el.localName) ? el.localName : 'p'; if (v !== now) ed.listAs(v === 'p' ? now : v) }))

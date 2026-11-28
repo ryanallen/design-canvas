@@ -1379,6 +1379,10 @@
         if (ed.sel.els.includes(x) || [...x.childNodes].some((t) => t.nodeType === 3 && t.textContent.trim())) add(k.color, x, 'color')
         add(k.backgroundColor, x, 'background-color')
         if (k.borderTopStyle !== 'none' && parseFloat(k.borderTopWidth) > 0) add(k.borderTopColor, x, 'border-color')
+        // An icon's shapes: their fill and stroke, as Figma counts a vector's.
+        if (x.namespaceURI === 'http://www.w3.org/2000/svg' && x.localName !== 'svg') {
+          for (const prop of ['fill', 'stroke']) { const v = k.getPropertyValue(prop); if (v && v !== 'none' && !/^url\(/.test(v)) add(v, x, prop) }
+        }
       }
       const list = [...uses.values()].sort((a, b) => b.n - a.n)
       if (list.length > 1 || (list.length && scope.length > 1)) {
@@ -1391,7 +1395,7 @@
           ed.send({ op: 'styles', items: [...byEl].map(([x, props]) => ({ cv: ed.cvOf(x), props })) }, { then: ed.reselect() })
         }
         host.append(section('Selection colors', null,
-          ...list.slice(0, 12).map((u) => field(`${[...new Set(u.at.map(([, prop]) => ({ color: 'Text', 'background-color': 'Fill', 'border-color': 'Border' })[prop]))].join(', ')} · ${u.n}`, color(u.v, swap(u))))))
+          ...list.slice(0, 12).map((u) => field(`${[...new Set(u.at.map(([, prop]) => ({ color: 'Text', 'background-color': 'Fill', 'border-color': 'Border', fill: 'Vector fill', stroke: 'Vector stroke' })[prop]))].join(', ')} · ${u.n}`, color(u.v, swap(u))))))
       }
     }
   }

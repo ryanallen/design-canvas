@@ -437,6 +437,9 @@
     draw()
   }
   hooks.onFrameLoad = (f) => {
+    // A menu opened on the selection is about the page as it was: drawn again, the menu goes rather than act on parts
+    // that are no longer there (a right-click that ends typing opens it as the typing is saved).
+    if (sel?.frame === f && document.querySelector('#menu.open')) dc.closeMenu?.()
     // The selection comes back by offset after the frame redraws.
     if (pendingSelect && pendingSelect.file === f.file && (pendingSelect.key ? pendingSelect.key === f.key : true)) {
       const el = pendingSelect.cv != null ? f.doc.querySelector(`[data-cv="${pendingSelect.cv}"]`) : null
@@ -617,6 +620,21 @@
     if (v === undefined) {
       const shown = sel?.frame.file === file && sel.frame.doc ? sel.frame : dc.allFrames?.find((f) => f.file === file && f.doc)
       v = shown?.doc.documentElement.getAttribute('data-dc-v') ?? undefined
+      // An edit made from something drawn for the page before it was drawn again (a toolbar or menu still showing)
+      // names parts by their places in the older file: nothing is sent, rather than have it refused or land elsewhere.
+      const named = [edit.cv, edit.target].flat().filter((n) => n != null && n !== '')
+      // A screen no longer drawn (its page let go) leaves nothing to check the parts against, or a version to send.
+      if (named.length && !shown?.doc) {
+        busy = false
+        hint('That screen was drawn again since the part was picked. Select it again.', 2400)
+        return
+      }
+      if (shown?.doc && named.some((n) => !shown.doc.querySelector(`[data-cv="${Number(n)}"]`))) {
+        busy = false
+        hint('That part has changed since it was picked. Select it again.', 2400)
+        if (sel?.frame) renderFloat()
+        return
+      }
     }
     try {
       const res = await fetch('/api/edit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ file, edit, name: dc.me || 'someone', v }) })

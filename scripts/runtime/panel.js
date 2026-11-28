@@ -14,7 +14,10 @@
   }
 
   // ── layers ──
-  const open = new WeakSet()
+  let open = new WeakSet()
+  // The element whose layer was last brought into view: its parents are opened once, when it is selected, so one of
+  // them can then be closed while it stays selected.
+  let revealed = null
   const openFrames = new Set()
   let tweaksFrame = null
   let tweaksShown = null
@@ -49,10 +52,11 @@
     $('#layers-p').replaceChildren()
     $('#layers-c').replaceChildren()
     const sel = ed.sel
-    if (sel) {
+    if (sel && ed.primary() !== revealed) {
+      revealed = ed.primary()
       openFrames.add(sel.frame.key)
       for (let k = ed.primary()?.parentElement; k; k = k.parentElement) open.add(k)
-    }
+    } else if (!sel) revealed = null
     const rows = []
     // Figma's layer search: what is typed finds board objects, screens and every element of a loaded screen by its
     // name, listed flat with the screen it is on; a click selects it as a click in the tree does.
@@ -83,7 +87,14 @@
     for (const f of q ? [] : dc.frames) {
       const isOpen = openFrames.has(f.key)
       rows.push(h('button', { type: 'button', class: `lrow lframe${sel?.frame === f && sel.els[0]?.localName === 'body' ? ' on' : ''}`, style: '--d:0', onclick: () => { if (f.doc) ed.select(f, [f.doc.body]) } },
-        h('span', { class: 'tw', onclick: (e) => { e.stopPropagation(); isOpen ? openFrames.delete(f.key) : openFrames.add(f.key); renderLayers() } }, isOpen ? '▾' : '▸'),
+        h('span', { class: 'tw', onclick: (e) => {
+          e.stopPropagation()
+          if (isOpen) openFrames.delete(f.key)
+          else openFrames.add(f.key)
+          // Alt+click, as in Figma: every layer inside opens or closes with it.
+          if (e.altKey && f.doc?.body) for (const x of f.doc.body.querySelectorAll('*')) isOpen ? open.delete(x) : open.add(x)
+          renderLayers()
+        } }, isOpen ? '▾' : '▸'),
         h('span', { class: 'lk' }, '#'), h('span', { class: 'ln' }, f.label)))
       // A frame being drawn again has a document with no window yet: its rows come when it has one.
       if (!isOpen || !f.doc?.body || !f.doc.defaultView) continue
@@ -97,7 +108,7 @@
           const row = h('button', { type: 'button', class: `lrow${on ? ' on' : ''}${ed.cvOf(c) == null ? ' runtime' : ''}`, style: `--d:${d}`, title: ed.cvOf(c) == null ? 'Made by the prototype\'s own script: can be inspected, not edited' : '',
             onclick: (e) => layerClick(e, f, c, rows),
             onpointerenter: () => ed.hover(f, c), onpointerleave: () => ed.hover(null, null) },
-            h('span', { class: 'tw', onclick: (e) => { e.stopPropagation(); open.has(c) ? open.delete(c) : open.add(c); renderLayers() } }, kids.length ? (open.has(c) ? '▾' : '▸') : ''),
+            h('span', { class: 'tw', onclick: (e) => { e.stopPropagation(); const was = open.has(c); for (const x of e.altKey ? [c, ...c.querySelectorAll('*')] : [c]) was ? open.delete(x) : open.add(x); renderLayers() } }, kids.length ? (open.has(c) ? '▾' : '▸') : ''),
             h('span', { class: 'lk' }, c.localName === 'a' ? dc.icon('link') : kindGlyph(n.kind)),
             h('span', { class: 'ln' }, n.text),
             dc.serve && ed.cvOf(c) != null ? eyeOf(f, c) : null)
@@ -1778,6 +1789,13 @@
     render()
   }
   dc.renderPanel = render
+  // Figma's Collapse layers (Alt+L): every screen and layer closed, the selection left as it is.
+  dc.collapseLayers = () => {
+    openFrames.clear()
+    open = new WeakSet()
+    revealed = ed.primary()
+    renderLayers()
+  }
   // Figma's Copy CSS (Dev Mode): the styles that apply, its own first, then each rule's that nothing overrides.
   function cssText(el) {
     const own = [...el.style].filter((p) => !p.startsWith('--dc')).map((p) => [p, el.style.getPropertyValue(p)])

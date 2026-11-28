@@ -192,6 +192,8 @@ The panel's Layers list the page's board objects and frames, and an open frame's
 
 **Find a layer**, at the head of Layers, lists every board object, screen and element of a loaded screen whose name holds what is typed. The list is flat, and each entry shows its screen. A click selects it. Escape empties the search.
 
+Selecting a part opens the layers round it, once, so you can then close one of them while it stays selected. Alt+click on a ▸ opens or closes every layer inside it. Alt+L collapses every layer, as Figma's Collapse layers.
+
 When served, a layer dragged onto another goes before or after it, depending on which half it is dropped on. Dropped on the middle of a layer that holds others, it goes inside. Each drop is one move in the file.
 
 To select rows:

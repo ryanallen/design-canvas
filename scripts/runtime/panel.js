@@ -1486,18 +1486,7 @@
     const el = ed.primary()
     if (!el) return host.append(h('div', { class: 'empty' }, 'Nothing selected. Click any element in the design to read its code here.'))
     const can = ed.editable(el)
-    // Figma's Copy CSS (Dev Mode): the styles that apply, its own first, then each rule's that nothing overrides.
-    const copyCss = async () => {
-      const own = [...el.style].filter((p) => !p.startsWith('--dc')).map((p) => [p, el.style.getPropertyValue(p)])
-      const rs = rulesFor(el).reverse()
-      const off = overridden(el, rs)
-      const seen = new Set(own.map(([p]) => p))
-      const all = [...own]
-      rs.forEach((r, i) => r.decls.forEach(([p, v], j) => { if (!off[i][j] && !seen.has(p)) { seen.add(p); all.push([p, v]) } }))
-      const name = el.classList[0] ? `.${el.classList[0]}` : el.localName
-      const text = `${name} {\n${all.map(([p, v]) => `  ${p}: ${v};`).join('\n')}\n}`
-      try { await navigator.clipboard.writeText(text); dc.hint(`Copied ${all.length} declaration${all.length === 1 ? '' : 's'}`, 1200) } catch { dc.hint('This browser would not copy it', 2000) }
-    }
+    const copyCss = () => dc.copyCss(el)
     host.append(h('div', { class: 'ctitle' }, h('code', {}, `<${el.localName}>`), ` ${ed.isText(el) ? `"${el.textContent.replace(/\s+/g, ' ').trim().slice(0, 40)}"` : ''}`, h('button', { type: 'button', class: 'mini copy-css', title: 'Copy the CSS that applies to it', onclick: copyCss }, 'Copy CSS')))
     if (!can) host.append(h('div', { class: 'note' }, ed.notEditable(el), !dc.serve && dc.startLocal ? h('button', { type: 'button', class: 'btn start-edit', onclick: () => dc.startLocal() }, 'Edit here') : null))
     host.append(boxModel(el, can))
@@ -1764,6 +1753,37 @@
     render()
   }
   dc.renderPanel = render
+  // Figma's Copy CSS (Dev Mode): the styles that apply, its own first, then each rule's that nothing overrides.
+  function cssText(el) {
+    const own = [...el.style].filter((p) => !p.startsWith('--dc')).map((p) => [p, el.style.getPropertyValue(p)])
+    const rs = rulesFor(el).reverse()
+    const off = overridden(el, rs)
+    const seen = new Set(own.map(([p]) => p))
+    const all = [...own]
+    rs.forEach((r, i) => r.decls.forEach(([p, v], j) => { if (!off[i][j] && !seen.has(p)) { seen.add(p); all.push([p, v]) } }))
+    const name = el.classList[0] ? `.${el.classList[0]}` : el.localName
+    return { text: `${name} {\n${all.map(([p, v]) => `  ${p}: ${v};`).join('\n')}\n}`, n: all.length }
+  }
+  dc.copyCss = async (el) => {
+    const { text, n } = cssText(el)
+    try { await navigator.clipboard.writeText(text); dc.hint(`Copied ${n} declaration${n === 1 ? '' : 's'}`, 1200) } catch { dc.hint('This browser would not copy it', 2000) }
+  }
+  // Figma's Copy as code, for the HTML: the element as the file has it where node serves the canvas (its formatting
+  // and comments kept), else as the page holds it. The clipboard is asked at once, with the text to come, so the
+  // press still counts as the person's when it arrives.
+  dc.copyHtml = (el, frame) => {
+    const cv = ed.cvOf(el)
+    const shown = () => el.outerHTML.replace(/\s+data-cv="\d+"/g, '').replace(/\s+(contenteditable|spellcheck)="[^"]*"/g, '')
+    const text = dc.serve && cv != null && frame
+      ? fetch(`/api/source?f=${encodeURIComponent(frame.file)}&cv=${cv}`).then((r) => r.json()).then((b) => b.html ?? shown()).catch(shown)
+      : Promise.resolve(shown())
+    try {
+      navigator.clipboard.write([new ClipboardItem({ 'text/plain': text.then((t) => new Blob([t], { type: 'text/plain' })) })])
+        .then(() => dc.hint('Copied its HTML', 1200), () => dc.hint('This browser would not copy it', 2000))
+    } catch {
+      text.then((t) => navigator.clipboard.writeText(t)).then(() => dc.hint('Copied its HTML', 1200), () => dc.hint('This browser would not copy it', 2000))
+    }
+  }
   // Ctrl+R: the panel opens on Layers if it is shut or elsewhere, and the selected element's row is renamed in place.
   dc.renameLayer = () => {
     if (!document.body.classList.contains('panel-open') || !['properties', 'code'].includes(dc.currentTab())) dc.openPanel('properties')

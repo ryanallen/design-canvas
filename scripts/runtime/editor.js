@@ -2258,6 +2258,9 @@
             look ? { label: 'Paste properties', key: 'Ctrl+Alt+V', run: ops.pasteProps } : null,
           ]
         : []),
+      // Figma's Copy as code: the part's HTML, or the CSS that applies to it, locked or not.
+      primary().localName !== 'body' ? { label: 'Copy as HTML', run: () => dc.copyHtml(primary(), sel.frame) } : null,
+      primary().localName !== 'body' ? { label: 'Copy CSS', run: () => dc.copyCss(primary()) } : null,
       // A link that opens the canvas on this screen, as Figma's Copy link to a frame.
       { label: 'Copy link to this screen', run: async () => {
         const url = `${location.origin}${location.pathname}#page=${encodeURIComponent(dc.page)}&screen=${encodeURIComponent(sel.frame.key)}`

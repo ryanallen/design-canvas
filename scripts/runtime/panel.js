@@ -1479,6 +1479,7 @@
     }
     host.append(h('div', { class: 'ctitle' }, h('code', {}, `<${el.localName}>`), ` ${ed.isText(el) ? `"${el.textContent.replace(/\s+/g, ' ').trim().slice(0, 40)}"` : ''}`, h('button', { type: 'button', class: 'mini copy-css', title: 'Copy the CSS that applies to it', onclick: copyCss }, 'Copy CSS')))
     if (!can) host.append(h('div', { class: 'note' }, ed.notEditable(el), !dc.serve && dc.startLocal ? h('button', { type: 'button', class: 'btn start-edit', onclick: () => dc.startLocal() }, 'Edit here') : null))
+    host.append(boxModel(el, can))
     // Where it cannot be changed, the same reading as text.
     if (!can) {
       const own = [...el.style]
@@ -1561,6 +1562,31 @@
       sourceFor = el
       fetch(`/api/source?f=${encodeURIComponent(ed.sel.frame.file)}&cv=${ed.cvOf(el)}`).then((r) => r.json()).then((b) => { if (sourceFor === el && b.html != null) area.value = b.html }).catch(() => {})
     }
+  }
+  // Dev Mode's box model: margin, border and padding round the content's own width × height, each side in px as laid
+  // out. Margin and padding sides take a number where the element can be changed; the border is set in Properties.
+  function boxModel(el, can) {
+    const k = cs(el)
+    const r = el.getBoundingClientRect()
+    const n = (v) => Math.round(parseFloat(v) * 100) / 100 || 0
+    const SIDES = ['top', 'right', 'bottom', 'left']
+    const side = (kind, s) => {
+      const prop = kind === 'border' ? `border-${s}-width` : `${kind}-${s}`
+      const v = n(k.getPropertyValue(prop))
+      const label = `${kind[0].toUpperCase()}${kind.slice(1)} ${s}`
+      if (!can || kind === 'border') return h('span', { class: `bm-v bm-${s}`, title: label, 'aria-label': label }, v ? String(v) : '–')
+      return input(v ? String(v) : '', (nv) => ed.setStyle({ [prop]: nv.trim() === '' ? '0' : px(nv) }), { class: `n bm-v bm-${s}`, placeholder: '–', title: label, 'aria-label': label })
+    }
+    // Its laid-out size, as Width reads it: a turned element's box before the turn.
+    const bw = el.offsetWidth ?? r.width
+    const bh = el.offsetHeight ?? r.height
+    const w = Math.round(bw - n(k.paddingLeft) - n(k.paddingRight) - n(k.borderLeftWidth) - n(k.borderRightWidth))
+    const ht = Math.round(bh - n(k.paddingTop) - n(k.paddingBottom) - n(k.borderTopWidth) - n(k.borderBottomWidth))
+    let inner = h('div', { class: 'bm-size', title: 'Its content, width × height' }, `${Math.max(0, w)} × ${Math.max(0, ht)}`)
+    for (const kind of ['padding', 'border', 'margin']) {
+      inner = h('div', { class: `bm bm-${kind}` }, h('span', { class: 'bm-name' }, kind), ...SIDES.map((s) => side(kind, s)), inner)
+    }
+    return h('div', { class: 'boxmodel', 'aria-label': 'Box model' }, inner)
   }
   function newDecl(onAdd, placeholder = 'property') {
     const p = h('input', { class: 'p', placeholder })

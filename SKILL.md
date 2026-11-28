@@ -239,6 +239,8 @@ As in Figma, grouping moves nothing. In a grid or a flex row, the group is writt
 
 ## Code tab
 
+Under the element's name is its **box model**, as in Dev Mode: margin, border and padding on each side in px, round its content's width × height. Type a number into a margin or padding side to set it, or press ↑ or ↓. The border is set in Properties.
+
 **Copy CSS** at the top of the tab copies the styles that apply to the element as one CSS block under its class, as Figma's Dev Mode does. Each property is there once, with the value that wins.
 
 The **Code** tab first shows the element's own style, which you can edit. Then it lists each rule that matches the element, strongest first, ranked as the cascade ranks them, by `!important`, then specificity, then order in the file. Every declaration that a stronger one overrides is struck through, so the value shown unstruck is the one that applies.

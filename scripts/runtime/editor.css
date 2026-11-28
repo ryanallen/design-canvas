@@ -178,6 +178,16 @@ body:has(#thread.open) #float.open, body:has(#thread.open) #itembar.open { displ
 .decl input { font: inherit; height: 24px !important; }
 .decl.add input.p { color: var(--ink); }
 .decl.add { grid-template-columns: minmax(80px, 40%) 1fr; }
+.boxmodel { padding: 8px 12px 4px; font: 11px/1 ui-monospace, 'Cascadia Code', Consolas, monospace; color: var(--ink-2); }
+.bm { position: relative; display: grid; grid-template-columns: 36px 1fr 36px; grid-template-rows: 22px auto 22px; grid-template-areas: '. t .' 'l c r' '. b .'; align-items: center; justify-items: center; border: 1px dashed var(--line); border-radius: 4px; }
+.bm-border { border-style: solid; }
+.bm-padding { background: color-mix(in srgb, var(--accent, #3b82f6) 8%, transparent); }
+.bm > .bm, .bm > .bm-size { grid-area: c; justify-self: stretch; }
+.bm-name { position: absolute; top: 4px; left: 6px; font-size: 10px; color: var(--ink-3); }
+.bm-top { grid-area: t; } .bm-right { grid-area: r; } .bm-bottom { grid-area: b; } .bm-left { grid-area: l; }
+.bm-size { padding: 8px 4px; text-align: center; color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); border-radius: 3px; }
+#panel .boxmodel input.bm-v { width: 32px; height: 18px !important; padding: 0 2px; text-align: center; font: inherit; background: none; border: 1px solid transparent; border-radius: 3px; color: var(--ink); }
+#panel .boxmodel input.bm-v:hover, #panel .boxmodel input.bm-v:focus { border-color: var(--line); background: var(--panel-2); }
 #panel textarea.source { display: block; width: calc(100% - 24px); margin: 0 12px; height: 180px; font: 12px/1.45 ui-monospace, 'Cascadia Code', Consolas, monospace; resize: vertical; }
 #panel .row { display: flex; justify-content: flex-end; gap: 6px; padding: 6px 12px; }
 #panel .row.pad { justify-content: flex-start; }

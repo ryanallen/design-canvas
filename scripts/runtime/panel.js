@@ -1918,13 +1918,40 @@
       }
       return home
     }
+    // The :root rule of the prototype's own that gives the variable its value as the screen is shown now: a rule in
+    // @media (prefers-color-scheme: dark) wins while the screen is shown dark, so a change there is made there, not in
+    // the plain :root the screen isn't showing. Places counted as the server counts them, in file order.
+    const winnerOf = (name) => {
+      let win = null
+      let nth = 0
+      const win0 = f.doc.defaultView
+      for (const sheet of f.doc.styleSheets) {
+        const node = sheet.ownerNode
+        if (node?.localName !== 'style' || [...node.attributes].some((a) => a.name.startsWith('data-canvas') || a.name.startsWith('data-dc'))) continue
+        let rules
+        try { rules = sheet.cssRules } catch { continue }
+        const walk = (list, active, nested) => {
+          for (const r of list) {
+            if (r.cssRules && !r.selectorText) { walk(r.cssRules, active && (!r.media || win0.matchMedia(r.media.mediaText).matches), true); continue }
+            if (!r.selectorText || sameSelector(r.selectorText) !== rootKey) continue
+            if (active && r.style.getPropertyValue(name)) win = { nth, nested }
+            nth++
+          }
+        }
+        walk(rules, true, false)
+      }
+      return win
+    }
     const row = (name) => {
       const value = cs(root).getPropertyValue(name).trim()
       if (!dc.serve) return host.append(field(name, h('span', { class: 'val' }, value)))
       const home = homeOf(name)
+      const own = winnerOf(name)
       const commit = (v) => (home && !dc.local && !home.sheet.split('/').includes('..')
         ? ed.sendSheet(home.sheet, ':root', home.nth, name, v)
-        : ed.send({ op: 'rule', selector: ':root', props: { [name]: v } }, { file: f.file, key: f.key }))
+        : own?.nested
+          ? ed.send({ op: 'decl', selector: ':root', nth: own.nth, prop: name, value: v }, { file: f.file, key: f.key })
+          : ed.send({ op: 'rule', selector: ':root', props: { [name]: v } }, { file: f.file, key: f.key }))
       const live = (v) => root.style.setProperty(name, v)
       host.append(field(name, leverControl(value, live, commit)))
     }

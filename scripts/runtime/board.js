@@ -5516,6 +5516,7 @@
     get items() { return items() },
     get chosen() { return chosen && { box: chosen.box, items: [...chosen.items], frames: [...chosen.frames] } },
     get picked() { return picked },
+    get voting() { return board.voting },
     updateItem, pickPictures, replaceBoardPicture,
     choose, geometryOf,
     get pages() { return pages() },

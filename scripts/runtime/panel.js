@@ -64,10 +64,12 @@
     // Figma's layer search: what is typed finds board objects, screens and every element of a loaded screen by its
     // name, listed flat with the screen it is on; a click selects it as a click in the tree does.
     const q = layerQuery.trim().toLowerCase()
+    // While a vote goes on, others' votes are left out here, as on the board.
+    const hiddenVote = (it) => it.kind === 'stamp' && it.vote && dc.voting?.id === it.vote && it.by !== (dc.me || '')
     if (q) {
       const hit = (t) => String(t ?? '').toLowerCase().includes(q)
       const boardName = (it) => `${{ note: 'Note', title: 'Title', rect: 'Rectangle', ellipse: 'Ellipse', diamond: 'Diamond', triangle: 'Triangle', stamp: 'Stamp', section: 'Section', line: 'Line', arrow: 'Arrow', pencil: 'Drawing', guide: 'Layout guide', image: 'Picture' }[it.kind] ?? it.kind}${it.text ? ` "${String(it.text).slice(0, 24)}"` : ''}`
-      for (const it of dc.items) if (hit(boardName(it))) rows.push(h('button', { type: 'button', class: 'lrow board found', style: '--d:0', onclick: () => { ed.select(null, []); dc.pickItem(it.id) } }, h('span', { class: 'lk' }, '◇'), h('span', { class: 'ln' }, boardName(it))))
+      for (const it of dc.items.filter((x) => !hiddenVote(x))) if (hit(boardName(it))) rows.push(h('button', { type: 'button', class: 'lrow board found', style: '--d:0', onclick: () => { ed.select(null, []); dc.pickItem(it.id) } }, h('span', { class: 'lk' }, '◇'), h('span', { class: 'ln' }, boardName(it))))
       for (const f of dc.frames) {
         if (hit(f.label)) rows.push(h('button', { type: 'button', class: 'lrow lframe found', style: '--d:0', onclick: () => { if (f.doc) ed.select(f, [f.doc.body]); dc.showFrame(f) } }, h('span', { class: 'lk' }, '#'), h('span', { class: 'ln' }, f.label)))
         if (!f.doc?.body) continue
@@ -81,8 +83,8 @@
         }
       }
     }
-    for (const it of q ? [] : dc.items) {
-      const label = { note: 'Note', title: 'Title', rect: 'Rectangle', ellipse: 'Ellipse', diamond: 'Diamond', triangle: 'Triangle', stamp: 'Stamp', section: 'Section', line: 'Line', arrow: 'Arrow', pencil: 'Drawing', guide: 'Layout guide' }[it.kind] ?? it.kind
+    for (const it of q ? [] : dc.items.filter((x) => !hiddenVote(x))) {
+      const label = it.kind === 'stamp' && it.vote ? 'Vote' : { note: 'Note', title: 'Title', rect: 'Rectangle', ellipse: 'Ellipse', diamond: 'Diamond', triangle: 'Triangle', stamp: 'Stamp', section: 'Section', line: 'Line', arrow: 'Arrow', pencil: 'Drawing', guide: 'Layout guide', image: 'Picture' }[it.kind] ?? it.kind
       rows.push(h('button', { type: 'button', class: 'lrow board', style: '--d:0', onclick: () => { ed.select(null, []); dc.pickItem(it.id) } },
         h('span', { class: 'tw' }), h('span', { class: 'lk' }, '◇'), h('span', { class: 'ln' }, `${label}${it.text ? ` "${it.text.slice(0, 18)}${it.text.length > 18 ? '…' : ''}"` : ''}`)))
     }

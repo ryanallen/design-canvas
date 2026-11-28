@@ -306,7 +306,7 @@ Setting **Position** to absolute or fixed works like Figma's Absolute position. 
 
 An element placed absolutely or fixed has **Constraints** in Properties, as in Figma: which edges of what holds it it keeps to when that resizes. Across: Left, Right, Left and right (its width follows), Center or Scale (left and width as percentages). Down: Top, Bottom, Top and bottom, Center or Scale. Each is written from where the element sits, so picking one moves nothing.
 
-A board object picked shows **X · Y** and **W · H** in Properties, as Figma's place and size for any layer. Typing one moves or sizes it, and the fields follow a drag. A line or drawing shows X · Y only, and a line held by what it joins says it moves with them. A picture on the board has **Replace…** there too: the new one keeps its place and width.
+A board object picked shows **X · Y** and **W · H** in Properties, as Figma's place and size for any layer. Typing one moves or sizes it, and the fields follow a drag. A line or drawing shows X · Y only, and a line held by what it joins says it moves with them. A picture on the board has **Replace…** there too (the new one keeps its place and width) and **Original size** (no wider than 1200).
 
 Properties' **Appearance** holds the element's look. Each change is one undo step.
 
@@ -330,7 +330,7 @@ An icon (an `<svg>`) has **Vector**, like Figma's vector fill and stroke. **Colo
 
 A link has **Link › Opens**, like Figma's Navigate to. Pick any screen on the canvas, and its address from this file is written for you. You can also type a web address, or pick None to take the link off.
 
-A picture or video has **Fit** (Fill, Fit, Stretch, Original) and **Focus**, which sets where a crop keeps its middle. A picture also has **Replace…**, which puts a picture picked from this computer in its place, and **Exposure**, **Contrast** and **Saturation**, from -100 to 100, as Figma's image adjustments. They're written as `brightness()`, `contrast()` and `saturate()` in its `filter`, leaving any blur there in place. The picture follows the slider as you drag, and a double-click puts one back to 0. A picture also has **Alt text**.
+A picture or video has **Fit** (Fill, Fit, Stretch, Original) and **Focus**, which sets where a crop keeps its middle. A picture also has **Replace…**, which puts a picture picked from this computer in its place, **Original size**, which sets it back to the picture's own width with its height following, and **Exposure**, **Contrast** and **Saturation**, from -100 to 100, as Figma's image adjustments. They're written as `brightness()`, `contrast()` and `saturate()` in its `filter`, leaving any blur there in place. The picture follows the slider as you drag, and a double-click puts one back to 0. A picture also has **Alt text**.
 
 Text has these.
 

@@ -657,6 +657,11 @@
         // A line held by what it joins goes where they go: its place is not its own to type.
         flat && (it.from || it.to) ? field('X · Y', h('span', { class: 'val' }, 'Moves with what it joins')) : field('X · Y', input(n(it.x), put('x'), { class: 'n', 'aria-label': 'X' }), input(n(it.y), put('y'), { class: 'n', 'aria-label': 'Y' })),
         it.kind === 'image' && dc.replaceBoardPicture && !dc.local && !dc.data?.memory ? field('Picture', h('span', { class: 'val', title: it.src ?? '' }, String(it.src ?? '').split('/').pop().slice(0, 28)), h('button', { type: 'button', class: 'mini', title: 'Replace it with a picture from this computer', onclick: () => dc.replaceBoardPicture(it.id) }, 'Replace…')) : null,
+        it.kind === 'image' ? field('Size', h('button', { type: 'button', class: 'mini', title: 'Back to the size of the picture itself (no wider than 1200)', onclick: () => {
+          const img = new Image()
+          img.onload = () => { const k = Math.min(1, 1200 / Math.max(1, img.naturalWidth)); dc.updateItem(it.id, { w: Math.max(8, Math.round(img.naturalWidth * k)), h: Math.max(8, Math.round(img.naturalHeight * k)) }) }
+          img.src = document.querySelector(`.item[data-id="${it.id}"] img`)?.src ?? it.src
+        } }, 'Original size')) : null,
         flat || it.w == null ? null : field('W · H', input(n(it.w), put('w'), { class: 'n', 'aria-label': 'Width' }), input(n(it.h), put('h'), { class: 'n', 'aria-label': 'Height' }))))
   }
   function drawPropsFor() {
@@ -1026,6 +1031,10 @@
         // Figma's Replace for an image: a picture picked from this computer takes this one's place.
         el.localName === 'img' && ed.sel.els.length === 1 && dc.serve && !dc.local && !dc.data?.memory && dc.pickPictures
           ? field('Picture', h('span', { class: 'val', title: el.getAttribute('src') ?? '' }, String(el.getAttribute('src') ?? '').split('/').pop().slice(0, 28)), h('button', { type: 'button', class: 'mini', title: 'Replace it with a picture from this computer', onclick: () => dc.pickPictures() }, 'Replace…'))
+          : null,
+        // Figma's reset to the picture's own size: its width as the file has it, its height following.
+        el.localName === 'img' && ed.sel.els.length === 1 && el.naturalWidth
+          ? field('Size', h('span', { class: 'val' }, `${el.naturalWidth} × ${el.naturalHeight}`), h('button', { type: 'button', class: 'mini', title: 'Back to the size of the picture itself', onclick: () => set({ width: `${el.naturalWidth}px`, height: 'auto' }) }, 'Original size'))
           : null,
         el.localName === 'img'
           ? field('Alt text', input(alt === MIXED ? '' : alt, (v) => ed.send({ op: 'styles', items: pics.map((x) => ({ cv: ed.cvOf(x), props: {}, attrs: { alt: String(v) } })) }, { then: ed.reselect() }), { class: 'w', placeholder: alt === MIXED ? 'Mixed' : 'Said in its place', 'aria-label': 'Alt text' }))

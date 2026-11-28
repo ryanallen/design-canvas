@@ -1547,6 +1547,12 @@
       if (sel.els.length !== 1 || el.localName === 'body' || cvOf(el) == null) hint('Select one part to rename it', 1600)
       else dc.renameLayer?.()
     }
+    // Figma's text alignment keys: Ctrl+Alt+L left, T center, R right, J justified, as the toolbar's Align does.
+    else if (mod && e.altKey && !e.shiftKey && ['KeyL', 'KeyT', 'KeyR', 'KeyJ'].includes(e.code)) {
+      const a = { KeyL: 'left', KeyT: 'center', KeyR: 'right', KeyJ: 'justify' }[e.code]
+      setStyle({ 'text-align': a })
+      hint(`Aligned ${a === 'justify' ? 'to both edges' : a}`, 900)
+    }
     // Figma's text keys, > up and < down, each element from its own value: Ctrl+Shift the size, Ctrl+Alt the weight,
     // Alt the letter spacing, Alt+Shift the line height.
     else if ((e.code === 'Period' || e.code === 'Comma') && (mod || e.altKey)) {

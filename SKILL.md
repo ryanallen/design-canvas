@@ -410,7 +410,7 @@ When served, every open copy of the canvas redraws when anyone changes the board
 
 Shift+C hides the comment pins on the board, or shows them again. This is kept in that browser. The comment tool and the Comments tab still show them.
 
-A thread with a message someone else wrote since you last opened it shows a red dot on its pin and in the Comments list, as Figma marks unread comments. Opening it marks it read. What you have read is kept in that browser.
+A thread with a message someone else wrote since you last opened it shows a red dot on its pin and in the Comments list, as Figma marks unread comments. Opening it marks it read, and **Mark all read** at the top of the Comments tab clears every dot at once. What you have read is kept in that browser.
 
 The **Comments** tab lists the threads, numbered. Above the list are these.
 

@@ -3176,6 +3176,7 @@
       .filter((t) => !q || said(t).some((m) => String(m.text ?? '').toLowerCase().includes(q) || String(m.name ?? '').toLowerCase().includes(q)))
       .filter((t) => !mine || said(t).some((m) => m.name === me || String(m.text ?? '').includes(`@${me}`)))
     if ($('#comment-sort')?.value === 'recent') shown.sort((a, b) => latest(b) - latest(a))
+    $('#mark-read').hidden = !threads.some(unread)
     list.replaceChildren(...(shown.length
       ? shown.map((t) => {
           const f = t.frame ? findFrame(t.frame) : null
@@ -4203,6 +4204,8 @@
   })
   $('#show-resolved').addEventListener('change', renderPins)
   $('#comment-search').addEventListener('input', renderList)
+  // Figma's Mark all as read: every thread's dot goes at once.
+  $('#mark-read').addEventListener('click', () => { for (const t of threads) markSeen(t); renderPins() })
   $('#comment-search').addEventListener('keydown', (e) => e.stopPropagation())
   for (const id of ['#only-mine', '#comment-sort']) $(id).addEventListener('change', () => { store.set(id.slice(1), id === '#only-mine' ? $(id).checked : $(id).value); renderList() })
   $('#only-mine').checked = !!store.get('only-mine')

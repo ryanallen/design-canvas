@@ -936,7 +936,10 @@
         field('Line · Letter', input(across((x, k) => (k.lineHeight === 'normal' ? 'normal' : num(k.lineHeight))),(v) => set({ 'line-height': v === 'normal' ? 'normal' : px(v) }), { class: 'n', title: 'Line height' }), input(across((x, k) => (k.letterSpacing === 'normal' ? 'normal' : num(k.letterSpacing))),(v) => set({ 'letter-spacing': v === 'normal' ? 'normal' : px(v) }), { class: 'n', title: 'Letter spacing' })),
         // Figma's Paragraph spacing (the space after it) and Paragraph indent (its first line pushed in).
         field('Paragraph', input(across((x, k) => num(k.marginBottom)), (v) => set({ 'margin-bottom': px(v) }), { class: 'n', title: 'Space after the paragraph', 'aria-label': 'Paragraph spacing' }), input(across((x, k) => num(k.textIndent)), (v) => set({ 'text-indent': px(v) }), { class: 'n', title: 'How far its first line is pushed in', 'aria-label': 'Paragraph indent' })),
-        block ? field('Vertical', seg([['normal', '⤒', 'Top'], ['center', '↕', 'Middle'], ['end', '⤓', 'Bottom']], across((x, k) => ({ start: 'normal', 'flex-start': 'normal', 'space-between': 'normal', 'flex-end': 'end', 'safe center': 'center' })[k.alignContent] ?? k.alignContent), (v) => set({ 'align-content': v }))) : null,
+        block ? (() => {
+          const now = across((x, k) => ({ start: 'normal', 'flex-start': 'normal', 'space-between': 'normal', 'flex-end': 'end', 'safe center': 'center' })[k.alignContent] ?? k.alignContent)
+          return field('Vertical', seg([['normal', '⤒', 'Top'], ['center', '↕', 'Middle'], ['end', '⤓', 'Bottom']], now, (v) => (v === now ? null : set({ 'align-content': v }))))
+        })() : null,
         field('Color', color(S('color'), (v) => set({ color: v }), null, lever(el, 'color'))),
         contrast(el),
         field('Emphasis', seg([['underline', 'U̲', 'Underline'], ['line-through', 'S̶', 'Strikethrough']], deco.includes('underline') ? 'underline' : deco.includes('line-through') ? 'line-through' : '', (v) => set({ 'text-decoration': deco.includes(v) ? 'none' : v }))),

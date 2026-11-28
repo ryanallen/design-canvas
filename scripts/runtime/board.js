@@ -4028,7 +4028,8 @@
   let selSent = ''
   function mySelection() {
     const ids = chosen ? [...chosen.items] : picked ? withGroup(picked) : []
-    const boxes = ids.map((id) => board.items.find((i) => i.id === id)).filter(Boolean).map((i) => { const g = geometryOf(i); return { x: g.x, y: g.y, w: g.w ?? 0, h: g.h ?? 0 } })
+    // A vote dot of the vote going on isn't shown to others, so neither is its outline.
+    const boxes = ids.map((id) => board.items.find((i) => i.id === id)).filter((i) => i && !(i.kind === 'stamp' && i.vote && board.voting?.id === i.vote)).map((i) => { const g = geometryOf(i); return { x: g.x, y: g.y, w: g.w ?? 0, h: g.h ?? 0 } })
     for (const k of chosen?.frames ?? []) { const f = allFrames.get(k); if (f) boxes.push({ x: f.x, y: f.y, w: f.W, h: f.H }) }
     return boxes.length ? boxes : call('selectionBoxes') ?? []
   }

@@ -860,7 +860,7 @@
       e.preventDefault()
     } else if (e.key === 'Tab' && !mod && !e.altKey) {
       e.preventDefault()
-      tabOut(e.shiftKey)
+      if (!indentItem(e.shiftKey)) tabOut(e.shiftKey)
     } else if (mod && e.shiftKey && !e.altKey && e.code === 'KeyX') {
       e.preventDefault()
       editing.frame.doc.execCommand('strikeThrough')
@@ -917,6 +917,60 @@
   }
   /** Tab while typing: the typing ends, saved, and the next part beside it is selected (Shift+Tab the one before), as
       Tab does when nothing is being typed; the browser's own Tab would take the keys to a button of the canvas. */
+  /** Tab while typing in a list item, as in Figma's lists: the item goes under the one above it (into that one's list
+      of its own, made if it has none); Shift+Tab takes it out a level, after the item it was under, the items after
+      it going with it under it. What was typed goes in the same edit, and typing goes on in it. Returns whether it
+      was a list item it could do this to. */
+  function indentItem(out) {
+    const { frame, el: li, chain, held } = editing
+    const list = li.parentElement
+    if (li.localName !== 'li' || chain || held != null || !list || !['ul', 'ol'].includes(list.localName)) return false
+    const prev = li.previousElementSibling
+    const outerLi = list.parentElement?.localName === 'li' ? list.parentElement : null
+    if (!out && prev?.localName !== 'li') return hint('It needs an item above it to go under', 1600), true
+    if (out && !outerLi) return hint('It is already at the outer level', 1600), true
+    let top = list
+    while (top.parentElement?.localName === 'li' && ['ul', 'ol'].includes(top.parentElement.parentElement?.localName)) top = top.parentElement.parentElement
+    if (!editable(top) || cvOf(top) == null) return false
+    stopEditing(false)
+    const doc = frame.doc
+    if (!out) {
+      let sub = prev.lastElementChild
+      if (!sub || !['ul', 'ol'].includes(sub.localName)) { sub = doc.createElement(list.localName); prev.append(sub) }
+      sub.append(li)
+    } else {
+      const rest = []
+      for (let x = li.nextElementSibling; x; x = x.nextElementSibling) rest.push(x)
+      if (rest.length) {
+        let sub = li.lastElementChild
+        if (!sub || !['ul', 'ol'].includes(sub.localName)) { sub = doc.createElement(list.localName); li.append(sub) }
+        sub.append(...rest)
+      }
+      outerLi.after(li)
+      if (!list.children.length) list.remove()
+    }
+    const path = []
+    for (let x = li; x !== top; x = x.parentElement) path.unshift([...x.parentElement.children].indexOf(x))
+    const html = top.outerHTML.replace(/\s+data-cv="\d+"/g, '').replace(/\s+(contenteditable|spellcheck)="[^"]*"/g, '').replace(/\s+style=""/g, '')
+    send({ op: 'outer', cv: cvOf(top), html }, {
+      file: frame.file, key: frame.key,
+      then: (f, x) => {
+        let t = x
+        for (const i of path) t = t?.children[i]
+        if (!f || !t) return
+        startEditing(f, t)
+        // The caret at the end of its own words, before any list now inside it.
+        const r = f.doc.createRange()
+        const own = [...t.childNodes].filter((n) => !(n.nodeType === 1 && ['ul', 'ol'].includes(n.localName)))
+        if (own.length) r.setStartAfter(own.at(-1)); else r.setStart(t, 0)
+        r.collapse(true)
+        const sel = f.doc.getSelection()
+        sel.removeAllRanges()
+        sel.addRange(r)
+      },
+    })
+    return true
+  }
   function tabOut(back) {
     const span = editing.chain ? editing.chain.length - 1 : 0
     const beside = (x) => {

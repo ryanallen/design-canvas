@@ -158,7 +158,7 @@ Enter or double-click on a selected text element starts typing in it. While typi
 
 - Enter goes on in a new element after it, as a text editor does. The new element has the same tag and attributes, except the id (a paragraph after a heading). It never puts a `<div>` inside the paragraph.
 - Backspace at the start of an element that Enter made joins it back on. Delete at the end of the element before it does too.
-- Tab ends typing, saves, and selects the next part. Shift+Tab selects the one before.
+- Tab ends typing, saves, and selects the next part. Shift+Tab selects the one before. In a list item, Tab instead puts the item under the one above it, and Shift+Tab takes it out a level, the items after it going under it, as in Figma's lists. What you typed is kept and you go on typing.
 - Shift+Enter is a line break inside the element.
 - Escape ends typing. So does Enter in a one-line element.
 

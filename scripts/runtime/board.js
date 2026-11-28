@@ -469,6 +469,24 @@
       if (tag) tag.textContent = `:root { color-scheme: ${mode} }`
     }
   }
+  // Figma's outlines: every element's box drawn as a thin line, in every screen, so what holds what can be seen. Only
+  // what is seen changes, never the file; kept in this browser.
+  let outlinesOn = !!store.get('outlines')
+  function applyOutlines(f) {
+    const doc = f.doc
+    if (!doc?.head) return
+    let tag = doc.head.querySelector('style[data-dc-view="outlines"]')
+    if (!outlinesOn) return tag?.remove()
+    if (!tag) { tag = doc.createElement('style'); tag.setAttribute('data-dc-view', 'outlines'); doc.head.append(tag) }
+    tag.textContent = 'body *{outline:1px solid rgba(37,99,235,.55)!important;outline-offset:-1px!important}'
+  }
+  function setOutlines(on) {
+    outlinesOn = on
+    store.set('outlines', on ? 1 : null)
+    for (const f of allFrames.values()) applyOutlines(f)
+    call('onView')
+    hint(on ? 'Outlines shown: every box in every screen' : 'Outlines hidden', 1400)
+  }
   function setScheme(f, mode) {
     store.set(`scheme:${f.key}`, mode === 'auto' ? null : mode)
     applyScheme(f)
@@ -719,6 +737,7 @@
         }
       }
       applyScheme(f)
+      applyOutlines(f)
       call('onFrameLoad', f)
       renderPins()
     })
@@ -4463,7 +4482,7 @@
   // ── keyboard shortcuts (Shift+?): every key the canvas answers, in one sheet ──
   const SHORTCUTS = [
     ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['E', 'Stamp'], ['R', 'Rectangle'], ['O', 'Ellipse'], ['L, Shift+L', 'Line, arrow'], ['S', 'Section'], ['Shift, Alt while drawing', 'Square or level, from the middle'], ['A', 'Artboard'], ['C', 'Comment']]],
-    ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['Page Down, Page Up', 'Next, previous screen'], ['+ and −, Ctrl+= and Ctrl+−', 'Zoom in and out'], ['0, Shift+0 or Ctrl+0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+\\', 'Panel']]],
+    ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['Page Down, Page Up', 'Next, previous screen'], ['+ and −, Ctrl+= and Ctrl+−', 'Zoom in and out'], ['0, Shift+0 or Ctrl+0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+Alt+O', 'Show or hide outlines'], ['Ctrl+\\', 'Panel']]],
     ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Ctrl+Shift+A', 'Select everything not selected'], ['Ctrl+Alt+A', 'Select matching: same kind and color'], ['Tab, Shift+Tab', 'Next or previous object'], ['Enter', 'Type in the one picked'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+Alt+G', 'Wrap in a section'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+R', 'Paste to replace what is selected'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centers, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Shift+drag', 'Move straight across or down; resize in proportion'], ['Alt+drag a corner', 'Resize from the middle'], ['Alt (held)', 'Measure to what is pointed at'], ['Delete', 'Delete']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Shift+A', 'Select what sits alongside it, leaving it out'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+drag', 'Drop a copy'], ['Shift+drag', 'Straight across or down; resize in proportion'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+Shift+X', 'Strikethrough'], ['Ctrl+Shift+8, Ctrl+Shift+7', 'Bulleted list, numbered list'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste after it'], ['Ctrl+Shift+R', 'Paste to replace it'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+R', 'Rename in Layers'], ['Alt+L', 'Collapse every layer'], ['Alt+click a ▸', 'Open or close every layer inside'], ['Ctrl+Shift+H', 'Hide or show'], ['Ctrl+Shift+L', 'Lock or unlock a part'], ['Ctrl+Alt+L, T, R, J', 'Align text left, center, right, justified'], ['Ctrl+Shift+>, Ctrl+Shift+<', 'Text 1px bigger, smaller'], ['Ctrl+Alt+>, Ctrl+Alt+<', 'Bolder, lighter'], ['Alt+>, Alt+<', 'Letter spacing up, down'], ['Alt+Shift+>, Alt+Shift+<', 'Line height up, down'], ['Shift+A', 'Add auto layout'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
     ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['C', 'Comment on it, then click where'], ['R', 'Start over from the first screen'], ['Esc', 'Back to the canvas']]],
@@ -4559,6 +4578,7 @@
       sel ? { label: `Download ${sel}`, icon: 'download', run: () => downloadFile(sel) } : null,
       serve ? { label: 'Rename', run: rename } : null,
       { label: 'History', run: openHistory },
+      { label: outlinesOn ? 'Hide outlines' : 'Show outlines', key: 'Ctrl+Alt+O', run: () => setOutlines(!outlinesOn) },
       peers.size ? { label: document.body.classList.contains('pointers-off') ? "Show others' pointers" : "Hide others' pointers", key: 'Ctrl+Alt+\\', run: () => setPointersShown(document.body.classList.contains('pointers-off')) } : null,
       // FigJam's timer, for everyone here.
       { label: timerEnd ? 'Timer: stop' : 'Timer…', run: () => (timerEnd ? startTimer(0) : setTimeout(() => openMenu($('#title-btn'), [1, 3, 5, 10].map((n) => ({ label: `${n} minute${n === 1 ? '' : 's'}`, run: () => startTimer(n * 60000) }))), 0)) },
@@ -4958,6 +4978,11 @@
         e.preventDefault()
         return e.shiftKey ? distributeChosen(how) : alignChosen(how)
       }
+    }
+    // Outlines on or off.
+    if (e.altKey && (e.ctrlKey || e.metaKey) && !e.shiftKey && e.code === 'KeyO') {
+      e.preventDefault()
+      return setOutlines(!outlinesOn)
     }
     // Figma's Collapse layers.
     if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.code === 'KeyL' && window.designCanvas?.collapseLayers) {

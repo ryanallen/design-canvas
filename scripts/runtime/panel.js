@@ -1423,6 +1423,8 @@
       let rules
       try { rules = sheet.cssRules } catch { continue }
       const node = sheet.ownerNode
+      // What the canvas draws over a screen for seeing it (outlines) is no rule of the element's.
+      if (node?.hasAttribute?.('data-dc-view')) continue
       const own = node?.localName === 'style' && ![...node.attributes].some((a) => a.name.startsWith('data-canvas') || a.name.startsWith('data-dc'))
       // A stylesheet the prototype links, swapped in by the canvas and named by its file: changed in that file.
       const sheetName = node?.getAttribute?.('data-dc-sheet') ?? null

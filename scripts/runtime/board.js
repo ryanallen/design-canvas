@@ -2305,7 +2305,7 @@
     itemBar.style.left = `${Math.max(8, Math.min(innerWidth - itemBar.offsetWidth - 8, top.x))}px`
     itemBar.style.top = `${Math.max(56, top.y - itemBar.offsetHeight - 8)}px`
   }
-  /** `gone` words what was lost when the object turns out to have been deleted by someone else. */
+  /** `gone` says what was lost, and holds the words, when the object turns out to have been deleted by someone else. */
   async function updateItem(id, change, gone = null) {
     const it = board.items.find((i) => i.id === id)
     if (!it) return
@@ -2315,7 +2315,11 @@
     try {
       await sendBoard({ op: 'item', id, ...change })
     } catch (err) {
-      gone && /deleted/.test(err.message) ? hint(gone, 8000) : hint(err.message, 3000)
+      if (gone && /deleted/.test(err.message)) {
+        // As the screens do with words that couldn't be saved: copied, ready to paste; quoted where copying isn't let.
+        const copied = await navigator.clipboard?.writeText(gone.words).then(() => true, () => false)
+        hint(copied ? `${gone.said} It's copied, ready to paste.` : `${gone.said} "${gone.words.length > 120 ? `${gone.words.slice(0, 120)}…` : gone.words}"`, 8000)
+      } else hint(err.message, 3000)
       takeBoardAgain()
     }
   }
@@ -2793,7 +2797,7 @@
         : it.kind === 'diamond' || it.kind === 'triangle' ? Math.ceil(el.scrollHeight * 2.1) - box.clientHeight
         : 0
       const grow = over > 1 ? { h: Math.ceil(it.h + over + 8) } : {}
-      const lost = `That ${BOARD_WORD[it.kind] ?? 'object'} was deleted, so what you typed wasn't kept: "${text.length > 120 ? `${text.slice(0, 120)}…` : text}"`
+      const lost = { said: `That ${BOARD_WORD[it.kind] ?? 'object'} was deleted, so what you typed wasn't kept.`, words: text }
       if (text !== (it.text ?? '') || grow.h) updateItem(id, { text, ...grow }, lost)
       else renderItems()
       // Others' changes held back while this was typed come now (once its own line, if any, is saved).

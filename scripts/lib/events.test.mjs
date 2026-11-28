@@ -283,3 +283,16 @@ test('a pin is moved only by whoever wrote the thread', () => {
   const [t] = foldEvents([add, byAna, bySam])
   assert.deepEqual([t.frame, t.page, t.item, t.dx, t.dy, t.x, t.y], [null, 'p1', 'b-abcdef1', 5, 6, 300, 400])
 })
+
+test('a voting session begins with its votes each and ends; a vote names its session', () => {
+  const on = makeBoardEvent({ op: 'vote', on: true, votes: 3, name: 'Ana' }, { newId: () => 'v-abc1234' })
+  assert.deepEqual([on.op, on.on, on.id, on.votes], ['vote', true, 'v-abc1234', 3])
+  assert.throws(() => makeBoardEvent({ op: 'vote', on: true, votes: 0 }), /1 to 20/)
+  assert.throws(() => makeBoardEvent({ op: 'vote', on: true, votes: 21 }), /1 to 20/)
+  const dot = makeBoardEvent({ op: 'item', kind: 'stamp', x: 0, y: 0, w: 28, h: 28, vote: 'v-abc1234', to: 'b-note0001' })
+  assert.equal(dot.vote, 'v-abc1234')
+  assert.throws(() => makeBoardEvent({ op: 'item', kind: 'stamp', vote: 'nope' }), /vote is not an id/)
+  assert.deepEqual(foldBoard([on]).voting, { id: 'v-abc1234', votes: 3, by: 'Ana', at: on.at })
+  assert.equal(foldBoard([on, makeBoardEvent({ op: 'vote', on: false })]).voting, null)
+  assert.equal(foldBoard([]).voting, null)
+})

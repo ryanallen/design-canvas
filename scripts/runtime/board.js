@@ -952,6 +952,8 @@
     const panning = e.button === 1 || tool === 'hand' || spaceHeld
     if (!panning && e.button === 0) {
       if (call('onPointerDown', e, { frame: f, point: p, tool, item: itemEl?.dataset.id ?? null })) return
+      // While voting, a click on a note or shape casts a vote there, and a click on a vote of one's own takes it back.
+      if (board.voting && tool === 'select' && serve && castVote(p, itemEl)) return
       // A section is taken by its label or its border; a press anywhere else inside it draws a selection box.
       if (tool === 'select' && itemEl && serve && itemEl.classList.contains('section') && !e.target.closest('.txt')) {
         const s = board.items.find((i) => i.id === itemEl.dataset.id)
@@ -1345,6 +1347,7 @@
       const all = items().map((it, n) => [it, n]).sort((a, b) => (a[0].z ?? 0) - (b[0].z ?? 0) || a[1] - b[1]).map(([it]) => it)
       sectionLayer.replaceChildren(...all.filter((i) => i.kind === 'section').map(itemEl).filter(Boolean))
       itemLayer.replaceChildren(...all.filter((i) => i.kind !== 'section').map(itemEl).filter(Boolean))
+      drawVoting()
       if (chosen) {
         // Drawn round what is chosen as it is now, so it follows a drag.
         const b = boxAround([...chosen.items], [...chosen.frames])
@@ -1493,6 +1496,11 @@
     }
     if (it.kind === 'title') return h('div', { class: cls, 'data-id': it.id, style: `left:${it.x}px;top:${it.y}px;${it.color ? `color:${it.color};` : ''}${it.size ? `font-size:${num(it.size)}px` : ''}` }, it.text || 'Title')
     if (it.kind === 'rect' || it.kind === 'ellipse') return h('div', { class: `${cls}${it.fill === 'solid' ? ' filled' : ''}`, 'data-id': it.id, style: `${box};--c:${it.color || SHAPE_COLORS[0]}` }, h('span', { class: 'txt' }, it.text ?? ''), grip)
+    // A vote, as FigJam's: a dot; while its session goes on, only the one who cast it sees it.
+    if (it.kind === 'stamp' && it.vote) {
+      if (board.voting?.id === it.vote && it.by !== (me || '')) return null
+      return h('div', { class: `${cls} vote`, 'data-id': it.id, style: box, title: `Vote from ${it.by || 'someone'}`, 'aria-label': `Vote from ${it.by || 'someone'}` })
+    }
     if (it.kind === 'stamp') return h('div', { class: cls, 'data-id': it.id, style: box, title: `${it.text ?? ''} from ${it.name || 'someone'}`, 'aria-label': `${STAMPS.find(([g]) => g === it.text)?.[1] ?? 'Stamp'} from ${it.name || 'someone'}` }, it.text === '+1' ? h('b', { style: 'font-size:20px' }, '+1') : it.text ?? '')
     if (FORMS[it.kind]) {
       const form = s('svg', { class: 'form', viewBox: '0 0 100 100', preserveAspectRatio: 'none', 'aria-hidden': 'true' })
@@ -3162,7 +3170,7 @@
   const future = []
   let openStep = null
   let replaying = false
-  const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points', 'size', 'src', 'route', 'dx', 'dy', 'weight', 'pen', 'ends', 'dash', 'fill', 'author']
+  const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points', 'size', 'src', 'route', 'dx', 'dy', 'weight', 'pen', 'ends', 'dash', 'fill', 'author', 'vote']
   /** The one thing a line touches, as a board says it is: an object's fields, a frame's place, or null for nothing there. */
   function stateOf(b, ev) {
     if (ev.op === 'item' || ev.op === 'remove') {
@@ -4622,6 +4630,76 @@
     )
     historySheet.showModal()
   }
+  // ── voting, as FigJam's: a session with so many votes for each person; a vote is a dot (a stamp naming the
+  // session) on a note or shape; others' dots stay hidden until it ends, then everyone sees them all and the count ──
+  // var, not const: the board is drawn (and this read) before the script gets here.
+  var voteChip = h('button', { type: 'button', id: 'vote-chip', hidden: true, onclick: () => endVoting() })
+  timerChip.after(voteChip)
+  var votingSeen = null
+  function myVotes(v) { return board.items.filter((i) => i.kind === 'stamp' && i.vote === v.id && i.by === (me || '')) }
+  async function startVoting(n) {
+    const name = me || (await question('Your name, so your votes are yours:')) || ''
+    if (!name.trim()) return
+    setName(name)
+    try { await sendBoard({ op: 'vote', on: true, votes: n }) } catch (err) { return hint(err.message, 3000) }
+    drawVoting()
+    hint(`Voting: ${n} votes each. Click a note or shape to vote for it, a dot of yours to take it back.`, 4000)
+  }
+  async function endVoting() {
+    const v = board.voting
+    if (!v || !(await sure('End voting for everyone and show the votes?', 'End voting'))) return
+    try { await sendBoard({ op: 'vote', on: false }) } catch (err) { return hint(err.message, 3000) }
+    drawVoting()
+  }
+  function castVote(p, itemEl) {
+    const v = board.voting
+    const mine = itemEl ? board.items.find((i) => i.id === itemEl.dataset.id) : null
+    if (mine?.kind === 'stamp' && mine.vote === v.id && mine.by === (me || '')) {
+      sendBoard({ op: 'remove', id: mine.id }).then(() => { renderItems(); drawVoting() }, (err) => hint(err.message, 3000))
+      return true
+    }
+    const on = stampTarget(p.x, p.y)
+    if (!on || !['note', 'rect', 'ellipse', 'diamond', 'triangle', 'image', 'title'].includes(on.kind)) return false
+    if (!me) { question('Your name, so your votes are yours:').then((n) => { if (n?.trim()) setName(n) }); return true }
+    if (myVotes(v).length >= v.votes) { hint('No votes left. Click one of your dots to take it back.', 2200); return true }
+    const x = Math.round(p.x - 14)
+    const y = Math.round(p.y - 14)
+    addItem({ kind: 'stamp', w: 28, h: 28, text: '', vote: v.id, x, y, to: on.id, dx: Math.round(x - on.x), dy: Math.round(y - on.y) }).then(() => { renderItems(); drawVoting() })
+    return true
+  }
+  /** The chip in the top bar while voting (votes left; a click ends it), and the count shown when a session ends. */
+  function drawVoting() {
+    if (!voteChip) return
+    const v = board.voting
+    voteChip.hidden = !v
+    if (v) voteChip.textContent = `Voting · ${Math.max(0, v.votes - myVotes(v).length)} of ${v.votes} left · End`
+    document.body.classList.toggle('voting', !!v)
+    if (votingSeen && !v) openVoteCount(votingSeen)
+    votingSeen = v?.id ?? null
+  }
+  function openVoteCount(session) {
+    const on = new Map()
+    for (const st of board.items.filter((i) => i.kind === 'stamp' && i.vote === session && i.to)) {
+      const it = board.items.find((i) => i.id === st.to)
+      if (!it) continue
+      const c = on.get(it.id) ?? { it, n: 0, by: new Map() }
+      c.n++
+      c.by.set(st.by || 'someone', (c.by.get(st.by || 'someone') ?? 0) + 1)
+      on.set(it.id, c)
+    }
+    const list = [...on.values()].sort((a, b) => b.n - a.n)
+    const label = (it) => `${{ note: 'Note', rect: 'Rectangle', ellipse: 'Ellipse', diamond: 'Diamond', triangle: 'Triangle', image: 'Picture', title: 'Title' }[it.kind] ?? it.kind}${it.text ? ` "${String(it.text).slice(0, 40)}${String(it.text).length > 40 ? '…' : ''}"` : ''}`
+    const rows = list.map((c) => h('div', { class: 'hist-row stamp-row' },
+      h('div', { class: 'hist-head' }, h('b', {}, String(c.n)), h('span', {}, label(c.it)),
+        h('button', { type: 'button', class: 'mini', onclick: () => { historySheet.close(); if ((c.it.page ?? firstPage()) !== pageId) goPage(c.it.page ?? firstPage()); pickItem(c.it.id); zoomToSelection() } }, 'Show')),
+      h('div', { class: 'hist-what' }, [...c.by.entries()].map(([who, n]) => `${who} ${n}`).join('   '))))
+    historySheet.setAttribute('aria-label', 'Votes')
+    historySheet.replaceChildren(
+      h('header', {}, h('b', {}, `Votes · ${list.reduce((s, c) => s + c.n, 0)} on ${list.length}`), h('button', { type: 'button', class: 'tool', 'aria-label': 'Close', onclick: () => historySheet.close() }, '✕')),
+      h('div', { class: 'hist-list' }, rows.length ? rows : h('p', { class: 'empty' }, 'Nobody voted.')),
+    )
+    if (!historySheet.open) historySheet.showModal()
+  }
   // The stamps on this page counted, as a FigJam vote's results and Canva's sort by reactions: each note, shape or
   // picture with stamps on it, most first, each kind of stamp with how many; Show goes to it.
   function openStampCount() {
@@ -4667,6 +4745,9 @@
       // The owner's canvas, host of a hosted room: the hosted copy's address with the invite key.
       serve && !local && data.room && data.url ? { label: 'Copy invite link', run: copyInvite } : null,
       items().some((i) => i.kind === 'stamp') ? { label: 'Stamps, counted', run: openStampCount } : null,
+      // FigJam's voting session, for everyone on the canvas.
+      serve && !board.voting ? { label: 'Start voting…', run: () => setTimeout(() => openMenu($('#title-btn'), [{ note: 'Votes for each person' }, ...[3, 5, 10].map((n) => ({ label: `${n} votes`, run: () => startVoting(n) }))]), 0) } : null,
+      serve && board.voting ? { label: 'End voting', run: endVoting } : null,
       // A board laid out for a retro, a kanban, a journey map or a flowchart.
       serve ? { label: 'Templates…', run: () => setTimeout(() => templateMenu($('#title-btn')), 0) } : null,
       // Which element a click in a prototype picks: the one under the pointer, or the outermost block (as Figma), a

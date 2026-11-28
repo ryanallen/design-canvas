@@ -225,6 +225,8 @@ export function foldBoard(events) {
   const pages = new Map()
   const locked = new Set()
   let name = null
+  // A voting session going on, as FigJam's: its id (each vote names it), how many votes each person has, who began it.
+  let voting = null
   for (const e of events) {
     if (e.op === 'move' && e.key) {
       const group = e.group != null ? e.group || null : moved.get(e.key)?.group ?? null
@@ -236,8 +238,9 @@ export function foldBoard(events) {
     else if (e.op === 'page' && e.id) pages.set(e.id, { ...(pages.get(e.id) ?? { id: e.id }), ...(e.title != null ? { title: e.title } : {}), ...(e.removed != null ? { removed: e.removed } : {}), ...(e.order != null ? { order: e.order } : {}) })
     else if (e.op === 'name' && e.title) name = e.title
     else if (e.op === 'lock' && e.key) e.locked ? locked.add(e.key) : locked.delete(e.key)
+    else if (e.op === 'vote') voting = e.on && e.id ? { id: e.id, votes: e.votes, by: e.name, at: e.at } : null
   }
-  return { items: [...items.values()], moved: Object.fromEntries(moved), pages: [...pages.values()], name, locked: [...locked] }
+  return { items: [...items.values()], moved: Object.fromEntries(moved), pages: [...pages.values()], name, locked: [...locked], voting }
 }
 
 /** A board object's color: a hex, a color name, or rgb()/hsl() numbers. Anything else is refused,
@@ -307,6 +310,8 @@ export function makeBoardEvent(input, { now = new Date(), newId = randomId } = {
         if (!['', 'dash'].includes(input.dash)) throw new Error('dash must be dash or empty')
         event.dash = input.dash
       }
+      // A stamp that is a vote names its voting session.
+      if (input.vote != null) event.vote = input.vote === '' ? '' : id(input.vote, 'vote')
       // A note's author, as FigJam's Show author: shown at its foot (show) or not (empty).
       if (input.author != null) {
         if (!['', 'show'].includes(input.author)) throw new Error('author must be show or empty')
@@ -344,7 +349,14 @@ export function makeBoardEvent(input, { now = new Date(), newId = randomId } = {
       return { op: 'name', at, name, title: text(input.title, LIMITS.frame, 'title') }
     case 'lock':
       return { op: 'lock', at, name, key: text(input.key, LIMITS.frame, 'key'), locked: !!input.locked }
+    // A voting session begun (with how many votes each person has, 1 to 20) or ended.
+    case 'vote': {
+      if (!input.on) return { op: 'vote', at, name, on: false }
+      const votes = Math.round(Number(input.votes))
+      if (!(votes >= 1 && votes <= 20)) throw new Error('votes must be 1 to 20')
+      return { op: 'vote', at, name, on: true, id: input.id ? id(input.id, 'id') : newId('v'), votes }
+    }
     default:
-      throw new Error('op must be move, item, remove, page, name or lock')
+      throw new Error('op must be move, item, remove, page, name, lock or vote')
   }
 }

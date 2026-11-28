@@ -677,3 +677,9 @@ body.pointers-off .peer-cursor { display: none; }
 body.shooting > *:not(#viewport) { display: none !important; }
 body.shooting #viewport { position: fixed; inset: 0; }
 body.shooting #overlay, body.shooting .frame-label, body.shooting .frame-edge, body.shooting .pin, body.shooting .peer-cursor { display: none !important; }
+
+/* A vote: a dot on what it is for. */
+.item.stamp.vote { border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 calc(2px / var(--z, 1)) #fff, 0 1px 4px rgb(0 0 0 / 0.3); }
+#vote-chip { font: 600 13px/1 system-ui, sans-serif; padding: 6px 10px; border-radius: 6px; border: 0; background: var(--accent); color: var(--accent-ink, #fff); margin-right: 6px; cursor: pointer; }
+#vote-chip[hidden] { display: none; }
+body.voting .item:not(.stamp):not(.section) { cursor: copy; }

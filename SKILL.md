@@ -368,6 +368,7 @@ The tools are these.
 - Text (T).
 - Pencil (P). The bar over the toolbar offers Fine, Marker, Bold or a see-through Highlighter, and a color. A picked stroke, line or arrow is made S, M or L on its bar.
 - Stamp (E), with 👍 ❤️ ⭐ ✅ ❓ 🔥 +1 chosen on the bar over the toolbar. A click puts one down. It is held by the note, shape or picture under it, so it moves with that, and it is named for who put it there. **Stamps, counted** in the canvas's menu lists what has stamps on it, most first, with how many of each kind.
+- **Voting**, as in FigJam. **Start voting…** in the canvas menu gives everyone 3, 5 or 10 votes. A click on a note or shape puts a vote dot there, and a click on one of your own dots takes it back. The top bar shows how many votes you have left. Nobody sees anyone else's dots until the vote ends. Anyone can end it from the top bar or the menu. Then everyone sees all the dots and the count, most votes first, with who voted for what.
 - Under the shape button, rectangle (R), ellipse (O), diamond, triangle, section (S), line (L), arrow (Shift+L) and layout guide. As in Figma, drawing with Shift makes a square, circle or level line, and drawing with Alt draws from the middle.
 
 Double-click a note, a shape or a section to type in it. Double-click a line or arrow to give it a label, drawn on its middle.

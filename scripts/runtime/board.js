@@ -3587,6 +3587,13 @@
     else if (m.event === 'board') refreshBoard()
     else if (m.event === 'sheet' && d.sheet) reloadSheet(d.sheet, d.text)
   }
+  /** Other people's pointers (and their cursor chat) hidden or shown, kept in this browser; faces and selections stay. */
+  function setPointersShown(on) {
+    document.body.classList.toggle('pointers-off', !on)
+    store.set('pointers-off', !on)
+    hint(on ? "Others' pointers shown" : "Others' pointers hidden. Ctrl+Alt+\\ shows them again.", 1600)
+  }
+  if (store.get('pointers-off')) document.body.classList.add('pointers-off')
   // FigJam's timer: set from the canvas menu for everyone in the room (or alone without one); each page counts down
   // what the room says is left, in the top bar; a click on it stops it for everyone.
   let timerEnd = 0
@@ -4375,7 +4382,7 @@
     ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Ctrl+Shift+A', 'Select everything not selected'], ['Ctrl+Alt+A', 'Select matching: same kind and color'], ['Tab, Shift+Tab', 'Next or previous object'], ['Enter', 'Type in the one picked'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+Alt+G', 'Wrap in a section'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+R', 'Paste to replace what is selected'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centers, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Shift+drag', 'Move straight across or down; resize in proportion'], ['Alt+drag a corner', 'Resize from the middle'], ['Alt (held)', 'Measure to what is pointed at'], ['Delete', 'Delete']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Shift+A', 'Select what sits alongside it, leaving it out'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Alt+drag', 'Drop a copy'], ['Shift+drag', 'Straight across or down; resize in proportion'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+Shift+X', 'Strikethrough'], ['Ctrl+Shift+8, Ctrl+Shift+7', 'Bulleted list, numbered list'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste after it'], ['Ctrl+Shift+R', 'Paste to replace it'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+R', 'Rename in Layers'], ['Ctrl+Shift+H', 'Hide or show'], ['Ctrl+Shift+L', 'Lock or unlock a part'], ['Ctrl+Alt+L, T, R, J', 'Align text left, center, right, justified'], ['Ctrl+Shift+>, Ctrl+Shift+<', 'Text 1px bigger, smaller'], ['Ctrl+Alt+>, Ctrl+Alt+<', 'Bolder, lighter'], ['Alt+>, Alt+<', 'Letter spacing up, down'], ['Alt+Shift+>, Alt+Shift+<', 'Line height up, down'], ['Shift+A', 'Add auto layout'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
     ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['C', 'Comment on it, then click where'], ['R', 'Start over from the first screen'], ['Esc', 'Back to the canvas']]],
-    ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+C', 'Show or hide comments'], ['/', 'Cursor chat: words by your pointer for others here'], ['Shift+?', 'This sheet']]],
+    ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+C', 'Show or hide comments'], ['/', 'Cursor chat: words by your pointer for others here'], ['Ctrl+Alt+\\', "Hide or show others' pointers"], ['Shift+?', 'This sheet']]],
   ]
   const keysSheet = h('dialog', { id: 'keys-sheet', 'aria-label': 'Keyboard shortcuts' })
   document.body.append(keysSheet)
@@ -4467,6 +4474,7 @@
       sel ? { label: `Download ${sel}`, icon: 'download', run: () => downloadFile(sel) } : null,
       serve ? { label: 'Rename', run: rename } : null,
       { label: 'History', run: openHistory },
+      peers.size ? { label: document.body.classList.contains('pointers-off') ? "Show others' pointers" : "Hide others' pointers", key: 'Ctrl+Alt+\\', run: () => setPointersShown(document.body.classList.contains('pointers-off')) } : null,
       // FigJam's timer, for everyone here.
       { label: timerEnd ? 'Timer: stop' : 'Timer…', run: () => (timerEnd ? startTimer(0) : setTimeout(() => openMenu($('#title-btn'), [1, 3, 5, 10].map((n) => ({ label: `${n} minute${n === 1 ? '' : 's'}`, run: () => startTimer(n * 60000) }))), 0)) },
       // Figma's Spotlight: everyone else here follows this view.
@@ -4781,6 +4789,11 @@
       return closeMenu(true)
     }
     if (call('onKey', e)) return
+    // Figma's multiplayer cursors (Ctrl+Alt+\): other people's pointers hidden or shown again.
+    if ((e.ctrlKey || e.metaKey) && e.altKey && e.code === 'Backslash') {
+      e.preventDefault()
+      return setPointersShown(document.body.classList.contains('pointers-off'))
+    }
     if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
       e.preventDefault()
       return $('#tool-panel').click()

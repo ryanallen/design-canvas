@@ -666,3 +666,4 @@ body.has-banner #panel { top: 88px; }
 #timer-chip.done { background: var(--danger, #e5484d); color: #fff; animation: timer-pulse 0.8s ease-in-out 4; }
 @keyframes timer-pulse { 50% { transform: scale(1.08); } }
 @media (prefers-reduced-motion: reduce) { #timer-chip.done { animation: none; } }
+body.pointers-off .peer-cursor { display: none; }

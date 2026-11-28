@@ -424,6 +424,9 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
   // that person's own last change, as Figma's does, and not someone else's made since. A new change clears only that
   // person's redo.
   const whoOf = (req) => String(req.headers['x-dc-client'] ?? '').slice(0, 80)
+  // A guest in the hosted room (their calls come through hostroom.mjs tagged room-<id>) isn't the owner: the owner is
+  // whoever edits where the canvas lives, and only the owner locks, unlocks, or changes what is locked.
+  const isGuest = (req) => whoOf(req).startsWith('room-')
   const pushUndo = (step, who) => {
     undo.push({ ...step, by: who })
     if (undo.length > UNDO_STEPS) undo.splice(0, undo.length - UNDO_STEPS)
@@ -617,6 +620,11 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
           return json(res, 200, { events, board: foldBoard(events) })
         }
         const event = makeBoardEvent((await readBody(req)).event)
+        if (isGuest(req)) {
+          if (event.op === 'lock') return json(res, 403, { error: 'Only the owner can lock and unlock things.' })
+          const held = foldBoard(parseLines(lines.join('\n'), 'board')).locked
+          if (['item', 'remove', 'move'].includes(event.op) && held.includes(event.op === 'move' ? event.key : event.id)) return json(res, 403, { error: 'That is locked' })
+        }
         const refused = boardRefused(parseLines(lines.join('\n'), 'board'), event)
         if (refused) return json(res, 409, { error: refused })
         lines.push(insertEvent('', event, 'board').trim())
@@ -855,7 +863,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
           for (const f of [...new Set(files)]) {
             if (!onCanvas(f) || lockedFiles.some((k) => k === f || k.startsWith(`${f}#`))) continue
             const was = readFile(f)
-            if (lockedFor(was, edit, { owner: true })) continue
+            if (lockedFor(was, edit, { owner: !isGuest(req) })) continue
             const r = applyEdit(was, edit)
             if (r.src === was) continue
             writeFile(f, r.src)
@@ -874,7 +882,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         const before = readFile(file)
         if (v && v !== sha(before)) return json(res, 409, { error: `${file} changed somewhere else just before this. It's shown as it is now, so please do that again.` })
         const frameLocked = foldBoard(lines.flatMap((l) => parseLines(l, 'board'))).locked.some((k) => k === file || k.startsWith(`${file}#`))
-        const refused = frameLocked ? 'This artboard is locked: unlock it on the board first' : lockedFor(before, edit, { owner: true })
+        const refused = frameLocked ? 'This artboard is locked: unlock it on the board first' : lockedFor(before, edit, { owner: !isGuest(req) })
         if (refused) return json(res, 403, { error: refused })
         const link = componentEdit(before, edit)
         const result = applyEdit(before, edit)

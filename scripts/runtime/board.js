@@ -36,6 +36,8 @@
   let local = false
   // A visitor to a published copy in play mode: edits, but never locks or unlocks.
   let visitor = false
+  // Editing the owner's canvas through the hosted room: not the owner, who is whoever edits where the canvas lives.
+  let roomGuest = false
   const $ = (sel, el = document) => el.querySelector(sel)
   const h = (tag, attrs = {}, ...kids) => {
     const el = document.createElement(tag)
@@ -3000,7 +3002,7 @@
   // published copy.
   const LOCKED = 'That is locked'
   const isLocked = (key) => !!key && (board.locked ?? []).includes(key)
-  const owner = () => serve && !visitor
+  const owner = () => serve && !visitor && !roomGuest
   const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
   /** The locked frames and objects on this page a box would sit over, leaving out `self`. */
   function coversLocked(box, self) {
@@ -3885,6 +3887,7 @@
   }
   function startRemote() {
     remote = true
+    roomGuest = true
     const before = window.fetch
     window.fetch = (input, init = {}) => {
       const url = typeof input === 'string' ? input : input.url

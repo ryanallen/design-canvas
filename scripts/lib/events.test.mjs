@@ -296,3 +296,13 @@ test('a voting session begins with its votes each and ends; a vote names its ses
   assert.equal(foldBoard([on, makeBoardEvent({ op: 'vote', on: false })]).voting, null)
   assert.equal(foldBoard([]).voting, null)
 })
+
+test('a stamp goes with the note that holds it, and comes back with it', () => {
+  const note = { op: 'item', id: 'n1', kind: 'note', x: 0, y: 0 }
+  const stamp = { op: 'item', id: 's1', kind: 'stamp', to: 'n1', x: 10, y: 10 }
+  const loose = { op: 'item', id: 's2', kind: 'stamp', to: '', x: 500, y: 10 }
+  const ids = (events) => foldBoard(events).items.map((i) => i.id).sort()
+  assert.deepEqual(ids([note, stamp, loose]), ['n1', 's1', 's2'])
+  assert.deepEqual(ids([note, stamp, loose, { op: 'remove', id: 'n1' }]), ['s2'])
+  assert.deepEqual(ids([note, stamp, loose, { op: 'remove', id: 'n1' }, note]), ['n1', 's1', 's2'])
+})

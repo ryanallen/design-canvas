@@ -240,7 +240,10 @@ export function foldBoard(events) {
     else if (e.op === 'lock' && e.key) e.locked ? locked.add(e.key) : locked.delete(e.key)
     else if (e.op === 'vote') voting = e.on && e.id ? { id: e.id, votes: e.votes, by: e.name, at: e.at } : null
   }
-  return { items: [...items.values()], moved: Object.fromEntries(moved), pages: [...pages.values()], name, locked: [...locked], voting }
+  // A stamp or vote goes with what holds it, as on a FigJam sticky: the holder deleted, it is not on the board; the
+  // holder brought back (the same id), it is there again.
+  const held = [...items.values()].filter((i) => !(i.kind === 'stamp' && i.to && !items.has(i.to)))
+  return { items: held, moved: Object.fromEntries(moved), pages: [...pages.values()], name, locked: [...locked], voting }
 }
 
 /** A board object's color: a hex, a color name, or rgb()/hsl() numbers. Anything else is refused,

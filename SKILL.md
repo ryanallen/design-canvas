@@ -29,6 +29,8 @@ With an element selected, hold Alt over another element to see the distance betw
 
 To select every copy of an element, use Alt + click, Ctrl+Alt+A (Figma's Select matching layers), or **Select every copy** under the toolbar's …. A copy is an element with the same tag and classes under the same kind of parent. A style then goes into a rule they all follow. Also under …, **Select all with the same fill**, **text color** or **type** picks everything on the screen that shares it, as in Figma.
 
+Ctrl+Shift+A is Figma's Select inverse. In a prototype it selects what sits alongside the selection, leaving the selection out. On the board it selects every object and screen on the page that isn't selected.
+
 Shift + click adds an element to the selection or takes it out. A style on several elements picked this way goes on each of them alone, in one edit, whether they are alike or not. They stay selected.
 
 A selection that holds text without being text itself, such as a group or a card, has Text color, Bold and Italic on the toolbar. Every line in it takes the change, over any style of its own, in one edit, and the selection stays. Bold and Italic show as on when every line already is.

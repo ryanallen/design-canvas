@@ -449,6 +449,8 @@
     draw()
   }
   hooks.selectedFile = () => sel?.frame.file ?? null
+  // The whole screen selected (its label clicked): its key, for what the board does with screens.
+  hooks.selectedScreen = () => (sel && sel.els.length === 1 && sel.els[0].localName === 'body' ? sel.frame.key : null)
   /** The box round the selected elements on the board, for zoom to selection. */
   hooks.selectionBox = () => {
     const els = sel?.els.filter(live) ?? []
@@ -1598,6 +1600,11 @@
       const all = copiesOf(el)
       if (all.length < 2) hint('Nothing else on this screen is like it', 1600)
       else select(sel.frame, [el, ...all.filter((x) => x !== el)])
+    // Figma's Select inverse (Ctrl+Shift+A): what sits alongside the selection and is not in it.
+    } else if (mod && e.shiftKey && !e.altKey && e.code === 'KeyA' && el.localName !== 'body') {
+      const rest = [...(el.parentElement?.children ?? [])].filter((c) => !SKIP.has(c.localName) && !sel.els.includes(c))
+      if (!rest.length) hint('Nothing else sits alongside it', 1600)
+      else select(sel.frame, rest)
     } else if (mod && k === 'a' && !e.shiftKey && !e.altKey) {
       const all = [...(el.parentElement?.children ?? [])].filter((c) => !SKIP.has(c.localName))
       if (el.localName === 'body' || all.length < 2) return false

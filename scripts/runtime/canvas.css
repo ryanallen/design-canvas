@@ -690,3 +690,6 @@ body.ui-off #topbar, body.ui-off #toolbar, body.ui-off #panel, body.ui-off #floa
 #bars-back:hover, #bars-back:focus-visible { opacity: 1; }
 body.ui-off #bars-back { display: block; }
 body.shooting #bars-back { display: none !important; }
+
+/* A web address in a note or shape. */
+.item a.board-link { color: inherit; text-decoration: underline; text-underline-offset: 0.15em; overflow-wrap: anywhere; }

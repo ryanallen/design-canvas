@@ -950,6 +950,14 @@
     const f = frameAt(e.clientX, e.clientY)
     const itemEl = e.target.closest('.item')
     const panning = e.button === 1 || tool === 'hand' || spaceHeld
+    // A link in a board object's words: Ctrl or Cmd + press opens it (a plain press picks the object); where nothing
+    // can be edited, a plain press opens it.
+    const link = e.button === 0 && e.target.closest?.('a.board-link')
+    if (link && (e.ctrlKey || e.metaKey || !serve)) {
+      e.preventDefault()
+      open(link.href, '_blank', 'noopener')
+      return
+    }
     if (!panning && e.button === 0) {
       if (call('onPointerDown', e, { frame: f, point: p, tool, item: itemEl?.dataset.id ?? null })) return
       // While voting, a click on a note or shape casts a vote there, and a click on a vote of one's own takes it back.
@@ -1493,10 +1501,10 @@
     if (it.kind === 'image') return h('div', { class: cls, 'data-id': it.id, style: box }, /^(?:[\w-]+\/)*[\w-][\w.-]*\.(?:png|jpe?g|gif|webp|avif|svg)$/i.test(String(it.src ?? '')) ? h('img', { src: (data.pictures && /^data:image\//.test(data.pictures[it.src] ?? '') ? data.pictures[it.src] : null) ?? it.src, alt: '', draggable: 'false' }) : null, grip)
     if (it.kind === 'note') {
       const by = it.author === 'show' && it.by ? h('span', { class: 'by', contenteditable: 'false' }, it.by) : null
-      return h('div', { class: `${cls}${by ? ' with-by' : ''}`, 'data-id': it.id, style: `${box};background:${it.color || NOTE_COLORS[0]}` }, it.text ?? '', by, grip)
+      return h('div', { class: `${cls}${by ? ' with-by' : ''}`, 'data-id': it.id, style: `${box};background:${it.color || NOTE_COLORS[0]}` }, ...linked(it.text), by, grip)
     }
     if (it.kind === 'title') return h('div', { class: cls, 'data-id': it.id, style: `left:${it.x}px;top:${it.y}px;${it.color ? `color:${it.color};` : ''}${it.size ? `font-size:${num(it.size)}px` : ''}` }, it.text || 'Title')
-    if (it.kind === 'rect' || it.kind === 'ellipse') return h('div', { class: `${cls}${it.fill === 'solid' ? ' filled' : ''}`, 'data-id': it.id, style: `${box};--c:${it.color || SHAPE_COLORS[0]}` }, h('span', { class: 'txt' }, it.text ?? ''), grip)
+    if (it.kind === 'rect' || it.kind === 'ellipse') return h('div', { class: `${cls}${it.fill === 'solid' ? ' filled' : ''}`, 'data-id': it.id, style: `${box};--c:${it.color || SHAPE_COLORS[0]}` }, h('span', { class: 'txt' }, ...linked(it.text)), grip)
     // A vote, as FigJam's: a dot; while its session goes on, only the one who cast it sees it.
     if (it.kind === 'stamp' && it.vote) {
       if (board.voting?.id === it.vote && it.by !== (me || '')) return null
@@ -1506,7 +1514,7 @@
     if (FORMS[it.kind]) {
       const form = s('svg', { class: 'form', viewBox: '0 0 100 100', preserveAspectRatio: 'none', 'aria-hidden': 'true' })
       form.append(s('polygon', { points: FORMS[it.kind].map((q) => q.join(',')).join(' ') }))
-      return h('div', { class: `${cls}${it.fill === 'solid' ? ' filled' : ''}`, 'data-id': it.id, style: `${box};--c:${it.color || SHAPE_COLORS[0]}` }, form, h('span', { class: 'txt' }, it.text ?? ''), grip)
+      return h('div', { class: `${cls}${it.fill === 'solid' ? ' filled' : ''}`, 'data-id': it.id, style: `${box};--c:${it.color || SHAPE_COLORS[0]}` }, form, h('span', { class: 'txt' }, ...linked(it.text)), grip)
     }
     if (it.kind === 'section') return h('div', { class: cls, 'data-id': it.id, style: `${box};--c:${it.color || SECTION_COLORS[0]}` }, h('span', { class: 'txt' }, it.text ?? ''), grip)
     if (it.kind === 'guide') {
@@ -3172,6 +3180,23 @@
   let openStep = null
   let replaying = false
   const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points', 'size', 'src', 'route', 'dx', 'dy', 'weight', 'pen', 'ends', 'dash', 'fill', 'author', 'vote']
+  /** A board object's words with each web address in them a link, as FigJam's: Ctrl or Cmd + click opens it (a plain
+      click picks the object, as anywhere on it), and where nothing can be edited a plain click opens it. */
+  function linked(text) {
+    const parts = String(text ?? '').split(/(https?:\/\/[^\s<>"]+)/)
+    return parts.map((t, i) => {
+      if (i % 2 === 0) return t
+      const tail = /[.,;:!?)\]]+$/.exec(t)?.[0] ?? ''
+      const href = tail ? t.slice(0, -tail.length) : t
+      return [h('a', { class: 'board-link', href, target: '_blank', rel: 'noopener', title: serve ? `${href} (Ctrl+click to open)` : href }, href), tail]
+    }).flat().filter((x) => x !== '')
+  }
+  viewport.addEventListener('click', (e) => {
+    const a = e.target.closest?.('a.board-link')
+    if (!a || a.closest('[contenteditable="true"], [contenteditable="plaintext-only"]')) return
+    // Opened on the press (above), never by the browser following it on the click.
+    e.preventDefault()
+  })
   /** The one thing a line touches, as a board says it is: an object's fields, a frame's place, or null for nothing there. */
   function stateOf(b, ev) {
     if (ev.op === 'item' || ev.op === 'remove') {

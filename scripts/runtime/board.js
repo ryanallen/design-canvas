@@ -1089,7 +1089,8 @@
       owner() && free ? { label: 'Lock', run: () => setLock(ids, true) } : null,
       owner() && ids.some(isLocked) ? { label: 'Unlock', run: () => setLock(ids.filter(isLocked), false) } : null,
       '-',
-      free ? { label: 'Delete', key: 'Del', danger: true, run: () => (chosen ? removeChosen() : removeItem(picked)) } : null,
+      // What the menu was opened for, even if the selection changed while it stayed open.
+      free ? { label: 'Delete', key: 'Del', danger: true, run: () => removeChosen(ids.filter((id) => board.items.some((i) => i.id === id))) } : null,
     ].filter(Boolean).reduce((out, m) => (m === '-' && (!out.length || out.at(-1) === '-') ? out : [...out, m]), []).filter((m, i, all) => m !== '-' || i < all.length - 1)
   }
   viewport.addEventListener('pointermove', (e) => {
@@ -1914,8 +1915,8 @@
       takeBoardAgain()
     }
   }
-  async function removeChosen() {
-    const all = [...(chosen?.items ?? [])]
+  async function removeChosen(all = [...(chosen?.items ?? [])]) {
+    if (!all.length) return
     const ids = all.filter((id) => !isLocked(id))
     if (ids.length < all.length) hint(`${all.length - ids.length} locked, left where they are`, 2400)
     chosen = null
@@ -2065,6 +2066,7 @@
     }
   }
   async function removeItem(id) {
+    if (!id) return
     if (isLocked(id)) return hint(LOCKED, 2000)
     picked = null
     try {

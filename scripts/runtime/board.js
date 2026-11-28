@@ -3364,11 +3364,17 @@
   const number = (t) => threads.indexOf(t) + 1 || '…'
   /** Everyone who has written a comment or reply here, for @mentions. */
   const people = () => [...new Set(threads.flatMap((t) => [t.name, ...t.replies.map((r) => r.name)]).filter(Boolean))].sort((a, b) => a.localeCompare(b))
-  /** A message's words, each @Name of someone here shown as a mention. */
+  /** A message's words, each @Name of someone here shown as a mention and each web address as a link. */
+  const webLinks = (text) => String(text).split(/(https?:\/\/[^\s<>"]+)/).flatMap((t, i) => {
+    if (i % 2 === 0) return t ? [t] : []
+    const tail = /[.,;:!?)\]]+$/.exec(t)?.[0] ?? ''
+    const href = tail ? t.slice(0, -tail.length) : t
+    return [h('a', { class: 'msg-link', href, target: '_blank', rel: 'noopener' }, href), ...(tail ? [tail] : [])]
+  })
   const withMentions = (text) => {
     const names = people().sort((a, b) => b.length - a.length).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    if (!names.length) return [text]
-    return text.split(new RegExp(`(@(?:${names.join('|')}))(?![\\w])`)).map((part, i) => (i % 2 ? h('b', { class: 'mention' }, part) : part))
+    if (!names.length) return webLinks(text)
+    return text.split(new RegExp(`(@(?:${names.join('|')}))(?![\\w])`)).flatMap((part, i) => (i % 2 ? [h('b', { class: 'mention' }, part)] : webLinks(part)))
   }
   const when = (iso) => {
     const d = new Date(iso)

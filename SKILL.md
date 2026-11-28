@@ -109,6 +109,7 @@ Everything people do is saved as a line before `</body>`. Each line is one JSON 
   - `react`, which turns one of 👍 ❤️ 🎉 👀 ✅ on or off for whoever sends it. A message shows each reaction with how many there are, and who sent them on hover.
   - `place`, which moves a thread's pin. It holds the same place fields as `add` and is taken only from whoever wrote the thread. Whoever wrote a thread can drag its pin somewhere else, as in Figma. A press without a drag opens it.
 
+  A web address in a comment is a link that opens in a new tab.
   Typing @ and the start of a name in a comment offers everyone who has written there. Pick with ↑ ↓, Enter or Tab. An @Name of someone there shows as a mention.
 
   A thread offers Edit on what the viewer wrote. It offers Delete on that too, and on everything to the owner, as Figma does. An edited message says it was edited.

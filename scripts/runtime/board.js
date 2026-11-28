@@ -3369,8 +3369,11 @@
   let pending = 0
   let boardMissed = false
   /** Put every object and frame of a step back as it was (or forward as it became). */
+  // How many of a replayed step's changes were to objects someone else had deleted, and so left as they are.
+  let replayGone = 0
   async function replay(step, back) {
     replaying = true
+    replayGone = 0
     try {
       for (const c of [...step.changes.values()].reverse()) {
         const want = back ? c.before : c.after
@@ -3396,6 +3399,9 @@
           if (board.items.some((i) => i.id === c.id)) await sendBoard({ op: 'remove', id: c.id })
           continue
         }
+        // A change to an object someone else has since deleted is left undone, as Figma's undo leaves what a
+        // collaborator removed: putting its old state back would bring the deleted object back.
+        if (other && !board.items.some((i) => i.id === c.id)) { replayGone++; continue }
         // A field the other side had and this one lacks is cleared.
         const clear = Object.fromEntries(Object.keys(other ?? {}).filter((k) => want[k] == null).map((k) => [k, ['x', 'y', 'w', 'h', 'z'].includes(k) ? 0 : k === 'points' ? [] : '']))
         await sendBoard({ op: 'item', id: c.id, ...clear, ...want })
@@ -3428,7 +3434,7 @@
     }
     try {
       await replay(top, !redo)
-      hint(redo ? 'Redone' : 'Undone', 900)
+      hint(replayGone ? `${redo ? 'Redone' : 'Undone'}. Someone else deleted ${replayGone === 1 ? 'one thing it changed' : `${replayGone} things it changed`}, so ${replayGone === 1 ? 'that stays' : 'those stay'} deleted.` : redo ? 'Redone' : 'Undone', replayGone ? 3000 : 900)
       // The selection comes back as it was when the step was made, as Figma's undo does, so it shows what came back:
       // what of it is on this page after the step; else what the step changed that is still there; else nothing.
       const here = (id) => board.items.some((i) => i.id === id && (i.page ?? firstPage()) === pageId && i.kind !== 'guide')

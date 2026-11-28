@@ -771,7 +771,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
           await page.waitForFunction(() => window.designCanvas?.shootBoard && (window.designCanvas.allFrames ?? []).every((f) => !f.el || f.doc), null, { timeout: 20000 })
           let modes = {}
           try { modes = JSON.parse(url.searchParams.get('modes') || '{}') } catch {}
-          await page.evaluate(([b, m]) => window.designCanvas.shootBoard(b, m), [box, modes && typeof modes === 'object' ? modes : {}])
+          await page.evaluate(([b, m, as]) => window.designCanvas.shootBoard(b, m, as), [box, modes && typeof modes === 'object' ? modes : {}, String(url.searchParams.get('as') ?? '')])
           await page.evaluate(() => document.fonts?.ready)
           await page.waitForTimeout(400)
           const png = await page.screenshot({ type: 'png' })

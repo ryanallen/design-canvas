@@ -1883,7 +1883,9 @@
   }
   /** For the server's browser making a picture of part of the board: that part at 100% from the window's top left,
       with nothing of the canvas's own over it. */
-  function shootBoard(box, modes = {}) {
+  function shootBoard(box, modes = {}, as = '') {
+    // Drawn as the one asking sees it: their own vote dots in a vote going on, and nobody else's.
+    me = String(as).slice(0, LIMITS.name)
     picked = null
     chosen = null
     // Each screen in the mode it is shown in where the picture was asked for.
@@ -1904,7 +1906,7 @@
     if (!serve || local) { hint('To make a picture, run the canvas from its folder with node scripts/canvas.mjs serve <folder>', 5000); return null }
     const b = boxAround(ids, keys)
     const modes = Object.fromEntries(frames().map((f) => [f.key, schemeOf(f)]).filter(([, m]) => m !== 'auto'))
-    const q = new URLSearchParams({ page: pageId, x: String(Math.floor(b.x - 24)), y: String(Math.floor(b.y - 24)), w: String(Math.ceil(b.w + 48)), h: String(Math.ceil(b.h + 48)), ...(Object.keys(modes).length ? { modes: JSON.stringify(modes) } : {}) })
+    const q = new URLSearchParams({ page: pageId, x: String(Math.floor(b.x - 24)), y: String(Math.floor(b.y - 24)), w: String(Math.ceil(b.w + 48)), h: String(Math.ceil(b.h + 48)), ...(Object.keys(modes).length ? { modes: JSON.stringify(modes) } : {}), ...(me ? { as: me } : {}) })
     hint('Making the picture…', 8000)
     return fetch(`/api/board-png?${q}`).then(async (res) => {
       if (!res.ok) { hint((await res.json().catch(() => ({}))).error || 'No picture was made', 5000); return null }
@@ -3659,6 +3661,8 @@
     store.set('name', me)
     $('#my-name').value = me
     roomSend({ t: 'name', name: me || 'Someone' })
+    // A vote's dots are shown by whose they are, so a new name shows that name's dots and votes left.
+    if (board.voting) { renderItems(); drawVoting() }
   }
 
   // ── who else is here, as Figma's multiplayer: each person's pointer on the board, with their name, and their faces

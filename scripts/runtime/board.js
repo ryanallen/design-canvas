@@ -987,6 +987,7 @@
       return openMenu(at, itemMenu())
     }
     if (!f) openMenu(at, [
+      serve && boardClip ? { label: 'Paste here', run: () => pasteAt(toWorld(at.x, at.y)) } : null,
       serve && boardClip ? { label: 'Paste', key: 'Ctrl+V', run: pasteItems } : null,
       serve && boardClip ? { label: 'Paste in place', key: 'Ctrl+Shift+V', run: pasteInPlace } : null,
       serve && boardClip && selectedItems().length ? { label: 'Paste to replace', key: 'Ctrl+Shift+R', run: pasteReplace } : null,
@@ -1750,10 +1751,34 @@
     else removeItem(picked)
     return true
   }
+  // What was copied, as one box on the board.
+  const clipBox = () => {
+    const gs = boardClip.items.map((i) => geometryOf(i))
+    const x = Math.min(...gs.map((g) => g.x))
+    const y = Math.min(...gs.map((g) => g.y))
+    return { x, y, w: Math.max(...gs.map((g) => g.x + (g.w ?? 0))) - x, h: Math.max(...gs.map((g) => g.y + (g.h ?? 0))) - y }
+  }
+  /** Ctrl+V: 24 down and right of the originals, then of the last copies; as in Figma, where that is out of sight
+   *  (the originals scrolled away, or on another page), in the middle of the view instead. */
   function pasteItems() {
     if (!boardClip) return false
     boardClip.times++
-    placeCopies(boardClip.items, 24 * boardClip.times, 24 * boardClip.times)
+    const b = clipBox()
+    const d = 24 * boardClip.times
+    const r = viewport.getBoundingClientRect()
+    const a = toWorld(r.left, r.top)
+    const z = toWorld(r.right, r.bottom)
+    const seen = b.x + d < z.x && b.x + d + b.w > a.x && b.y + d < z.y && b.y + d + b.h > a.y
+    const samePage = boardClip.items.every((i) => (i.page ?? firstPage()) === pageId)
+    if (seen && samePage) placeCopies(boardClip.items, d, d)
+    else pasteAt({ x: (a.x + z.x) / 2, y: (a.y + z.y) / 2 }, true)
+    return true
+  }
+  /** Figma's Paste here: what was copied with its top left at a point on the board, or its middle there. */
+  function pasteAt(p, middle = false) {
+    if (!boardClip) return false
+    const b = clipBox()
+    placeCopies(boardClip.items, Math.round(p.x - b.x - (middle ? b.w / 2 : 0)), Math.round(p.y - b.y - (middle ? b.h / 2 : 0)))
     return true
   }
   /** Figma's Paste in place (Ctrl+Shift+V): the copies exactly where the originals were, on this page. */

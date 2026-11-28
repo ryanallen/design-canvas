@@ -429,7 +429,7 @@ With a selection, you can do these.
 - **Tidy up** (Ctrl+Alt+T, also under Align) puts them in a grid in reading order, each in a cell as big as the biggest and 40 apart. Where they already lie in a row or a column, it makes a row or a column.
 - Ctrl+D duplicates. The copies are moved and stay selected. Ctrl+D again puts the next copies as far on again, as Figma steps them.
 - Alt + drag places a copy where the drag ends.
-- Ctrl+C and Ctrl+V copy and paste. Ctrl+Shift+V (Paste in place) puts the copies exactly where the originals were, on whatever page is open. A line copied together with both objects it holds holds the copies.
+- Ctrl+C and Ctrl+V copy and paste. A paste goes 24 down and right of the originals, or into the middle of the view when that spot is out of sight or the originals are on another page. **Paste here**, in the right-click menu, puts the copies where you clicked. Ctrl+Shift+V (Paste in place) puts the copies exactly where the originals were, on whatever page is open. A line copied together with both objects it holds holds the copies.
 - Ctrl+Shift+R (Paste to replace) puts what was copied in place of what is selected, centered on it, in one undo step. In a prototype it replaces the one selected part. With nothing copied, the key is left to the browser.
 - **Page** on the bar moves the selection to another page, at the same spot. An arrow between two things that both move goes with them. An arrow holding only one of them lets go of it where it is drawn.
 - **✦ Ask agent** leaves the agent a thread carrying the box and everything in it.

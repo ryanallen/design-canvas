@@ -72,7 +72,7 @@ function readLayout(folder, layoutPath, title) {
     const layout = typeof layoutPath === 'object' ? layoutPath : JSON.parse(fs.readFileSync(layoutPath, 'utf8'))
     const name = title ?? layout.title ?? path.basename(path.resolve(folder))
     const pages = Array.isArray(layout.pages) ? layout.pages : [{ title: layout.pageTitle ?? 'Page 1', sections: layout.sections ?? [] }]
-    return { title: name, comments: layout.comments ?? null, room: typeof layout.room === 'string' && /^(wss:\/\/|ws:\/\/(127\.0\.0\.1|localhost)[:/])[^\s"'<>]+$/i.test(layout.room) ? layout.room : null, play: !!layout.play, links: Array.isArray(layout.links) ? layout.links : [], pages: pages.map((p, i) => ({ id: `p${i + 1}`, title: p.title ?? `Page ${i + 1}`, sections: p.sections ?? [] })) }
+    return { title: name, comments: layout.comments ?? null, url: layout.url ?? null, room: typeof layout.room === 'string' && /^(wss:\/\/|ws:\/\/(127\.0\.0\.1|localhost)[:/])[^\s"'<>]+$/i.test(layout.room) ? layout.room : null, play: !!layout.play, links: Array.isArray(layout.links) ? layout.links : [], pages: pages.map((p, i) => ({ id: `p${i + 1}`, title: p.title ?? `Page ${i + 1}`, sections: p.sections ?? [] })) }
   }
   const own = path.join(folder, 'canvas.json')
   if (fs.existsSync(own)) return readLayout(folder, own, title)
@@ -305,6 +305,8 @@ export async function buildCanvas(options) {
     comments: options.comments ?? layout.comments ?? null,
     // A room on a host (a Cloudflare Worker, worker/room.js) that everyone opening this canvas joins, to see each other.
     room: layout.room ?? null,
+    // Where the hosted copy lives, for the invite link the owner copies.
+    url: typeof layout.url === 'string' && /^https:\/\/[^\s"'<>#]+$/i.test(layout.url) ? layout.url : null,
     // Opened from a website, it edits for every visitor, each in their own browser.
     play: !!layout.play,
     links: (layout.links ?? []).filter((l) => l && typeof l.text === 'string' && /^https?:\/\//i.test(l.href ?? '')).map((l) => ({ text: l.text, href: l.href })),
@@ -612,6 +614,11 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         writeOut()
         tell('board', {})
         return json(res, 200, { event })
+      }
+      if (url.pathname === '/api/invite') {
+        // The hosted copy's address with the invite key, for the owner's own page (never relayed to a guest).
+        if (!server.hosted || !payload.url) return json(res, 404, { error: 'This canvas is not the host of a room with a hosted address.' })
+        return json(res, 200, { link: `${payload.url}#invite=${server.hosted.editKey}` })
       }
       if (url.pathname === '/api/history') {
         // Every edit recorded in the canvas, oldest first: who, when, which file, what.

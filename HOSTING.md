@@ -86,7 +86,7 @@ People you invite can edit your prototypes live from the hosted copy, while your
 1. Make an owner key, a long random string, and give it to the room: `npx wrangler secret put OWNER_KEY` in `worker/`.
 2. Put the same key in a file named `.room-key` beside the prototypes (`.gitignore` keeps it out of git), or in the `DC_ROOM_KEY` environment variable.
 3. Serve the folder as usual: `node scripts/canvas.mjs serve <folder>`. It joins the room as its host and prints the invite key.
-4. Send people the hosted address with `#invite=<key>` at the end. The page takes the key out of its address once read, so a link copied from there doesn't pass it on.
+4. Put the hosted copy's address in `canvas.json` as `"url"`. Then **Copy invite link** in your canvas's menu (on its title) copies that address with `#invite=<key>` at the end. Without `url`, add `#invite=<key>` to the address yourself. Send people the link. The page takes the key out of its address once read, so a link copied from there doesn't pass it on.
 
 Their edits, comments and board changes go through the room to your server, which checks each one as it checks your own and writes it into your folder. Your changes show on their pages the same way. They can't make new files or screens, take pictures of screens, fetch fonts, or reach the agent's endpoints. The invite key is worked out from the owner key and the room address, so a new owner key makes a new invite key. When your canvas isn't running, their page says the owner is offline, and changes wait until it's back. Visitors without the key edit only their own copy, as in play mode.
 

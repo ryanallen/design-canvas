@@ -4205,6 +4205,21 @@
   document.body.append(historySheet)
   historySheet.addEventListener('keydown', (e) => e.stopPropagation())
   historySheet.addEventListener('click', (e) => e.target === historySheet && historySheet.close())
+  async function copyInvite() {
+    try {
+      const res = await fetch('/api/invite')
+      const body = await res.json()
+      if (!res.ok) return hint(body.error || "This canvas isn't in its room yet. Check the owner key.", 4000)
+      try {
+        await navigator.clipboard.writeText(body.link)
+        hint('Invite link copied. People who open it can edit with you while this canvas is running.', 3000)
+      } catch {
+        hint(body.link, 10000)
+      }
+    } catch (err) {
+      hint(err.message, 3000)
+    }
+  }
   async function openHistory() {
     let edits = editLines
     if (serve) {
@@ -4261,6 +4276,8 @@
       sel ? { label: `Download ${sel}`, icon: 'download', run: () => downloadFile(sel) } : null,
       serve ? { label: 'Rename', run: rename } : null,
       { label: 'History', run: openHistory },
+      // The owner's canvas, host of a hosted room: the hosted copy's address with the invite key.
+      serve && !local && data.room && data.url ? { label: 'Copy invite link', run: copyInvite } : null,
       items().some((i) => i.kind === 'stamp') ? { label: 'Stamps, counted', run: openStampCount } : null,
       // A board laid out for a retro, a kanban, a journey map or a flowchart.
       serve ? { label: 'Templates…', run: () => setTimeout(() => templateMenu($('#title-btn')), 0) } : null,

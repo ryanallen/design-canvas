@@ -1,6 +1,7 @@
 {
   "title": "Design canvas",
   "play": true,
+  "url": "https://ryanallen.com/design-canvas/play/",
   "room": "wss://design-canvas-room.norml.workers.dev/room/play-yycLAnTKbZd3MdJ5",
   "links": [
     { "text": "About", "href": "https://ryanallen.com/design-canvas/" },

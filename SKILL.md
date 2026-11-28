@@ -7,7 +7,7 @@ description: Lay a folder of HTML prototypes out on one canvas to view, play, ed
 
 The design canvas puts every `.html` file in a folder on one board.
 
-When you build it, you get one self-contained `canvas.html`. It opens from disk and fetches nothing.
+When you build it, you get one self-contained `canvas.html`. It opens from disk and fetches nothing, unless its `canvas.json` names a room for working together.
 
 When you serve it, you can edit. Select an element, then retype it, restyle it, move it, group it or comment on it. The change is written into that prototype's `.html` file, at the bytes it touches and nothing else.
 

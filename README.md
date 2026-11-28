@@ -4,7 +4,7 @@ A skill that puts a folder of HTML prototypes on one board. You can view them, c
 
 Every page is also a whiteboard, with sticky notes, shapes with text, sections, arrows that stay attached, and a box you can draw to ask your agent about what's inside it. A folder with no prototypes opens as a plain whiteboard.
 
-It only needs Node. There's nothing to install, no build step, and the canvas never fetches anything from the internet. The one exception is a room you set up yourself so people on a hosted copy can see each other.
+It only needs Node. There's nothing to install, no build step, and the canvas never fetches anything from the internet. The one exception is a room you set up yourself, so people can see each other and edit with you.
 
 ## Install
 

@@ -1,6 +1,6 @@
 # Hosting a canvas
 
-A built `canvas.html` is one file that fetches nothing, so any static host shows it. What else people can do with it depends on where it lives and what answers it there. This repository is public, so it holds no keys, tokens or private addresses, and none should ever go in. A host's secrets live in that host's own secret store.
+A built `canvas.html` is one file that fetches nothing (unless it names a room, below), so any static host shows it. What else people can do with it depends on where it lives and what answers it there. This repository is public, so it holds no keys, tokens or private addresses, and none should ever go in. A host's secrets live in that host's own secret store.
 
 ## The ways, side by side
 

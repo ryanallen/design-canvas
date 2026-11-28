@@ -1,6 +1,7 @@
 {
   "title": "Design canvas",
   "play": true,
+  "room": "wss://design-canvas-room.norml.workers.dev/room/play-yycLAnTKbZd3MdJ5",
   "links": [
     { "text": "About", "href": "https://ryanallen.com/design-canvas/" },
     { "text": "⬇ Download", "href": "https://github.com/ryanallen/design-canvas/archive/refs/heads/main.zip" },

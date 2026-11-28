@@ -5,7 +5,12 @@
 /** The colors people are given in a room, in turn: each readable under white text. */
 export const ROOM_COLORS = ['#e5484d', '#0091ff', '#30a46c', '#f76b15', '#8e4ec6', '#d6409f', '#12a594', '#ab6400']
 const MAX_PEERS = 50
-const MAX_MESSAGE = 2048
+// A pointer or a name is small; a call, its answer and the host's news carry a prototype's HTML, in parts under the
+// 1 MB a Cloudflare WebSocket message may be.
+const MAX_SMALL = 2048
+const MAX_MESSAGE = 1_000_000
+// A guest's calls to the host: at most this many a second, so one page cannot flood the owner's machine.
+const CALLS_PER_SECOND = 30
 
 const clean = (v, max) => String(v ?? '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, max)
 const num = (v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null)
@@ -13,13 +18,24 @@ const num = (v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null)
 /** A room's people. `join(send)` takes a function that sends one message (an object) to that person, and answers
  *  with what to do with each message they send and when they leave, and `state`, what to keep of them. A host that
  *  sleeps between messages (a Durable Object hibernating) keeps each `state` and hands it back with `join(send, state)`
- *  to make the room as it was. */
-export function makeRoom({ newId = () => Math.random().toString(36).slice(2, 10) } = {}) {
+ *  to make the room as it was.
+ *
+ *  With an `ownerKey`, the owner's canvas server can join as the host (hello with `host: true` and that key). It
+ *  names an edit key; a guest whose hello carries that key may send calls (`call`), which go to the host, and the
+ *  host's answers (`answer`) go back to that guest alone. What the host tells (`tell`) goes to everyone. The host
+ *  is not a person: it has no face or pointer. */
+export function makeRoom({ newId = () => Math.random().toString(36).slice(2, 10), ownerKey = '' } = {}) {
   const peers = new Map()
   // The first color nobody here has, so two people never share one while there are colors to go round.
   const nextColor = () => ROOM_COLORS.find((c) => ![...peers.values()].some((p) => p.color === c)) ?? ROOM_COLORS[peers.size % ROOM_COLORS.length]
   const others = (id, msg) => {
-    for (const p of peers.values()) if (p.id !== id && p.here) p.send(msg)
+    for (const p of peers.values()) if (p.id !== id && p.here && !p.host) p.send(msg)
+  }
+  const hostNow = () => [...peers.values()].find((p) => p.host && p.here) ?? null
+  const mayEdit = (p) => { const h = hostNow(); return !!(h && p.key && h.editKey && p.key === h.editKey) }
+  // Each guest is told whether the owner's canvas is there and whether they may edit through it.
+  const tellHost = () => {
+    for (const p of peers.values()) if (p.here && !p.host) p.send({ t: 'host', on: !!hostNow(), edit: mayEdit(p) })
   }
   const shown = (p) => ({ id: p.id, name: p.name, color: p.color, ...(p.cursor ? { cursor: p.cursor } : {}) })
   return {
@@ -29,22 +45,48 @@ export function makeRoom({ newId = () => Math.random().toString(36).slice(2, 10)
         send({ t: 'full' })
         return null
       }
-      const p = state ? { ...state, send } : { id: newId(), name: '', color: nextColor(), cursor: null, send, here: false }
+      const p = state ? { ...state, send } : { id: newId(), name: '', color: nextColor(), cursor: null, send, here: false, host: false, key: '', editKey: '' }
       peers.set(p.id, p)
+      let calls = []
       return {
         id: p.id,
-        get state() { return { id: p.id, name: p.name, color: p.color, cursor: p.cursor, here: p.here } },
+        get state() { return { id: p.id, name: p.name, color: p.color, cursor: p.cursor, here: p.here, host: !!p.host, key: p.key ?? '', editKey: p.editKey ?? '' } },
         message(text) {
           if (typeof text !== 'string' || text.length > MAX_MESSAGE) return
           let m
           try { m = JSON.parse(text) } catch { return }
           if (!m || typeof m !== 'object') return
-          if (m.t === 'hello') {
+          if (!['call', 'answer', 'tell'].includes(m.t) && text.length > MAX_SMALL) return
+          if (m.t === 'hello' && m.host) {
+            // The owner's canvas: only with the key the room was given. A second host takes over from the first.
+            if (!ownerKey || m.key !== ownerKey) return send({ t: 'refused', error: 'That is not the owner key for this room.' })
+            for (const o of peers.values()) if (o.host) o.host = false
+            Object.assign(p, { host: true, here: true, name: 'canvas', editKey: clean(m.editKey, 128) })
+            send({ t: 'welcome', id: p.id, host: true })
+            tellHost()
+          } else if (m.t === 'hello') {
             p.name = clean(m.name, 80) || 'Someone'
-            send({ t: 'welcome', id: p.id, color: p.color, peers: [...peers.values()].filter((o) => o.id !== p.id && o.here).map(shown) })
+            p.key = clean(m.key, 128)
+            send({ t: 'welcome', id: p.id, color: p.color, peers: [...peers.values()].filter((o) => o.id !== p.id && o.here && !o.host).map(shown), host: !!hostNow(), edit: mayEdit(p) })
             if (!p.here) others(p.id, { t: 'join', ...shown(p) })
             p.here = true
           } else if (!p.here) {
+            return
+          } else if (p.host) {
+            if (m.t === 'answer' && peers.has(m.to)) {
+              const { to, ...rest } = m
+              peers.get(to).send(rest)
+            } else if (m.t === 'tell') others(p.id, { t: 'tell', event: clean(m.event, 40), data: m.data ?? null })
+          } else if (m.t === 'call') {
+            const n = m.n
+            const now = Date.now()
+            calls = calls.filter((at) => now - at < 1000)
+            const h = hostNow()
+            if (!h) return send({ t: 'answer', n, status: 503, body: JSON.stringify({ error: "The owner's canvas isn't open right now, so changes can't be saved. They can be once it is." }) })
+            if (!mayEdit(p)) return send({ t: 'answer', n, status: 403, body: JSON.stringify({ error: "This link lets you look and comment, but not edit." }) })
+            if (calls.length >= CALLS_PER_SECOND) return send({ t: 'answer', n, status: 429, body: JSON.stringify({ error: 'Too many changes at once. Wait a moment.' }) })
+            calls.push(now)
+            h.send({ t: 'call', from: p.id, name: p.name, n, method: m.method === 'POST' ? 'POST' : 'GET', path: String(m.path ?? '').slice(0, 2000), body: typeof m.body === 'string' ? m.body : null })
             return
           } else if (m.t === 'name') {
             p.name = clean(m.name, 80) || 'Someone'
@@ -60,7 +102,8 @@ export function makeRoom({ newId = () => Math.random().toString(36).slice(2, 10)
         },
         leave() {
           if (!peers.delete(p.id)) return
-          if (p.here) others(p.id, { t: 'leave', id: p.id })
+          if (p.host) tellHost()
+          else if (p.here) others(p.id, { t: 'leave', id: p.id })
         },
       }
     },

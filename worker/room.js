@@ -6,7 +6,9 @@
 //   wss://<your worker>/room/<room id>     the room id is any 8 to 64 letters, digits, - or _: one per canvas
 //
 // ALLOWED_ORIGINS (in wrangler.toml) lists the pages that may join, comma-separated, such as
-// "https://ryanallen.com,http://127.0.0.1:4410". Empty lets any page join.
+// "https://ryanallen.com,http://127.0.0.1:*" (a * port is any port). Empty lets any page join. It holds browsers to
+// it; the owner's canvas server, which sends no origin, proves itself with OWNER_KEY instead (a secret, set with
+// `npx wrangler secret put OWNER_KEY`).
 import { makeRoom } from '../scripts/lib/room.mjs'
 
 export default {
@@ -16,19 +18,22 @@ export default {
     if (!m) return new Response('This is a design-canvas room. Join one at /room/<room id> over a WebSocket.', { status: 404 })
     if (req.headers.get('upgrade')?.toLowerCase() !== 'websocket') return new Response('A room is joined over a WebSocket.', { status: 426 })
     const allowed = String(env.ALLOWED_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean)
-    if (allowed.length && !allowed.includes(req.headers.get('origin'))) return new Response('This page may not join the room.', { status: 403 })
+    const origin = req.headers.get('origin')
+    const fits = (a) => a === origin || (a.endsWith(':*') && origin?.startsWith(a.slice(0, -1)) && /^\d+$/.test(origin.slice(a.length - 1)))
+    if (allowed.length && origin && !allowed.some(fits)) return new Response('This page may not join the room.', { status: 403 })
     return env.ROOMS.get(env.ROOMS.idFromName(m[1])).fetch(req)
   },
 }
 
 export class Room {
-  constructor(ctx) {
+  constructor(ctx, env) {
     this.ctx = ctx
+    this.ownerKey = env.OWNER_KEY ?? ''
   }
 
   /** The room as its sockets keep it, each person's handle by socket. */
   room() {
-    const room = makeRoom()
+    const room = makeRoom({ ownerKey: this.ownerKey })
     const handles = new Map()
     for (const ws of this.ctx.getWebSockets()) {
       const state = ws.deserializeAttachment()

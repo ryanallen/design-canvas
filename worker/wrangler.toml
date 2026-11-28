@@ -13,5 +13,5 @@ tag = "v1"
 new_sqlite_classes = ["Room"]
 
 [vars]
-# The pages that may join, comma-separated, such as "https://ryanallen.com,http://127.0.0.1:4410". Empty lets any.
-ALLOWED_ORIGINS = ""
+# The pages that may join, comma-separated; a * port is any port. Empty lets any page join.
+ALLOWED_ORIGINS = "https://ryanallen.com,http://127.0.0.1:*,http://localhost:*"

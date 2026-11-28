@@ -1195,9 +1195,13 @@
       field('Clip content', seg([['visible', 'Off'], ['hidden', 'Clip']], across((x, k) => (k.overflowX === 'visible' && k.overflowY === 'visible' ? 'visible' : k.overflowX !== 'visible' && k.overflowY !== 'visible' ? 'hidden' : 'other')), (v) => set({ 'overflow-x': '', 'overflow-y': '', overflow: v }))),
       // Figma's overflow scrolling, for Play: what is more than the box scrolls down, across or both ways inside it
       // (it is clipped then too); None leaves it clipped and still.
-      field('Scrolling', seg([['none', 'None'], ['y', 'Down', 'Scrolls up and down'], ['x', 'Across', 'Scrolls side to side'], ['both', 'Both', 'Scrolls both ways']],
-        across((x, k) => { const sx = /auto|scroll/.test(k.overflowX); const sy = /auto|scroll/.test(k.overflowY); return sx && sy ? 'both' : sy ? 'y' : sx ? 'x' : 'none' }),
-        (v) => set({ overflow: '', 'overflow-x': v === 'x' || v === 'both' ? 'auto' : 'hidden', 'overflow-y': v === 'y' || v === 'both' ? 'auto' : 'hidden' }))),
+      (() => {
+        const scrolling = across((x, k) => { const sx = /auto|scroll/.test(k.overflowX); const sy = /auto|scroll/.test(k.overflowY); return sx && sy ? 'both' : sy ? 'y' : sx ? 'x' : 'none' })
+        // The way it already scrolls, pressed again, changes nothing: None on a box that never scrolled leaves its
+        // clipping as it is.
+        return field('Scrolling', seg([['none', 'None'], ['y', 'Down', 'Scrolls up and down'], ['x', 'Across', 'Scrolls side to side'], ['both', 'Both', 'Scrolls both ways']], scrolling,
+          (v) => (v === scrolling ? null : set({ overflow: '', 'overflow-x': v === 'x' || v === 'both' ? 'auto' : 'hidden', 'overflow-y': v === 'y' || v === 'both' ? 'auto' : 'hidden' }))))
+      })(),
       radiusCorners || !sameR
         ? field('Radius', ...['top-left', 'top-right', 'bottom-right', 'bottom-left'].map((k) => input(across((x, s) => num(s.getPropertyValue(`border-${k}-radius`))), (v) =>set({ [`border-${k}-radius`]: px(v) }), { class: 'n s', title: k })), h('button', { type: 'button', class: 'mini', onclick: () => { radiusCorners = false; renderProps() } }, '▢'))
         : field('Radius', input(across((x, s) => lever(x, 'border-radius') ?? num(s.borderTopLeftRadius)),(v) => set({ 'border-radius': px(v) }), { class: 'n' }), h('button', { type: 'button', class: 'mini', title: 'Each corner', onclick: () => { radiusCorners = true; renderProps() } }, '⊞')),

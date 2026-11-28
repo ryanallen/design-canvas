@@ -683,3 +683,10 @@ body.shooting #overlay, body.shooting .frame-label, body.shooting .frame-edge, b
 #vote-chip { font: 600 13px/1 system-ui, sans-serif; padding: 6px 10px; border-radius: 6px; border: 0; background: var(--accent); color: var(--accent-ink, #fff); margin-right: 6px; cursor: pointer; }
 #vote-chip[hidden] { display: none; }
 body.voting .item:not(.stamp):not(.section) { cursor: copy; }
+
+/* The bars hidden (Figma's Hide UI): the board alone, a small button in the corner to bring them back. */
+body.ui-off #topbar, body.ui-off #toolbar, body.ui-off #panel, body.ui-off #float, body.ui-off #findbar, body.ui-off #artboard-sizes, body.ui-off #stamp-bar, body.ui-off #pen-bar, body.ui-off #itembar { display: none !important; }
+#bars-back { display: none; position: fixed; right: 12px; bottom: 12px; z-index: 50; font: 500 12px/1 system-ui, sans-serif; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink-2); cursor: pointer; opacity: 0.7; }
+#bars-back:hover, #bars-back:focus-visible { opacity: 1; }
+body.ui-off #bars-back { display: block; }
+body.shooting #bars-back { display: none !important; }

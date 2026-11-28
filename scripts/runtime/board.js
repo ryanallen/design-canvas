@@ -4571,7 +4571,7 @@
   // ── keyboard shortcuts (Shift+?): every key the canvas answers, in one sheet ──
   const SHORTCUTS = [
     ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['E', 'Stamp'], ['R', 'Rectangle'], ['O', 'Ellipse'], ['L, Shift+L', 'Line, arrow'], ['S', 'Section'], ['Shift, Alt while drawing', 'Square or level, from the middle'], ['A', 'Artboard'], ['C', 'Comment']]],
-    ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['Page Down, Page Up', 'Next, previous screen'], ['+ and −, Ctrl+= and Ctrl+−', 'Zoom in and out'], ['0, Shift+0 or Ctrl+0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+Alt+O', 'Show or hide outlines'], ['Ctrl+\\', 'Panel']]],
+    ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['Page Down, Page Up', 'Next, previous screen'], ['+ and −, Ctrl+= and Ctrl+−', 'Zoom in and out'], ['0, Shift+0 or Ctrl+0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+Alt+O', 'Show or hide outlines'], ['Ctrl+Shift+\\', 'Hide or show the bars'], ['Ctrl+\\', 'Panel']]],
     ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Ctrl+Shift+A', 'Select everything not selected'], ['Ctrl+Alt+A', 'Select matching: same kind and color'], ['Tab, Shift+Tab', 'Next or previous object'], ['Enter', 'Type in the one picked'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+Alt+G', 'Wrap in a section'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+R', 'Paste to replace what is selected'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centers, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Shift+drag', 'Move straight across or down; resize in proportion'], ['Alt+drag a corner', 'Resize from the middle'], ['Alt (held)', 'Measure to what is pointed at'], ['Delete', 'Delete']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Shift+A', 'Select what sits alongside it, leaving it out'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+drag', 'Drop a copy'], ['Shift+drag', 'Straight across or down; resize in proportion'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+Shift+X', 'Strikethrough'], ['Ctrl+Shift+8, Ctrl+Shift+7', 'Bulleted list, numbered list'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste after it'], ['Ctrl+Shift+R', 'Paste to replace it'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+R', 'Rename in Layers, or several at once'], ['Alt+L', 'Collapse every layer'], ['Alt+click a ▸', 'Open or close every layer inside'], ['Ctrl+Shift+H', 'Hide or show'], ['Ctrl+Shift+L', 'Lock or unlock a part'], ['Ctrl+Alt+L, T, R, J', 'Align text left, center, right, justified'], ['Ctrl+Shift+>, Ctrl+Shift+<', 'Text 1px bigger, smaller'], ['Ctrl+Alt+>, Ctrl+Alt+<', 'Bolder, lighter'], ['Alt+>, Alt+<', 'Letter spacing up, down'], ['Alt+Shift+>, Alt+Shift+<', 'Line height up, down'], ['Shift+A', 'Add auto layout'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
     ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['C', 'Comment on it, then click where'], ['R', 'Start over from the first screen'], ['Esc', 'Back to the canvas']]],
@@ -4630,6 +4630,17 @@
       h('div', { class: 'hist-list' }, rows.length ? rows : h('p', { class: 'empty' }, 'No edits recorded yet.')),
     )
     historySheet.showModal()
+  }
+  // Figma's Show/Hide UI: the top bar, the tools, the panel and the selection's bar hidden, leaving the board and what
+  // is on it; a small button in the corner (for a touch screen) and the same key bring them back. Not kept: a reload
+  // shows them.
+  const barsBack = h('button', { type: 'button', id: 'bars-back', title: 'Show the bars again (Ctrl+Shift+\\)', onclick: () => setBarsShown(true) }, 'Show the bars')
+  document.body.append(barsBack)
+  function setBarsShown(on) {
+    document.body.classList.toggle('ui-off', !on)
+    closeMenu()
+    if (!on) hint('Bars hidden. Ctrl+Shift+\\ or the button in the corner shows them again.', 2400)
+    requestAnimationFrame(() => call('onView'))
   }
   // ── voting, as FigJam's: a session with so many votes for each person; a vote is a dot (a stamp naming the
   // session) on a note or shape; others' dots stay hidden until it ends, then everyone sees them all and the count ──
@@ -4737,6 +4748,7 @@
       sel ? { label: `Download ${sel}`, icon: 'download', run: () => downloadFile(sel) } : null,
       serve ? { label: 'Rename', run: rename } : null,
       { label: 'History', run: openHistory },
+      { label: 'Hide the bars', key: 'Ctrl+Shift+\\', run: () => setBarsShown(false) },
       { label: outlinesOn ? 'Hide outlines' : 'Show outlines', key: 'Ctrl+Alt+O', run: () => setOutlines(!outlinesOn) },
       peers.size ? { label: document.body.classList.contains('pointers-off') ? "Show others' pointers" : "Hide others' pointers", key: 'Ctrl+Alt+\\', run: () => setPointersShown(document.body.classList.contains('pointers-off')) } : null,
       // FigJam's timer, for everyone here.
@@ -5084,6 +5096,11 @@
       return closeMenu(true)
     }
     if (call('onKey', e)) return
+    // Figma's Show/Hide UI (Ctrl+Shift+\ here, since Ctrl+\ is the panel): the board alone, to present or share it.
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.code === 'Backslash') {
+      e.preventDefault()
+      return setBarsShown(document.body.classList.contains('ui-off'))
+    }
     // Figma's multiplayer cursors (Ctrl+Alt+\): other people's pointers hidden or shown again.
     if ((e.ctrlKey || e.metaKey) && e.altKey && e.code === 'Backslash') {
       e.preventDefault()

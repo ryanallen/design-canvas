@@ -36,6 +36,7 @@ import { writeFileAtomic } from './lib/write.mjs'
 import { cropToOption } from './lib/crop.mjs'
 import { familyValue, fetchWebFont, WEB_FONTS } from './lib/webfont.mjs'
 import { rebase } from './lib/rebase.mjs'
+import { acceptSocket, makeRoom } from './lib/room.mjs'
 import { launchChromium } from './lib/browser.mjs'
 import { CANVAS_MARK, foldBoard, foldEvents, insertEvent, makeBoardEvent, makeEvent, parseEvents, parseLines, randomId, storedLines } from './lib/events.mjs'
 
@@ -973,6 +974,15 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
     refresh(file)
     tell('file', { file })
   } }
+  // Who else has this canvas open, and where their pointer is: the room at /api/room, over a WebSocket, held to the
+  // same same-site rule as every other call.
+  const room = makeRoom()
+  server.room = room
+  server.on('upgrade', (req, socket) => {
+    const url = new URL(req.url, 'http://local')
+    if (url.pathname !== '/api/room' || !allowed(req, url)) return socket.destroy()
+    acceptSocket(req, socket, room).catch(() => socket.destroy())
+  })
   // A port another canvas (or anything else) already holds: unless this one was asked for by
   // name, the next free one up to 20 along; otherwise one plain line, not a stack.
   let at = port

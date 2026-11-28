@@ -418,6 +418,8 @@ With a selection, you can do these.
 
 When served, every open copy of the canvas redraws when anyone changes the board.
 
+Everyone with a served canvas open sees each other, as in Figma. Each person's pointer shows on the board with their name in their color, and their face (initials) shows at the right of the top bar. Clicking a face goes to where that person's pointer is, on their page. The server holds this as a room at `/api/room`, a WebSocket that only the canvas's own page may open. `scripts/lib/room.mjs` holds the room and imports nothing.
+
 `build` refuses a prototype whose file no longer matches its last edit line. That way a rebuild by the prototype's own script never drops a canvas edit silently. Carry the edits into the script, then run `accept`.
 
 Shift+C hides the comment pins on the board, or shows them again. This is kept in that browser. The comment tool and the Comments tab still show them.

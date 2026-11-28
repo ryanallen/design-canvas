@@ -41,6 +41,7 @@ node scripts/canvas.mjs accept <folder> <prototype.html>
 | [scripts/lib/html.mjs](scripts/lib/html.mjs) | A prototype as elements with their source offsets, and every edit as a replacement at them |
 | [scripts/lib/html.test.mjs](scripts/lib/html.test.mjs) | Every edit op checked to change only its own bytes (`node --test scripts/lib/*.test.mjs`) |
 | [scripts/lib/events.mjs](scripts/lib/events.mjs) | Comment, edit and board lines: written, read, checked and folded |
+| [scripts/lib/room.mjs](scripts/lib/room.mjs) | Who else has the canvas open and where their pointer is. It imports nothing, and the served canvas speaks it over a WebSocket at `/api/room` |
 | [scripts/lib/write.mjs](scripts/lib/write.mjs) | Writes every file whole or not at all, by writing a hidden file beside it and renaming it over the original |
 | [scripts/lib/inline.mjs](scripts/lib/inline.mjs) | A prototype made self-contained |
 | [scripts/lib/crop.mjs](scripts/lib/crop.mjs) | One option's column cut out of a comparison board |

@@ -640,3 +640,15 @@ body.has-banner #panel { top: 88px; }
 #keys-sheet h3 { margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
 #keys-sheet .key-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-size: 13px; color: var(--ink-2); }
 #keys-sheet kbd { font: 12px ui-monospace, Consolas, monospace; color: var(--ink); white-space: nowrap; }
+
+/* Who else is here: their pointers over the board, their faces in the top bar. */
+#peer-layer { position: fixed; inset: 0; pointer-events: none; z-index: 25; overflow: hidden; }
+.peer-cursor { position: absolute; left: 0; top: 0; will-change: transform; transition: transform 60ms linear; }
+.peer-cursor svg { display: block; filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.35)); }
+.peer-name { position: absolute; left: 14px; top: 16px; background: var(--c); color: #fff; font-size: 12px; font-weight: 600; line-height: 1; padding: 4px 7px; border-radius: 4px; white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+#peers { display: flex; align-items: center; margin-right: 6px; }
+#peers:empty { display: none; }
+#peers .peer { width: 26px; height: 26px; border-radius: 50%; background: var(--c, #666); color: #fff; border: 2px solid var(--bg, #1d1d20); font-size: 11px; font-weight: 700; display: grid; place-items: center; padding: 0; margin-left: -6px; cursor: pointer; }
+#peers .peer:first-child { margin-left: 0; }
+#peers .peer.more { background: var(--ink-3, #777); cursor: default; }
+@media (prefers-reduced-motion: reduce) { .peer-cursor { transition: none; } }

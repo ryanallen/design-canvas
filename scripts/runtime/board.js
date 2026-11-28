@@ -552,6 +552,7 @@
   }
   function apply() {
     world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.z})`
+    placePeers()
     // A pan leaves the zoom as it was: the counter-scaled labels, pins and strokes are restyled only on a zoom.
     if (view.z !== lastZ) {
       lastZ = view.z
@@ -3351,6 +3352,114 @@
     me = name.trim().slice(0, LIMITS.name)
     store.set('name', me)
     $('#my-name').value = me
+    roomSend({ t: 'name', name: me || 'Someone' })
+  }
+
+  // ── who else is here, as Figma's multiplayer: each person's pointer on the board, with their name, and their faces
+  // in the top bar; a face clicked goes to where they are. Served, the room is the server's own (/api/room); elsewhere
+  // the address in canvas.json's "room", if any. ──
+  // var, not const: the view is drawn (apply, which places the pointers) before this part of the script has run.
+  var peers = new Map()
+  var peerLayer = h('div', { id: 'peer-layer', 'aria-hidden': 'true' })
+  document.body.append(peerLayer)
+  const peerBar = h('div', { id: 'peers', role: 'list', 'aria-label': 'Who else is here' })
+  $('#bar-right').prepend(peerBar)
+  let roomSocket = null
+  let roomTries = 0
+  let lastSent = 0
+  let cursorTimer = 0
+  let pendingCursor = null
+  const roomUrl = () => (data.serve && web && !local ? `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/room` : data.room || null)
+  function joinRoom() {
+    const url = roomUrl()
+    if (!url || typeof WebSocket === 'undefined') return
+    const ws = new WebSocket(url)
+    roomSocket = ws
+    ws.onopen = () => {
+      roomTries = 0
+      ws.send(JSON.stringify({ t: 'hello', name: me || 'Someone' }))
+    }
+    ws.onmessage = (e) => {
+      let m
+      try { m = JSON.parse(e.data) } catch { return }
+      onRoom(m)
+    }
+    ws.onclose = () => {
+      if (roomSocket !== ws) return
+      roomSocket = null
+      peers.clear()
+      drawPeers()
+      // Back again when it can be: soon, then less often.
+      setTimeout(joinRoom, Math.min(30000, 1000 * 2 ** roomTries++))
+    }
+  }
+  function onRoom(m) {
+    if (m.t === 'welcome') {
+      peers.clear()
+      for (const p of m.peers ?? []) peers.set(p.id, p)
+    } else if (m.t === 'join') peers.set(m.id, m)
+    else if (m.t === 'leave') peers.delete(m.id)
+    else if (m.t === 'name' && peers.has(m.id)) peers.get(m.id).name = m.name
+    else if (m.t === 'cursor' && peers.has(m.id)) {
+      peers.get(m.id).cursor = m.page ? { page: m.page, x: m.x, y: m.y } : null
+      return placePeers()
+    } else return
+    drawPeers()
+  }
+  const roomSend = (m) => { if (roomSocket?.readyState === 1) roomSocket.send(JSON.stringify(m)) }
+  // At most twenty a second: enough to look smooth, few enough to stay well inside a free host's limits.
+  function sendCursor(c) {
+    pendingCursor = c
+    if (cursorTimer) return
+    cursorTimer = setTimeout(() => {
+      cursorTimer = 0
+      lastSent = Date.now()
+      roomSend({ t: 'cursor', ...(pendingCursor ?? { page: null }) })
+    }, Math.max(0, 50 - (Date.now() - lastSent)))
+  }
+  viewport.addEventListener('pointermove', (e) => {
+    if (!roomSocket || e.pointerType === 'touch') return
+    const p = toWorld(e.clientX, e.clientY)
+    sendCursor({ page: pageId, x: p.x, y: p.y })
+  })
+  viewport.addEventListener('pointerleave', () => { if (roomSocket) sendCursor(null) })
+  const initials = (n) => String(n || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '?'
+  function drawPeers() {
+    const list = [...peers.values()]
+    const shown = list.slice(0, 5)
+    peerBar.replaceChildren(...shown.map((p) => h('button', { type: 'button', class: 'peer', role: 'listitem', style: `--c:${p.color}`, title: p.cursor ? `${p.name}: go to where they are` : `${p.name}, not on the board right now`, 'aria-label': p.name, onclick: () => goToPeer(p.id) }, initials(p.name))),
+      ...(list.length > shown.length ? [h('span', { class: 'peer more', title: list.slice(5).map((p) => p.name).join(', ') }, `+${list.length - shown.length}`)] : []))
+    for (const el of [...peerLayer.children]) if (!peers.has(el.dataset.peer)) el.remove()
+    for (const p of list) {
+      let el = peerLayer.querySelector(`[data-peer="${p.id}"]`)
+      if (!el) {
+        el = h('div', { class: 'peer-cursor', 'data-peer': p.id, style: `--c:${p.color}` }, h('span', { class: 'peer-name' }))
+        el.insertAdjacentHTML('afterbegin', '<svg viewBox="0 0 16 20" width="16" height="20"><path d="M1 1 L1 16 L5 12.5 L8 19 L10.5 18 L7.6 11.6 L13 11.6 Z" fill="var(--c)" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>')
+        peerLayer.append(el)
+      }
+      el.querySelector('.peer-name').textContent = p.name
+    }
+    placePeers()
+  }
+  function placePeers() {
+    if (!peerLayer) return
+    for (const el of peerLayer.children) {
+      const c = peers.get(el.dataset.peer)?.cursor
+      const on = !!c && c.page === pageId
+      el.hidden = !on
+      if (!on) continue
+      const s = toScreen(c.x, c.y)
+      el.style.transform = `translate(${Math.round(s.x)}px, ${Math.round(s.y)}px)`
+    }
+  }
+  /** A face clicked: to the page their pointer is on, with it in the middle of the window. */
+  function goToPeer(id) {
+    const c = peers.get(id)?.cursor
+    if (!c) return hint(`${peers.get(id)?.name ?? 'They'} isn't on the board right now`, 1600)
+    if (c.page !== pageId) goPage(c.page)
+    view.x = viewport.clientWidth / 2 - c.x * view.z
+    view.y = viewport.clientHeight / 2 - c.y * view.z
+    apply()
   }
 
   // ── the thread popover ──
@@ -4652,6 +4761,7 @@
     const tab = store.get('tab')
     if (store.get('panel')) openPanel(tab || 'properties')
     refresh()
+    joinRoom()
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start)
   else queueMicrotask(start)

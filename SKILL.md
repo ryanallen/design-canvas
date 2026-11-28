@@ -27,7 +27,7 @@ A click selects the one element you clicked, and a style goes on that element al
 
 With an element selected, hold Alt over another element to see the distance between them, in the prototype's own pixels. When one holds the other, it shows the distance on each side.
 
-To select every copy of an element, use Alt + click, Ctrl+Alt+A (Figma's Select matching layers), or **Select every copy** under the toolbar's …. A copy is an element with the same tag and classes under the same kind of parent. A style then goes into a rule they all follow. Also under …, **Select all with the same fill**, **text color** or **type** picks everything on the screen that shares it, as in Figma.
+To select every copy of an element, use Alt + click, Ctrl+Alt+A (Figma's Select matching layers), or **Select every copy** under the toolbar's …. A copy is an element with the same tag and classes under the same kind of parent. A style then goes into a rule they all follow. Also under …, **Select all with the same fill**, **border**, **shadow**, **text color** or **type** picks everything on the screen that shares it, as in Figma.
 
 Ctrl+Shift+A is Figma's Select inverse. In a prototype it selects what sits alongside the selection, leaving the selection out. On the board it selects every object and screen on the page that isn't selected.
 

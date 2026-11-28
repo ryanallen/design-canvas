@@ -663,11 +663,17 @@
     const key = (x) => {
       const c = cs(x)
       if (how === 'fill') return c.backgroundColor === 'rgba(0, 0, 0, 0)' ? null : c.backgroundColor
+      // Stroke: the border on every side, width, style and color; effect: the shadow as computed.
+      if (how === 'stroke') {
+        const sides = ['top', 'right', 'bottom', 'left'].map((s) => (c.getPropertyValue(`border-${s}-style`) === 'none' || !parseFloat(c.getPropertyValue(`border-${s}-width`)) ? '' : `${c.getPropertyValue(`border-${s}-width`)} ${c.getPropertyValue(`border-${s}-style`)} ${c.getPropertyValue(`border-${s}-color`)}`))
+        return sides.every((x) => !x) ? null : sides.join('|')
+      }
+      if (how === 'effect') return c.boxShadow === 'none' ? null : c.boxShadow
       const words = [...x.childNodes].some((t) => t.nodeType === 3 && t.textContent.trim())
       if (!words) return null
       return how === 'color' ? c.color : `${c.fontFamily}|${c.fontSize}|${c.fontWeight}`
     }
-    const want = key(el) ?? (how === 'fill' ? null : how === 'color' ? k.color : `${k.fontFamily}|${k.fontSize}|${k.fontWeight}`)
+    const want = key(el) ?? (['fill', 'stroke', 'effect'].includes(how) ? null : how === 'color' ? k.color : `${k.fontFamily}|${k.fontSize}|${k.fontWeight}`)
     if (want == null) return []
     return [...el.ownerDocument.body.querySelectorAll('*')].filter((x) => !SKIP.has(x.localName) && live(x) && key(x) === want)
   }
@@ -2268,9 +2274,9 @@
       dc.serve && !dc.local ? { label: 'Export the screen as PDF', run: ops.exportPdf } : null,
       sel.els.length > 1 ? { label: 'Select this one alone', run: () => select(sel.frame, [primary()]) } : null,
       copiesOf(primary()).length > 1 && sel.els.length === 1 ? { label: 'Select every copy', key: 'Ctrl+Alt+A', run: () => select(sel.frame, copiesOf(primary())) } : null,
-      // Figma's Select all with the same properties: everything on this screen with the selected element's fill, its
-      // text color, or its type (font, size and weight).
-      ...(sel.els.length === 1 && primary().localName !== 'body' ? [['fill', 'Select all with the same fill'], ['color', 'Select all with the same text color'], ['type', 'Select all with the same type']].map(([how, label]) => {
+      // Figma's Select all with the same properties: everything on this screen with the selected element's fill, border
+      // (stroke), shadow (effect), text color, or type (font, size and weight).
+      ...(sel.els.length === 1 && primary().localName !== 'body' ? [['fill', 'Select all with the same fill'], ['stroke', 'Select all with the same border'], ['effect', 'Select all with the same shadow'], ['color', 'Select all with the same text color'], ['type', 'Select all with the same type']].map(([how, label]) => {
         const same = sameAs(primary(), how)
         return same.length > 1 ? { label: `${label} (${same.length})`, run: () => select(sel.frame, [primary(), ...same.filter((x) => x !== primary())]) } : null
       }).filter(Boolean) : []),

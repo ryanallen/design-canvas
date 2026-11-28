@@ -330,7 +330,7 @@ An icon (an `<svg>`) has **Vector**, like Figma's vector fill and stroke. **Colo
 
 A link has **Link › Opens**, like Figma's Navigate to. Pick any screen on the canvas, and its address from this file is written for you. You can also type a web address, or pick None to take the link off.
 
-A picture or video has **Fit** (Fill, Fit, Stretch, Original) and **Focus**, which sets where a crop keeps its middle. A picture also has **Exposure**, **Contrast** and **Saturation**, from -100 to 100, as Figma's image adjustments. They're written as `brightness()`, `contrast()` and `saturate()` in its `filter`, leaving any blur there in place. The picture follows the slider as you drag, and a double-click puts one back to 0. A picture also has **Alt text**.
+A picture or video has **Fit** (Fill, Fit, Stretch, Original) and **Focus**, which sets where a crop keeps its middle. A picture also has **Replace…**, which puts a picture picked from this computer in its place, and **Exposure**, **Contrast** and **Saturation**, from -100 to 100, as Figma's image adjustments. They're written as `brightness()`, `contrast()` and `saturate()` in its `filter`, leaving any blur there in place. The picture follows the slider as you drag, and a double-click puts one back to 0. A picture also has **Alt text**.
 
 Text has these.
 

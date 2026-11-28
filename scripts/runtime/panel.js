@@ -1022,6 +1022,10 @@
           ? field('Focus', select(SPOTS.map(([, n]) => n), spotName, (n) => { const v = SPOTS.find(([, x]) => x === n)?.[0]; if (v) set({ 'object-position': v }) }))
           : null,
         ...(el.localName === 'img' ? adjustFields() : []),
+        // Figma's Replace for an image: a picture picked from this computer takes this one's place.
+        el.localName === 'img' && ed.sel.els.length === 1 && dc.serve && !dc.local && !dc.data?.memory && dc.pickPictures
+          ? field('Picture', h('span', { class: 'val', title: el.getAttribute('src') ?? '' }, String(el.getAttribute('src') ?? '').split('/').pop().slice(0, 28)), h('button', { type: 'button', class: 'mini', title: 'Replace it with a picture from this computer', onclick: () => dc.pickPictures() }, 'Replace…'))
+          : null,
         el.localName === 'img'
           ? field('Alt text', input(alt === MIXED ? '' : alt, (v) => ed.send({ op: 'styles', items: pics.map((x) => ({ cv: ed.cvOf(x), props: {}, attrs: { alt: String(v) } })) }, { then: ed.reselect() }), { class: 'w', placeholder: alt === MIXED ? 'Mixed' : 'Said in its place', 'aria-label': 'Alt text' }))
           : null))

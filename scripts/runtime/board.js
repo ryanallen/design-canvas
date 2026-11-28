@@ -5501,7 +5501,7 @@
     get items() { return items() },
     get chosen() { return chosen && { box: chosen.box, items: [...chosen.items], frames: [...chosen.frames] } },
     get picked() { return picked },
-    updateItem,
+    updateItem, pickPictures,
     choose, geometryOf,
     get pages() { return pages() },
     get threads() { return threads },

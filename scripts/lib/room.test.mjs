@@ -113,3 +113,16 @@ test("what someone has selected goes to the others as boxes, and a newcomer is t
   a.message(JSON.stringify({ t: 'sel', page: 'p1', boxes: [] }))
   assert.deepEqual(got.at(-1), { t: 'sel', id: a.id, page: null, boxes: [] })
 })
+
+test('cursor chat goes to the others, cut to 100 characters', () => {
+  const room = makeRoom()
+  const got = []
+  const a = room.join(() => {})
+  const b = room.join((m) => got.push(m))
+  a.message(JSON.stringify({ t: 'hello', name: 'Ana' }))
+  b.message(JSON.stringify({ t: 'hello', name: 'Sam' }))
+  a.message(JSON.stringify({ t: 'chat', text: 'look here' }))
+  assert.deepEqual(got.at(-1), { t: 'chat', id: a.id, text: 'look here' })
+  a.message(JSON.stringify({ t: 'chat', text: 'x'.repeat(300) }))
+  assert.equal(got.at(-1).text.length, 100)
+})

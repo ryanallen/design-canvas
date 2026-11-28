@@ -3412,6 +3412,14 @@
     } else if (m.t === 'leave') {
       peers.delete(m.id)
       if (following === m.id) stopFollow()
+    } else if (m.t === 'chat' && peers.has(m.id)) {
+      peers.get(m.id).chat = m.text
+      const el = peerLayer.querySelector(`.peer-cursor[data-peer="${m.id}"] .peer-chat`)
+      if (el) {
+        el.textContent = m.text
+        el.hidden = !m.text
+      }
+      return
     } else if (m.t === 'sel' && peers.has(m.id)) {
       peers.get(m.id).sel = m.page ? { page: m.page, boxes: m.boxes } : null
       drawPeerSel()
@@ -3455,7 +3463,7 @@
     for (const p of list) {
       let el = peerLayer.querySelector(`[data-peer="${p.id}"]`)
       if (!el) {
-        el = h('div', { class: 'peer-cursor', 'data-peer': p.id, style: `--c:${p.color}` }, h('span', { class: 'peer-name' }))
+        el = h('div', { class: 'peer-cursor', 'data-peer': p.id, style: `--c:${p.color}` }, h('span', { class: 'peer-name' }), h('span', { class: 'peer-chat', hidden: !p.chat }, p.chat ?? ''))
         el.insertAdjacentHTML('afterbegin', '<svg viewBox="0 0 16 20" width="16" height="20"><path d="M1 1 L1 16 L5 12.5 L8 19 L10.5 18 L7.6 11.6 L13 11.6 Z" fill="var(--c)" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>')
         peerLayer.append(el)
       }
@@ -3566,6 +3574,46 @@
     else if (m.event === 'lines') refresh()
     else if (m.event === 'board') refreshBoard()
     else if (m.event === 'sheet' && d.sheet) reloadSheet(d.sheet, d.text)
+  }
+  // Cursor chat: a field at this pointer that follows it; what is typed goes out as it is typed. Enter leaves the words
+  // up for four seconds, Escape takes them away at once.
+  let chatBox = null
+  let chatTimer = 0
+  let chatClear = 0
+  function openChat() {
+    if (!peers.size) return hint('Cursor chat shows to others once someone else has the canvas open.', 2400)
+    if (chatBox) return chatBox.querySelector('input').focus()
+    clearTimeout(chatClear)
+    const input = h('input', { type: 'text', maxlength: '100', placeholder: 'Say something', 'aria-label': 'Cursor chat' })
+    chatBox = h('div', { class: 'my-chat' }, input)
+    document.body.append(chatBox)
+    const at = lastPoint ?? { x: viewport.clientWidth / 2, y: viewport.clientHeight / 2 }
+    placeChat(at.x, at.y)
+    const send = () => roomSend({ t: 'chat', text: input.value })
+    input.addEventListener('input', () => { clearTimeout(chatTimer); chatTimer = setTimeout(send, 80) })
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation()
+      if (e.key === 'Escape') closeChat(true)
+      else if (e.key === 'Enter') closeChat(!input.value.trim())
+    })
+    input.addEventListener('blur', () => closeChat(!input.value.trim()))
+    input.focus()
+  }
+  function placeChat(x, y) {
+    if (chatBox) chatBox.style.transform = `translate(${Math.round(x) + 14}px, ${Math.round(y) + 18}px)`
+  }
+  viewport.addEventListener('pointermove', (e) => placeChat(e.clientX, e.clientY))
+  function closeChat(now) {
+    if (!chatBox) return
+    const box = chatBox
+    chatBox = null
+    box.remove()
+    clearTimeout(chatTimer)
+    if (now) roomSend({ t: 'chat', text: '' })
+    else {
+      roomSend({ t: 'chat', text: box.querySelector('input').value })
+      chatClear = setTimeout(() => roomSend({ t: 'chat', text: '' }), 4000)
+    }
   }
   // What this person has selected, sent when it changes (looked at four times a second while others are here).
   let selSent = ''
@@ -4281,7 +4329,7 @@
     ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Ctrl+Shift+A', 'Select everything not selected'], ['Ctrl+Alt+A', 'Select matching: same kind and color'], ['Tab, Shift+Tab', 'Next or previous object'], ['Enter', 'Type in the one picked'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+Alt+G', 'Wrap in a section'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+R', 'Paste to replace what is selected'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centers, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Shift+drag', 'Move straight across or down; resize in proportion'], ['Alt+drag a corner', 'Resize from the middle'], ['Alt (held)', 'Measure to what is pointed at'], ['Delete', 'Delete']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Shift+A', 'Select what sits alongside it, leaving it out'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Alt+drag', 'Drop a copy'], ['Shift+drag', 'Straight across or down; resize in proportion'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+Shift+X', 'Strikethrough'], ['Ctrl+Shift+8, Ctrl+Shift+7', 'Bulleted list, numbered list'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste after it'], ['Ctrl+Shift+R', 'Paste to replace it'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+R', 'Rename in Layers'], ['Ctrl+Shift+H', 'Hide or show'], ['Ctrl+Shift+L', 'Lock or unlock a part'], ['Ctrl+Alt+L, T, R, J', 'Align text left, center, right, justified'], ['Ctrl+Shift+>, Ctrl+Shift+<', 'Text 1px bigger, smaller'], ['Ctrl+Alt+>, Ctrl+Alt+<', 'Bolder, lighter'], ['Alt+>, Alt+<', 'Letter spacing up, down'], ['Alt+Shift+>, Alt+Shift+<', 'Line height up, down'], ['Shift+A', 'Add auto layout'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
     ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['C', 'Comment on it, then click where'], ['R', 'Start over from the first screen'], ['Esc', 'Back to the canvas']]],
-    ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+C', 'Show or hide comments'], ['Shift+?', 'This sheet']]],
+    ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+C', 'Show or hide comments'], ['/', 'Cursor chat: words by your pointer for others here'], ['Shift+?', 'This sheet']]],
   ]
   const keysSheet = h('dialog', { id: 'keys-sheet', 'aria-label': 'Keyboard shortcuts' })
   document.body.append(keysSheet)
@@ -4767,6 +4815,11 @@
     if (e.key === '?') {
       e.preventDefault()
       return openKeys()
+    }
+    // Figma's cursor chat: / and a few words, shown by this pointer to everyone else here.
+    if (e.key === '/' && roomUrl()) {
+      e.preventDefault()
+      return openChat()
     }
     if (e.key === 'Tab' && picked && !chosen) {
       e.preventDefault()

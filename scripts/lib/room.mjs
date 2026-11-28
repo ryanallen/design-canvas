@@ -98,6 +98,9 @@ export function makeRoom({ newId = () => Math.random().toString(36).slice(2, 10)
             const y = num(m.y)
             p.cursor = page && x != null && y != null ? { page, x, y } : null
             others(p.id, { t: 'cursor', id: p.id, ...(p.cursor ?? { page: null }) })
+          } else if (m.t === 'chat') {
+            // Cursor chat, as Figma's: a few words shown by their pointer while they type them (empty takes it away).
+            others(p.id, { t: 'chat', id: p.id, text: clean(m.text, 100) })
           } else if (m.t === 'sel') {
             // What they have selected, as boxes on the board (at most 50), for others to outline in their color.
             const page = clean(m.page, 240)

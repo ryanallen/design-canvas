@@ -3129,6 +3129,15 @@
     }
     placeThread()
   }
+  // Figma's unread comments: a thread with a message someone else wrote since this browser last opened it shows a dot
+  // on its pin and in the Comments list; opening it marks it read. Kept in this browser.
+  const seenAt = () => store.get('seen') ?? {}
+  const unread = (t) => !t.resolved && [t, ...t.replies].some((m) => m.name !== me && (Date.parse(m.at) || 0) > (seenAt()[t.id] ?? 0))
+  const markSeen = (t) => {
+    const seen = seenAt()
+    seen[t.id] = Math.max(Date.now(), ...[t, ...t.replies].map((m) => Date.parse(m.at) || 0))
+    store.set('seen', seen)
+  }
   function renderPins() {
     showEmpty()
     drawFlows()
@@ -3139,7 +3148,7 @@
       if (p.page !== pageId) continue
       pinLayer.append(h('button', {
         type: 'button',
-        class: `pin${t.resolved ? ' resolved' : ''}${t.agent ? ' agent' : ''}${t.id === activeId ? ' active' : ''}${p.detached ? ' detached' : ''}`,
+        class: `pin${t.resolved ? ' resolved' : ''}${t.agent ? ' agent' : ''}${t.id === activeId ? ' active' : ''}${p.detached ? ' detached' : ''}${t.id !== activeId && unread(t) ? ' unread' : ''}`,
         'data-thread': t.id,
         style: `left:${p.x}px;top:${p.y}px`,
         title: `${t.name}: ${t.text}${p.detached ? ' (its element is gone; pinned where it was left)' : ''}`,
@@ -3170,7 +3179,7 @@
     list.replaceChildren(...(shown.length
       ? shown.map((t) => {
           const f = t.frame ? findFrame(t.frame) : null
-          return h('button', { type: 'button', class: `citem${t.resolved ? ' resolved' : ''}${t.agent ? ' agent' : ''}${t.id === activeId ? ' active' : ''}`, onclick: () => openThread(t.id, true) },
+          return h('button', { type: 'button', class: `citem${t.resolved ? ' resolved' : ''}${t.agent ? ' agent' : ''}${t.id === activeId ? ' active' : ''}${t.id !== activeId && unread(t) ? ' unread' : ''}`, 'aria-label': unread(t) && t.id !== activeId ? `Unread: ${t.name}: ${t.text}` : null, onclick: () => openThread(t.id, true) },
             h('div', { class: 'meta' }, h('span', { class: 'num' }, String(number(t))), h('b', {}, t.name), h('span', {}, when(t.at)), t.agent ? h('span', {}, '· for the agent') : null, t.replies.length ? h('span', {}, `· ${t.replies.length} repl${t.replies.length === 1 ? 'y' : 'ies'}`) : null, t.resolved ? h('span', {}, '· resolved') : null),
             h('div', { class: 'body' }, t.text),
             h('div', { class: 'where' }, f ? `${pages().find((p) => p.id === f.page)?.title ?? ''} · ${f.label}` : 'On the board'))
@@ -3243,6 +3252,7 @@
     activeId = id
     const t = threads.find((x) => x.id === id)
     if (!t) return
+    markSeen(t)
     const p0 = anchorOf(t)
     if (p0.page !== pageId) goPage(p0.page)
     if (fly) {

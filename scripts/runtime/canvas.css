@@ -253,6 +253,10 @@ body.item-dragging .connect { display: none; }
 .pin.detached { border-style: dashed; }
 .pin.active { outline: 3px solid color-mix(in srgb, var(--pin) 45%, transparent); }
 .pin.pending { opacity: 0.6; }
+/* Unread: a dot on the pin's corner, as Figma marks a comment not seen yet. */
+.pin.unread::after { content: ""; position: absolute; top: -4px; right: -4px; width: 10px; height: 10px; border-radius: 50%; background: #ff4d4f; border: 2px solid #fff; }
+.citem.unread .body { font-weight: 600; }
+.citem.unread .meta::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #ff4d4f; align-self: center; }
 body.hide-resolved .pin.resolved { display: none; }
 body.pins-off .pins .pin { display: none; }
 

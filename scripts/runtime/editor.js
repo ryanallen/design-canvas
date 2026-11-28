@@ -1707,6 +1707,10 @@
     else if (mod && e.shiftKey && !e.altKey && (e.code === 'Digit8' || e.code === 'Digit7')) listAs(e.code === 'Digit8' ? 'ul' : 'ol')
     // Figma's Strikethrough (Ctrl+Shift+X), on or off, keeping an underline that is there.
     else if (mod && e.shiftKey && !e.altKey && e.code === 'KeyX') strike()
+    // Figma's align keys on a prototype's parts, as on board objects: Alt+A, H, D left, center, right; Alt+W, V, S top,
+    // middle, bottom; Alt+Shift+H, V space evenly across, down.
+    else if (e.altKey && !mod && !e.shiftKey && dc.alignBy && { KeyA: 1, KeyH: 1, KeyD: 1, KeyW: 1, KeyV: 1, KeyS: 1 }[e.code]) dc.alignBy({ KeyA: 'left', KeyH: 'center', KeyD: 'right', KeyW: 'top', KeyV: 'middle', KeyS: 'bottom' }[e.code])
+    else if (e.altKey && !mod && e.shiftKey && dc.alignBy && (e.code === 'KeyH' || e.code === 'KeyV')) dc.alignBy(e.code === 'KeyH' ? 'across' : 'down')
     // Figma's layer order: Ctrl+] forward and Ctrl+[ backward one place, with Shift to the front or back.
     else if (mod && !e.altKey && (e.code === 'BracketRight' || e.code === 'BracketLeft')) ops.restack(e.code === 'BracketRight', e.shiftKey)
     // Figma's Show/Hide: hides what is selected, or shows it when all of it is hidden.

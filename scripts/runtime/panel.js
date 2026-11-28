@@ -519,6 +519,20 @@
   const limitsOpen = new Set()
   // ── states: hover, pressed and focus, shown on the board and written as the element's :hover (…) rule ──
   let state = 'default'
+  // The latest selection's align actions, from Properties, for the keys.
+  let alignNow = null
+  dc.alignBy = (what) => {
+    const el = ed.primary()
+    if (!el || el.localName === 'body') return false
+    if (alignNow?.sel !== ed.sel) drawPropsFor()
+    if (!alignNow || alignNow.sel !== ed.sel) return false
+    if (what === 'across' || what === 'down') {
+      if (!alignNow.distribute) return dc.hint('Select three or more parts placed absolutely to space them evenly', 2200), true
+      alignNow.distribute(what === 'across')
+    } else if (['left', 'center', 'right'].includes(what)) alignNow.alignH(what)
+    else alignNow.alignV(what)
+    return true
+  }
   let shownIn = null // the element now shown in a state, and its style
   const STATES = [['default', 'Default'], ['hover', 'Hover'], ['active', 'Pressed'], ['focus', 'Focus']]
   /** The rule a state is written to: the element's id, else its tag and classes (every element like it, as CSS states usually are). */
@@ -624,6 +638,7 @@
   function drawProps() {
     const host = $('#props')
     host.replaceChildren()
+    alignNow = null
     const el = ed.primary()
     if (!el) {
       clearStateShown()
@@ -743,6 +758,8 @@
       if (parentFlex) return set({ 'margin-top': where === 'top' ? '0' : 'auto', 'margin-bottom': where === 'bottom' ? '0' : 'auto' })
       dc.hint('Its parent is not a flex row, so it has no vertical place to take', 2500)
     }
+    // The keys reach the same: Figma's Alt+A, H, D and W, V, S, and Alt+Shift+H, V to space evenly.
+    alignNow = { sel: ed.sel, alignH, alignV, distribute: placed && ed.sel.els.length > 2 ? distribute : null }
     host.append(h('div', { class: 'alignrow' },
       ...['left', 'center', 'right'].map((w) => h('button', { type: 'button', class: 'mini', title: `Align ${w}`, onclick: () => alignH(w) }, h('span', { class: 'ag', 'data-a': `h-${w}` }))),
       h('span', { class: 'sep' }),

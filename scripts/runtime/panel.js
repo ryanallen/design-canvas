@@ -678,7 +678,50 @@
       seg(STATES, state, (v) => { state = v; renderProps() }),
       state !== 'default' ? h('small', { class: 'state-note' }, stateRule ? `Shown ${STATES.find(([k]) => k === state)[1].toLowerCase()}; changes go to ${stateRule}:${state}` : 'Give it an id or a class (Code tab) to style its states') : null))
     // The align row: where it sits in its parent, the way its parent lays it out.
+    // Parts placed absolutely or fixed are lined up as Figma lines up layers: several to each other's outer edges, one
+    // alone to what places it; each by its own left or top, in one edit. Three or more can be spaced evenly.
+    const placed = ed.sel.els.length > 0 && state === 'default' && ed.sel.els.every((x) => ['absolute', 'fixed'].includes(cs(x).position) && ed.editable(x) && ed.cvOf(x) != null)
+    const alignPlaced = (across, where) => {
+      const els = ed.sel.els
+      const rs = els.map((x) => x.getBoundingClientRect())
+      let b
+      if (els.length > 1) {
+        const l = Math.min(...rs.map((r) => r.left)); const t = Math.min(...rs.map((r) => r.top))
+        b = { left: l, top: t, width: Math.max(...rs.map((r) => r.right)) - l, height: Math.max(...rs.map((r) => r.bottom)) - t }
+      } else {
+        const x = els[0]
+        const box = cs(x).position === 'fixed' ? null : x.offsetParent
+        if (!box || box === x.ownerDocument.body) b = { left: 0, top: 0, width: x.ownerDocument.documentElement.clientWidth, height: x.ownerDocument.documentElement.clientHeight }
+        else { const r = box.getBoundingClientRect(); const k = cs(box); b = { left: r.left + n(k.borderLeftWidth), top: r.top + n(k.borderTopWidth), width: box.clientWidth, height: box.clientHeight } }
+      }
+      const items = els.map((x, i) => {
+        const r = rs[i]
+        const [start, size, prop, other] = across ? [b.left, b.width, 'left', 'right'] : [b.top, b.height, 'top', 'bottom']
+        const own = across ? r.width : r.height
+        const at = across ? r.left : r.top
+        const want = where === 'start' ? start : where === 'middle' ? start + (size - own) / 2 : start + size - own
+        return { cv: ed.cvOf(x), props: { [prop]: `${Math.round((n(cs(x).getPropertyValue(prop)) + want - at) * 100) / 100}px`, [other]: '' } }
+      })
+      ed.send({ op: 'styles', items }, { then: ed.reselect() })
+    }
+    const distribute = (across) => {
+      const els = [...ed.sel.els].map((x) => ({ x, r: x.getBoundingClientRect() })).sort((a, b) => (across ? a.r.left - b.r.left : a.r.top - b.r.top))
+      const first = els[0].r
+      const last = els.at(-1).r
+      const total = (across ? last.right - first.left : last.bottom - first.top) - els.reduce((sum, e) => sum + (across ? e.r.width : e.r.height), 0)
+      const gap = total / (els.length - 1)
+      let at = across ? first.left : first.top
+      const items = els.map((e) => {
+        const prop = across ? 'left' : 'top'
+        const now = across ? e.r.left : e.r.top
+        const item = { cv: ed.cvOf(e.x), props: { [prop]: `${Math.round((n(cs(e.x).getPropertyValue(prop)) + at - now) * 100) / 100}px`, [across ? 'right' : 'bottom']: '' } }
+        at += (across ? e.r.width : e.r.height) + gap
+        return item
+      })
+      ed.send({ op: 'styles', items }, { then: ed.reselect() })
+    }
     const alignH = (where) => {
+      if (placed) return alignPlaced(true, { left: 'start', center: 'middle', right: 'end' }[where])
       if (parentFlex && !parentRow) return set({ 'align-self': { left: 'flex-start', center: 'center', right: 'flex-end' }[where] })
       if (parentRow) return set({ 'margin-left': where === 'left' ? '0' : 'auto', 'margin-right': where === 'right' ? '0' : 'auto' })
       const margins = { 'margin-left': where === 'left' ? '0' : 'auto', 'margin-right': where === 'right' ? '0' : 'auto' }
@@ -695,6 +738,7 @@
       set(margins)
     }
     const alignV = (where) => {
+      if (placed) return alignPlaced(false, { top: 'start', middle: 'middle', bottom: 'end' }[where])
       if (parentRow) return set({ 'align-self': { top: 'flex-start', middle: 'center', bottom: 'flex-end' }[where] })
       if (parentFlex) return set({ 'margin-top': where === 'top' ? '0' : 'auto', 'margin-bottom': where === 'bottom' ? '0' : 'auto' })
       dc.hint('Its parent is not a flex row, so it has no vertical place to take', 2500)
@@ -702,7 +746,8 @@
     host.append(h('div', { class: 'alignrow' },
       ...['left', 'center', 'right'].map((w) => h('button', { type: 'button', class: 'mini', title: `Align ${w}`, onclick: () => alignH(w) }, h('span', { class: 'ag', 'data-a': `h-${w}` }))),
       h('span', { class: 'sep' }),
-      ...['top', 'middle', 'bottom'].map((w) => h('button', { type: 'button', class: 'mini', title: `Align ${w}`, onclick: () => alignV(w) }, h('span', { class: 'ag', 'data-a': `v-${w}` })))))
+      ...['top', 'middle', 'bottom'].map((w) => h('button', { type: 'button', class: 'mini', title: `Align ${w}`, onclick: () => alignV(w) }, h('span', { class: 'ag', 'data-a': `v-${w}` }))),
+      ...(placed && ed.sel.els.length > 2 ? [h('span', { class: 'sep' }), h('button', { type: 'button', class: 'mini', title: 'Space evenly across', 'aria-label': 'Space evenly across', onclick: () => distribute(true) }, '⇹'), h('button', { type: 'button', class: 'mini', title: 'Space evenly down', 'aria-label': 'Space evenly down', onclick: () => distribute(false) }, '⇳')] : [])))
 
     // Size
     // Sizes are shown as the box is drawn, padding and border included, as the label on the board

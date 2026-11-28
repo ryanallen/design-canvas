@@ -300,6 +300,8 @@ Number fields in Properties work as in Figma.
 - ↑ and ↓ step the value (10 with Shift). Each step is written with its unit kept, and the field keeps keyboard focus.
 - Dragging across a number row's label scrubs the value (10 at a time with Shift). It is written once when you let go.
 
+The align buttons at the top of Properties line up parts placed absolutely or fixed as Figma lines up layers. Several selected line up with each other's outer edges, and one alone lines up in whatever positions it. With three or more, **Space evenly** across or down gives the same gap between each.
+
 Setting **Position** to absolute or fixed works like Figma's Absolute position. The element stays where it is drawn, at the same size, and its parent is made `relative` in the same edit if nothing positions it yet. Setting it back to static or relative returns it to the flow and removes its offsets.
 
 An element placed absolutely or fixed has **Constraints** in Properties, as in Figma: which edges of what holds it it keeps to when that resizes. Across: Left, Right, Left and right (its width follows), Center or Scale (left and width as percentages). Down: Top, Bottom, Top and bottom, Center or Scale. Each is written from where the element sits, so picking one moves nothing.

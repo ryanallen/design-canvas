@@ -1603,8 +1603,11 @@
   // A board object's own bar: its colors and delete, above it while it is picked.
   const itemBar = h('div', { id: 'itembar', role: 'toolbar', 'aria-label': 'Board object' })
   document.body.append(itemBar)
+  /** Someone else's vote in the vote going on: kept from sight, so nothing selects it, and so nothing moves or deletes it. */
+  const hiddenVote = (id) => { const it = board.items.find((i) => i.id === id); return !!(it?.kind === 'stamp' && it.vote && board.voting?.id === it.vote && it.by !== (me || '')) }
   function pickItem(id) {
     if (id && !serve) return
+    if (id && hiddenVote(id)) return
     if (picked === id && !chosen) return
     picked = id
     chosen = null
@@ -1620,6 +1623,7 @@
     }
   }
   function choose(box, got = inside(box)) {
+    got = { ...got, items: got.items.filter((id) => !hiddenVote(id)) }
     picked = null
     chosen = got.items.length || got.frames.length ? { box, items: new Set(got.items), frames: new Set(got.frames) } : null
     call('onMarquee')

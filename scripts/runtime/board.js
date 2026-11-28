@@ -1128,7 +1128,7 @@
   /** Figma's Tab on the canvas: the next object on the page is picked (Shift+Tab the one before), in reading order
    * (by its top, then its left), going round, and brought into view if it is out of it. */
   function tabItem(d) {
-    const list = items().filter((i) => i.kind !== 'guide' && !hiddenVote(i.id)).sort((a, b) => a.y - b.y || a.x - b.x)
+    const list = items().filter((i) => i.kind !== 'guide').sort((a, b) => a.y - b.y || a.x - b.x)
     if (!list.length) return
     const at = list.findIndex((i) => i.id === picked)
     const to = list[(at + d + list.length) % list.length]
@@ -1368,7 +1368,13 @@
   let picked = null
   // What a drag box took in: board objects and frames, and the box itself.
   let chosen = null
-  const items = () => board.items.filter((i) => (i.page ?? firstPage()) === pageId)
+  // The name this person goes by, on what they make and on their votes.
+  let me = store.get('name') || ''
+  /** Someone else's vote in the vote going on: kept from sight, so nothing lists, selects, moves or deletes it. */
+  const othersVote = (it) => !!(it?.kind === 'stamp' && it.vote && board.voting?.id === it.vote && it.by !== (me || ''))
+  const hiddenVote = (id) => othersVote(board.items.find((i) => i.id === id))
+  // What this person has on the page: someone else's vote in the vote going on isn't, until the vote ends.
+  const items = () => board.items.filter((i) => (i.page ?? firstPage()) === pageId && !othersVote(i))
   // Redrawing removes a note being typed in, whose blur saves it and asks for another redraw:
   // that one waits until this one is done.
   let drawingItems = false
@@ -1603,8 +1609,6 @@
   // A board object's own bar: its colors and delete, above it while it is picked.
   const itemBar = h('div', { id: 'itembar', role: 'toolbar', 'aria-label': 'Board object' })
   document.body.append(itemBar)
-  /** Someone else's vote in the vote going on: kept from sight, so nothing selects it, and so nothing moves or deletes it. */
-  const hiddenVote = (id) => { const it = board.items.find((i) => i.id === id); return !!(it?.kind === 'stamp' && it.vote && board.voting?.id === it.vote && it.by !== (me || '')) }
   function pickItem(id) {
     if (id && !serve) return
     if (id && hiddenVote(id)) return
@@ -3448,7 +3452,6 @@
   let commentDraft = null
   let draft = null
   let activeId = null
-  let me = store.get('name') || ''
   let viewer = null
   const showResolved = () => $('#show-resolved').checked
 

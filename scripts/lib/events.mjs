@@ -224,6 +224,13 @@ export function commentRefused(events, event) {
   return null
 }
 
+/** Why a board line can't be taken, or null: a change to an object someone has deleted (one that isn't making it
+ * anew, as an undo does with its kind) would leave a shapeless object behind. */
+export function boardRefused(events, event) {
+  if (event.op === 'item' && event.id && !event.kind && !foldBoard(events).items.some((i) => i.id === event.id)) return "That was deleted, so the change wasn't kept."
+  return null
+}
+
 /** The board's own objects, the frames moved by hand, the pages and the canvas's name; last line wins. */
 export function foldBoard(events) {
   const items = new Map()

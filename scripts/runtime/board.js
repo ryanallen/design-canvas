@@ -1220,6 +1220,8 @@
     if (!drag || drag.id !== e.pointerId) return
     const d = drag
     drag = null
+    // Others' changes held back during the drag come once its own lines are saved (sendBoard takes them then).
+    if (boardMissed) setTimeout(() => { if (boardMissed && !pending) { boardMissed = false; refreshBoard() } }, 0)
     viewport.classList.remove('panning')
     if (d.kind !== 'pan') return d.end?.(e, d.moved)
     if (d.moved || d.forced) return
@@ -2303,7 +2305,8 @@
     itemBar.style.left = `${Math.max(8, Math.min(innerWidth - itemBar.offsetWidth - 8, top.x))}px`
     itemBar.style.top = `${Math.max(56, top.y - itemBar.offsetHeight - 8)}px`
   }
-  async function updateItem(id, change) {
+  /** `gone` words what was lost when the object turns out to have been deleted by someone else. */
+  async function updateItem(id, change, gone = null) {
     const it = board.items.find((i) => i.id === id)
     if (!it) return
     if (isLocked(id)) return hint(LOCKED, 2000)
@@ -2312,7 +2315,7 @@
     try {
       await sendBoard({ op: 'item', id, ...change })
     } catch (err) {
-      hint(err.message, 3000)
+      gone && /deleted/.test(err.message) ? hint(gone, 8000) : hint(err.message, 3000)
       takeBoardAgain()
     }
   }
@@ -2790,8 +2793,12 @@
         : it.kind === 'diamond' || it.kind === 'triangle' ? Math.ceil(el.scrollHeight * 2.1) - box.clientHeight
         : 0
       const grow = over > 1 ? { h: Math.ceil(it.h + over + 8) } : {}
-      if (text !== (it.text ?? '') || grow.h) updateItem(id, { text, ...grow })
+      const lost = `That ${BOARD_WORD[it.kind] ?? 'object'} was deleted, so what you typed wasn't kept: "${text.length > 120 ? `${text.slice(0, 120)}…` : text}"`
+      if (text !== (it.text ?? '') || grow.h) updateItem(id, { text, ...grow }, lost)
       else renderItems()
+      // Others' changes held back while this was typed come now (once its own line, if any, is saved).
+      box.classList.remove('editing')
+      if (boardMissed && !pending) { boardMissed = false; refreshBoard() }
     }
     el.addEventListener('blur', done)
     el.addEventListener('keydown', (e) => {
@@ -2802,6 +2809,7 @@
       }
     })
   }
+  const BOARD_WORD = { note: 'note', title: 'title', rect: 'shape', ellipse: 'shape', diamond: 'shape', triangle: 'shape', section: 'section', line: 'line', arrow: 'arrow' }
   async function newTitle(p) {
     if (!serve) return
     const id = await addItem({ kind: 'title', x: p.x, y: p.y, text: 'Title' })
@@ -5480,7 +5488,8 @@
   }
   /** Someone else changed the board: take its lines again. Not mid-drag or mid-typing; the next change brings it. */
   async function refreshBoard() {
-    if (drag || document.querySelector('.items .editing')) return
+    // Held back mid-drag or mid-typing, it comes when that ends.
+    if (drag || document.querySelector('.items .editing')) return (boardMissed = true)
     // Lines of this page's own still being saved: the server's board would undo what is drawn here ahead of them
     // (a group half written); it is read again once they are all saved.
     if (pending) return (boardMissed = true)

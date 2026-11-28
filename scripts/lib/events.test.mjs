@@ -314,3 +314,13 @@ test('a reply to a thread that was deleted is refused', async () => {
   assert.match(commentRefused([add, { op: 'delete', to: 'c1' }], { op: 'reply', to: 'c1' }), /deleted/)
   assert.equal(commentRefused([], { op: 'add' }), null)
 })
+
+test('a change to a deleted board object is refused, unless it makes it anew', async () => {
+  const { boardRefused } = await import('./events.mjs')
+  const note = { op: 'item', id: 'n1', kind: 'note', x: 0, y: 0 }
+  const gone = [note, { op: 'remove', id: 'n1' }]
+  assert.equal(boardRefused([note], { op: 'item', id: 'n1', text: 'Hi' }), null)
+  assert.match(boardRefused(gone, { op: 'item', id: 'n1', text: 'Hi' }), /deleted/)
+  assert.equal(boardRefused(gone, { ...note, text: 'Back' }), null)
+  assert.equal(boardRefused(gone, { op: 'remove', id: 'n1' }), null)
+})

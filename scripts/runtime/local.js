@@ -255,6 +255,8 @@
         const held = locks()
         if (play && event.op === 'lock') return answer(403, { error: 'Only the owner can lock and unlock things.' })
         if (held.includes(event.op === 'move' ? event.key : event.id) && ['item', 'remove', 'move'].includes(event.op)) return answer(403, { error: 'That is locked' })
+        const refused = boardRefused(parseLines(lines.join('\n'), 'board'), event)
+        if (refused) return answer(409, { error: refused })
         lines.push(lineOf(event, 'board'))
         await writeCanvas()
         return answer(200, { event })

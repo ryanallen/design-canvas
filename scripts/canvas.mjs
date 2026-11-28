@@ -39,7 +39,7 @@ import { rebase } from './lib/rebase.mjs'
 import { acceptSocket, makeRoom } from './lib/room.mjs'
 import { hostRoom } from './lib/hostroom.mjs'
 import { launchChromium } from './lib/browser.mjs'
-import { CANVAS_MARK, commentRefused, foldBoard, foldEvents, insertEvent, makeBoardEvent, makeEvent, parseEvents, parseLines, randomId, storedLines } from './lib/events.mjs'
+import { CANVAS_MARK, boardRefused, commentRefused, foldBoard, foldEvents, insertEvent, makeBoardEvent, makeEvent, parseEvents, parseLines, randomId, storedLines } from './lib/events.mjs'
 
 /** What the served canvas answers from a prototype's folder, by extension. */
 const SERVED_TYPES = { '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.avif': 'image/avif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.mp4': 'video/mp4', '.webm': 'video/webm', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.wasm': 'application/wasm' }
@@ -617,6 +617,8 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
           return json(res, 200, { events, board: foldBoard(events) })
         }
         const event = makeBoardEvent((await readBody(req)).event)
+        const refused = boardRefused(parseLines(lines.join('\n'), 'board'), event)
+        if (refused) return json(res, 409, { error: refused })
         lines.push(insertEvent('', event, 'board').trim())
         writeOut()
         tell('board', {})

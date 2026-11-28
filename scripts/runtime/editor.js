@@ -2122,6 +2122,12 @@
     if (!floatBar.classList.contains('open') || !sel?.frame.doc || !primary()?.isConnected) return
     const f = sel.frame
     const b = rectOn(f, primary())
+    // A selection scrolled or zoomed out of sight takes its bar with it: held at the window's edge it would sit over
+    // whatever is there and catch its clicks.
+    const right = innerWidth - (document.body.classList.contains('panel-open') && innerWidth > 640 ? 320 : 0)
+    const seen = b.x + b.w > 0 && b.x < right && b.y + b.h > 48 && b.y < innerHeight
+    floatBar.style.visibility = seen ? '' : 'hidden'
+    if (!seen) return
     const w = floatBar.offsetWidth
     const hh = floatBar.offsetHeight
     const maxLeft = innerWidth - w - 8 - (document.body.classList.contains('panel-open') && innerWidth > 640 ? 320 : 0)

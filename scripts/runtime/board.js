@@ -4769,6 +4769,14 @@
     try { await sendBoard({ op: 'vote', on: false }) } catch (err) { return hint(err.message, 3000) }
     drawVoting()
   }
+  async function removeVotes() {
+    const ids = board.items.filter((i) => i.kind === 'stamp' && i.vote && !isLocked(i.id)).map((i) => i.id)
+    if (!ids.length) return
+    if (!(await sure(`Take the ${ids.length} vote dot${ids.length === 1 ? '' : 's'} off the board?`, 'Remove'))) return
+    try { await sendAll(ids.map((id) => ({ op: 'remove', id }))) } catch (err) { return hint(err.message, 3000) }
+    renderItems()
+    hint(`${ids.length} vote dot${ids.length === 1 ? '' : 's'} removed. Ctrl+Z puts them back.`, 2200)
+  }
   function castVote(p, itemEl) {
     const v = board.voting
     const mine = itemEl ? board.items.find((i) => i.id === itemEl.dataset.id) : null
@@ -4877,6 +4885,8 @@
       // FigJam's voting session, for everyone on the canvas.
       serve && !board.voting ? { label: 'Start voting…', run: () => setTimeout(() => openMenu($('#title-btn'), [{ note: 'Votes for each person' }, ...[3, 5, 10].map((n) => ({ label: `${n} votes`, run: () => startVoting(n) }))]), 0) } : null,
       serve && board.voting ? { label: 'End voting', run: endVoting } : null,
+      // The dots of votes that have ended, all taken off in one step (one Ctrl+Z puts them back).
+      serve && !board.voting && board.items.some((i) => i.kind === 'stamp' && i.vote) ? { label: 'Remove the votes', run: removeVotes } : null,
       // A board laid out for a retro, a kanban, a journey map or a flowchart.
       serve ? { label: 'Templates…', run: () => setTimeout(() => templateMenu($('#title-btn')), 0) } : null,
       // Which element a click in a prototype picks: the one under the pointer, or the outermost block (as Figma), a

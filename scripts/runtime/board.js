@@ -3652,10 +3652,14 @@
         else if (activeId) {
           if (threads.some((t) => t.id === activeId)) showThread({ id: activeId }, true)
           else {
-            // Someone deleted the thread open here: a reply half written to it can't be sent, so it is said, words and all.
-            const words = thread.querySelector('textarea')?.value.trim()
+            // Someone deleted the thread open here: a reply half written to it can't be sent, nor a change to a comment
+            // in it saved, so it is said, words and all.
+            const cut = (w) => (w.length > 120 ? `${w.slice(0, 120)}…` : w)
+            const changed = thread.querySelector('textarea.edit-msg')?.value.trim()
+            const words = thread.querySelector('.composer textarea')?.value.trim()
             closeThread()
-            if (words) hint(`That thread was deleted, so your reply wasn't sent: "${words.length > 120 ? `${words.slice(0, 120)}…` : words}"`, 8000)
+            if (changed) hint(`That thread was deleted, so your change wasn't saved: "${cut(changed)}"`, 8000)
+            else if (words) hint(`That thread was deleted, so your reply wasn't sent: "${cut(words)}"`, 8000)
           }
         }
       }
@@ -4104,9 +4108,13 @@
   function showThread(what, keepTyping = false) {
     // One dialog at a time: the ask box keeps what was typed in it for when it opens again.
     if ($('#ask').classList.contains('open')) closeAsk()
-    const typed = keepTyping ? thread.querySelector('textarea')?.value : ''
+    const typed = keepTyping ? thread.querySelector('.composer textarea')?.value : ''
     // Drawn again while its reply is being typed (someone else commented): the box keeps the focus and the caret.
-    const was = keepTyping && document.activeElement?.matches?.('#thread textarea') ? { s: document.activeElement.selectionStart, e: document.activeElement.selectionEnd } : null
+    const was = keepTyping && document.activeElement?.matches?.('#thread .composer textarea') ? { s: document.activeElement.selectionStart, e: document.activeElement.selectionEnd } : null
+    // And a comment being edited stays being edited, its words, focus and caret kept.
+    const editingField = keepTyping ? thread.querySelector('textarea.edit-msg') : null
+    const editing = editingField ? { id: editingField.dataset.id, value: editingField.value, focus: document.activeElement === editingField, s: editingField.selectionStart, e: editingField.selectionEnd } : null
+    let reopen = null
     const t = what.id ? threads.find((x) => x.id === what.id) : null
     const msgs = h('div', { class: 'msgs' })
     const error = h('div', { class: 'error' })
@@ -4220,7 +4228,7 @@
         const words = h('p', {}, ...withMentions(m.text))
         // As in Figma, what someone wrote they can edit: its words become a field, kept with Save or Ctrl+Enter.
         const edit = () => {
-          const field = h('textarea', { class: 'edit-msg', 'aria-label': 'Edit the comment' })
+          const field = h('textarea', { class: 'edit-msg', 'aria-label': 'Edit the comment', 'data-id': m.id })
           field.value = m.text
           const save = async () => {
             const text = field.value.trim()
@@ -4238,7 +4246,9 @@
           })
           words.replaceWith(h('div', { class: 'editing-msg' }, field, h('div', { class: 'row' }, h('button', { type: 'button', class: 'btn quiet', onclick: () => showThread({ id: t.id }) }, 'Cancel'), h('button', { type: 'button', class: 'btn', onclick: save }, 'Save'))))
           field.focus()
+          return field
         }
+        if (editing?.id === m.id) reopen = edit
         msgs.append(h('div', { class: 'msg' },
           h('div', { class: 'who' }, h('b', {}, m.name), h('span', {}, when(m.at), m.edited ? ' · edited' : ''),
             // A link that opens the canvas on this thread, as Figma's Copy link on a comment.
@@ -4299,6 +4309,13 @@
     placeThread()
     if (!keepTyping) (me ? textarea : nameIn).focus({ preventScroll: true })
     else if (was) { textarea.focus({ preventScroll: true }); try { textarea.setSelectionRange(was.s, was.e) } catch {} }
+    if (reopen) {
+      const field = reopen()
+      field.value = editing.value
+      if (editing.focus) { field.focus({ preventScroll: true }); try { field.setSelectionRange(editing.s, editing.e) } catch {} }
+      else if (was) textarea.focus({ preventScroll: true })
+      else field.blur()
+    }
   }
   function placeThread() {
     if (!threadAt || !thread.classList.contains('open')) return

@@ -214,7 +214,8 @@ export function foldBoard(events) {
       const group = e.group != null ? e.group || null : moved.get(e.key)?.group ?? null
       moved.set(e.key, { x: e.x, y: e.y, page: e.page ?? moved.get(e.key)?.page ?? null, ...(group ? { group } : {}) })
     }
-    else if (e.op === 'item' && e.id) items.set(e.id, { ...(items.get(e.id) ?? {}), ...e })
+    // `by` is who made it: the first line's name, which later lines (named for whoever changed it) leave alone.
+    else if (e.op === 'item' && e.id) items.set(e.id, { ...(items.get(e.id) ?? { by: e.name }), ...e })
     else if (e.op === 'remove' && e.id) items.delete(e.id)
     else if (e.op === 'page' && e.id) pages.set(e.id, { ...(pages.get(e.id) ?? { id: e.id }), ...(e.title != null ? { title: e.title } : {}), ...(e.removed != null ? { removed: e.removed } : {}), ...(e.order != null ? { order: e.order } : {}) })
     else if (e.op === 'name' && e.title) name = e.title
@@ -289,6 +290,11 @@ export function makeBoardEvent(input, { now = new Date(), newId = randomId } = {
       if (input.dash != null) {
         if (!['', 'dash'].includes(input.dash)) throw new Error('dash must be dash or empty')
         event.dash = input.dash
+      }
+      // A note's author, as FigJam's Show author: shown at its foot (show) or not (empty).
+      if (input.author != null) {
+        if (!['', 'show'].includes(input.author)) throw new Error('author must be show or empty')
+        event.author = input.author
       }
       // An arrow's heads: at its end alone (empty), or at both ends.
       if (input.ends != null) {

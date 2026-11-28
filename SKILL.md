@@ -342,7 +342,7 @@ Every page is a whiteboard, with or without prototypes on it.
 
 The tools are these.
 
-- Sticky note (N).
+- Sticky note (N). **Name** on a picked note's bar shows who made it at the foot of the note, as FigJam's Show author does.
 - Text (T).
 - Pencil (P). The bar over the toolbar offers Fine, Marker, Bold or a see-through Highlighter, and a color. A picked stroke, line or arrow is made S, M or L on its bar.
 - Stamp (E), with 👍 ❤️ ⭐ ✅ ❓ 🔥 +1 chosen on the bar over the toolbar. A click puts one down. It is held by the note, shape or picture under it, so it moves with that, and it is named for who put it there. **Stamps, counted** in the canvas's menu lists what has stamps on it, most first, with how many of each kind.

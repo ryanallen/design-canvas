@@ -265,3 +265,13 @@ test('reactions: each name once per emoji, on and off, only the known emoji', ()
   assert.deepEqual(t.reactions, { '👍': ['Ben'] })
   assert.throws(() => react('Ben', '💩'), /emoji must be one of/)
 })
+
+test("a board object keeps who made it as `by`, whoever changes it later; its author is shown or not", () => {
+  const add = makeBoardEvent({ op: 'item', kind: 'note', page: 'p1', x: 0, y: 0, w: 300, h: 200, text: 'Idea', name: 'Ana' })
+  const edit = makeBoardEvent({ op: 'item', id: add.id, text: 'Better idea', author: 'show', name: 'Sam' })
+  const [it] = foldBoard([add, edit]).items
+  assert.equal(it.by, 'Ana')
+  assert.equal(it.name, 'Sam')
+  assert.equal(it.author, 'show')
+  assert.throws(() => makeBoardEvent({ op: 'item', id: add.id, author: 'yes', name: 'Sam' }), /author must be/)
+})

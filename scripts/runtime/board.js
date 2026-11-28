@@ -1397,7 +1397,10 @@
     const grip = serve && picked === it.id && !chosen && !isLocked(it.id) && ['note', 'rect', 'ellipse', 'diamond', 'triangle', 'section', 'image'].includes(it.kind) ? h('span', { class: 'grip', 'aria-hidden': 'true' }) : null
     // A picture from the canvas's folder, by its path there (the server serves it; a canvas.html beside it finds it).
     if (it.kind === 'image') return h('div', { class: cls, 'data-id': it.id, style: box }, /^(?:[\w-]+\/)*[\w-][\w.-]*\.(?:png|jpe?g|gif|webp|avif|svg)$/i.test(String(it.src ?? '')) ? h('img', { src: (data.pictures && /^data:image\//.test(data.pictures[it.src] ?? '') ? data.pictures[it.src] : null) ?? it.src, alt: '', draggable: 'false' }) : null, grip)
-    if (it.kind === 'note') return h('div', { class: cls, 'data-id': it.id, style: `${box};background:${it.color || NOTE_COLORS[0]}` }, it.text ?? '', grip)
+    if (it.kind === 'note') {
+      const by = it.author === 'show' && it.by ? h('span', { class: 'by', contenteditable: 'false' }, it.by) : null
+      return h('div', { class: `${cls}${by ? ' with-by' : ''}`, 'data-id': it.id, style: `${box};background:${it.color || NOTE_COLORS[0]}` }, it.text ?? '', by, grip)
+    }
     if (it.kind === 'title') return h('div', { class: cls, 'data-id': it.id, style: `left:${it.x}px;top:${it.y}px;${it.color ? `color:${it.color};` : ''}${it.size ? `font-size:${num(it.size)}px` : ''}` }, it.text || 'Title')
     if (it.kind === 'rect' || it.kind === 'ellipse') return h('div', { class: `${cls}${it.fill === 'solid' ? ' filled' : ''}`, 'data-id': it.id, style: `${box};--c:${it.color || SHAPE_COLORS[0]}` }, h('span', { class: 'txt' }, it.text ?? ''), grip)
     if (it.kind === 'stamp') return h('div', { class: cls, 'data-id': it.id, style: box, title: `${it.text ?? ''} from ${it.name || 'someone'}`, 'aria-label': `${STAMPS.find(([g]) => g === it.text)?.[1] ?? 'Stamp'} from ${it.name || 'someone'}` }, it.text === '+1' ? h('b', { style: 'font-size:20px' }, '+1') : it.text ?? '')
@@ -1555,7 +1558,7 @@
   /** What is selected on the board: a drag box's or Shift's objects, or the one picked with its group. */
   const selectedItems = () => (chosen ? [...chosen.items] : picked ? withGroup(picked) : []).map((id) => board.items.find((i) => i.id === id)).filter((i) => i && i.kind !== 'guide')
   // Everything an object is, but where it is bound and which group it is in, which a copy is given anew; a guide's frame stays its own.
-  const COPIED = ['kind', 'x', 'y', 'w', 'h', 'text', 'color', 'points', 'from', 'to', 'group', 'size', 'z', 'cols', 'gutter', 'margin', 'frame', 'src', 'route', 'dx', 'dy', 'weight', 'pen', 'ends', 'dash', 'fill']
+  const COPIED = ['kind', 'x', 'y', 'w', 'h', 'text', 'color', 'points', 'from', 'to', 'group', 'size', 'z', 'cols', 'gutter', 'margin', 'frame', 'src', 'route', 'dx', 'dy', 'weight', 'pen', 'ends', 'dash', 'fill', 'author']
   /** New objects like these, moved by dx, dy: a group copied is a new group, and a line holding an
    * object copied with it holds the copy; one holding something left behind lets go where it is. */
   async function placeCopies(list, dx, dy) {
@@ -2000,6 +2003,8 @@
         const on = (it.dash || '') === dash
         return h('button', { type: 'button', class: `tool${on ? ' on' : ''}`, title: label, 'aria-label': label, 'aria-pressed': String(on), onclick: () => updateItem(it.id, { dash }) }, glyph)
       })] : []),
+      // FigJam's Show author: who wrote the note, at its foot.
+      ...(it.kind === 'note' && it.by ? [h('span', { class: 'sep' }), h('button', { type: 'button', class: `tool${it.author === 'show' ? ' on' : ''}`, title: it.author === 'show' ? `Hide the name ${it.by}` : `Show who wrote it (${it.by}) at the foot of the note`, 'aria-pressed': String(it.author === 'show'), onclick: () => updateItem(it.id, { author: it.author === 'show' ? '' : 'show' }) }, 'Name')] : []),
       // A line or arrow's way: Straight, Elbow or Curve.
       ...((it.kind === 'line' || it.kind === 'arrow') && (it.points?.length ?? 0) === 4 ? [h('span', { class: 'sep' }), ...[['', 'Straight'], ['elbow', 'Elbow'], ['curve', 'Curve']].map(([route, label]) => h('button', { type: 'button', class: `tool${(it.route || '') === route ? ' on' : ''}`, title: `${label} line`, 'aria-pressed': String((it.route || '') === route), onclick: () => updateItem(it.id, { route }) }, label))] : []),
       ...(it.kind === 'guide'
@@ -2490,6 +2495,7 @@
     const el = box?.querySelector('.txt') ?? box
     if (!el) return
     box.querySelector('.grip')?.remove()
+    box.querySelector('.by')?.remove()
     box.classList.add('editing')
     el.contentEditable = 'plaintext-only'
     el.focus({ preventScroll: true })
@@ -2970,7 +2976,7 @@
   const future = []
   let openStep = null
   let replaying = false
-  const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points', 'size', 'src', 'route', 'dx', 'dy', 'weight', 'pen', 'ends', 'dash', 'fill']
+  const ITEM_KEYS = ['kind', 'page', 'x', 'y', 'w', 'h', 'z', 'text', 'color', 'frame', 'from', 'to', 'group', 'cols', 'gutter', 'margin', 'points', 'size', 'src', 'route', 'dx', 'dy', 'weight', 'pen', 'ends', 'dash', 'fill', 'author']
   /** The one thing a line touches, as a board says it is: an object's fields, a frame's place, or null for nothing there. */
   function stateOf(b, ev) {
     if (ev.op === 'item' || ev.op === 'remove') {

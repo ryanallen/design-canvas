@@ -444,6 +444,7 @@ With a selection, you can do these.
 - **Group** (Ctrl+G) makes them one group. A click on any member picks the group whole. Ctrl+click picks the one member, like Figma's deep select. When several were chosen together by a box or Ctrl+A, a click that does not move takes that one alone. The group moves, colors and deletes as one until **Ungroup** (Ctrl+Shift+G). Screens can be in a group too. A screen in a group moves with it, from its label too, and deleting a group leaves its screens.
 - **Align** lines them up by an edge or center, or spaces three or more evenly. It uses Figma's keys, Alt+A, H, D, W, V, S, and Alt+Shift+H or V.
 - **Flip** (Shift+H across, Shift+V up and down, also in the right-click menu) mirrors them within the box around them. A free line, arrow or drawing is turned over with them.
+- Screens chosen with board objects (or alone, two or more) align, space evenly and tidy up with them, as Figma's frames do.
 - **Tidy up** (Ctrl+Alt+T, also under Align) puts them in a grid in reading order, each in a cell as big as the biggest and 40 apart. Where they already lie in a row or a column, it makes a row or a column.
 - Ctrl+D duplicates. The copies are moved and stay selected. Ctrl+D again puts the next copies as far on again, as Figma steps them.
 - Alt + drag places a copy where the drag ends.

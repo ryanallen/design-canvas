@@ -1958,12 +1958,26 @@
       const key = g && groupMembers(g).every((m) => chosen.items.has(m)) ? g : id
       units.set(key, [...(units.get(key) ?? []), id])
     }
-    return [...units.values()].map((members) => ({ members, box: boxAround(members) }))
+    // Screens chosen with them line up, space out and tidy as Figma's frames do, each a unit of its own.
+    const screens = [...(chosen?.frames ?? [])].map((k) => allFrames.get(k)).filter((f) => f && f.page === pageId && !isLocked(f.key))
+    return [...[...units.values()].map((members) => ({ members, box: boxAround(members) })), ...screens.map((f) => ({ members: [], frame: f.key, box: { x: f.x, y: f.y, w: f.W, h: f.H } }))]
   }
+  /** The box round some units, board objects and screens alike. */
+  const unitsBox = (units) => boxAround(units.flatMap((u) => u.members), units.filter((u) => u.frame).map((u) => u.frame))
   async function moveUnits(moves) {
     const sends = []
-    for (const { members, dx, dy } of moves) {
+    for (const { members, frame, dx, dy } of moves) {
       if (!dx && !dy) continue
+      if (frame) {
+        const f = allFrames.get(frame)
+        if (f && !isLocked(frame)) {
+          f.x = Math.round(f.x + dx)
+          f.y = Math.round(f.y + dy)
+          positionFrame(f)
+          sends.push({ op: 'move', key: frame, x: f.x, y: f.y, page: pageId })
+        }
+        continue
+      }
       for (const id of members) {
         if (isLocked(id)) continue
         const it = board.items.find((i) => i.id === id)
@@ -2019,9 +2033,10 @@
   function alignChosen(how) {
     const units = selectedUnits()
     if (units.length < 2) return hint('Select two or more to align them', 1600)
-    const all = boxAround(units.flatMap((u) => u.members))
-    moveUnits(units.map(({ members, box: b }) => ({
+    const all = unitsBox(units)
+    moveUnits(units.map(({ members, frame, box: b }) => ({
       members,
+      frame,
       dx: how === 'left' ? all.x - b.x : how === 'center' ? all.x + all.w / 2 - (b.x + b.w / 2) : how === 'right' ? all.x + all.w - (b.x + b.w) : 0,
       dy: how === 'top' ? all.y - b.y : how === 'middle' ? all.y + all.h / 2 - (b.y + b.h / 2) : how === 'bottom' ? all.y + all.h - (b.y + b.h) : 0,
     })))
@@ -2039,17 +2054,17 @@
     moveUnits(units.map((u) => {
       const d = Math.round(at - u.box[p])
       at += u.box[s] + gap
-      return { members: u.members, dx: axis === 'x' ? d : 0, dy: axis === 'y' ? d : 0 }
+      return { members: u.members, frame: u.frame, dx: axis === 'x' ? d : 0, dy: axis === 'y' ? d : 0 }
     }))
   }
   // Figma's Tidy up (Ctrl+Alt+T): what is selected put in a grid in reading order, a row or a column where it already
   // lies in one, each in a cell as big as the biggest, 40 apart, from where the selection starts. A stamp held by
   // something stays on it.
   function tidyChosen() {
-    const units = selectedUnits().filter((u) => !u.members.every((id) => { const it = board.items.find((i) => i.id === id); return it?.kind === 'stamp' && it.to }))
+    const units = selectedUnits().filter((u) => u.frame || !u.members.every((id) => { const it = board.items.find((i) => i.id === id); return it?.kind === 'stamp' && it.to }))
     if (units.length < 2) return hint('Select two or more to tidy them up', 1600)
     const GAP = 40
-    const all = boxAround(units.flatMap((u) => u.members))
+    const all = unitsBox(units)
     const cw = Math.max(...units.map((u) => u.box.w))
     const ch = Math.max(...units.map((u) => u.box.h))
     const mid = (u) => ({ x: u.box.x + u.box.w / 2, y: u.box.y + u.box.h / 2 })
@@ -2060,6 +2075,7 @@
     units.sort((a, b) => Math.floor((mid(a).y - all.y) / ch) - Math.floor((mid(b).y - all.y) / ch) || mid(a).x - mid(b).x)
     moveUnits(units.map((u, i) => ({
       members: u.members,
+      frame: u.frame,
       dx: Math.round(all.x + (i % cols) * (cw + GAP) - u.box.x),
       dy: Math.round(all.y + Math.floor(i / cols) * (ch + GAP) - u.box.y),
     })))
@@ -5245,11 +5261,11 @@
       if (done) return e.preventDefault()
     }
     // Figma's align keys, by the key's place so a Mac's Option characters do not matter.
-    if (e.altKey && (e.ctrlKey || e.metaKey) && !e.shiftKey && e.code === 'KeyT' && serve && chosen?.items.size > 1) {
+    if (e.altKey && (e.ctrlKey || e.metaKey) && !e.shiftKey && e.code === 'KeyT' && serve && chosen && selectedUnits().length > 1) {
       e.preventDefault()
       return tidyChosen()
     }
-    if (e.altKey && !e.ctrlKey && !e.metaKey && serve && chosen?.items.size > 1) {
+    if (e.altKey && !e.ctrlKey && !e.metaKey && serve && chosen && selectedUnits().length > 1) {
       const how = e.shiftKey ? { KeyH: 'x', KeyV: 'y' }[e.code] : { KeyA: 'left', KeyH: 'center', KeyD: 'right', KeyW: 'top', KeyV: 'middle', KeyS: 'bottom' }[e.code]
       if (how) {
         e.preventDefault()
@@ -5429,7 +5445,7 @@
     overlay, viewport, world,
     toWorld, toScreen, frameAt, shootBoard, findFrame, showFrame, docFor, plainFile, reloadFile, reloadSheet, duplicateScreens, setFrameWidth, schemeOf, setScheme, ARTBOARD_SIZES, relayout, downloadFile,
     setTool, openPanel, setPanel, currentTab, nudgeScreen, openMenu, closeMenu, question, sure, openPlay, goPage, moveFrameToPage,
-    startComment, commentOn, openAsk, renderPins, pickItem, apply, sendBoard, showEmpty,
+    startComment, commentOn, openAsk, renderPins, pickItem, chooseItems, apply, sendBoard, showEmpty,
     setName: (n) => setName(n),
     store,
   }

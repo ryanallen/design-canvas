@@ -696,3 +696,4 @@ body.shooting #bars-back { display: none !important; }
 .msg-link { color: var(--accent); text-decoration: underline; text-underline-offset: 0.15em; overflow-wrap: anywhere; }
 #findbar .find-opt { font: 600 12px/1 ui-monospace, monospace; min-width: 30px; }
 #findbar .find-opt[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink, #fff); }
+@media (max-width: 640px) { #vote-chip { max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }

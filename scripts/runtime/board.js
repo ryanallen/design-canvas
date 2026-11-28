@@ -4784,7 +4784,15 @@
     if (!voteChip) return
     const v = board.voting
     voteChip.hidden = !v
-    if (v) voteChip.textContent = `Voting · ${Math.max(0, v.votes - myVotes(v).length)} of ${v.votes} left · End`
+    // On a narrow screen the chip says only what is left, so it doesn't cover the canvas menu; its whole words stay
+    // its name and tip.
+    if (v) {
+      const left = Math.max(0, v.votes - myVotes(v).length)
+      const full = `Voting · ${left} of ${v.votes} left · End`
+      voteChip.textContent = matchMedia('(max-width: 640px)').matches ? `${left} left` : full
+      voteChip.title = `${full} voting for everyone`
+      voteChip.setAttribute('aria-label', `Voting: ${left} of ${v.votes} votes left. End voting`)
+    }
     document.body.classList.toggle('voting', !!v)
     if (votingSeen && !v) openVoteCount(votingSeen)
     votingSeen = v?.id ?? null

@@ -5522,6 +5522,10 @@
       // The canvas's name is a board line too: a rename made elsewhere, or kept by a visitor's browser, shows.
       setTitle()
       relayout()
+      // What is selected lets go of what someone else deleted, rather than keep a bar and a place for nothing.
+      const there = (id) => board.items.some((i) => i.id === id)
+      if (picked && !there(picked)) pickItem(null)
+      else if (chosen && [...chosen.items].some((id) => !there(id))) chooseItems([...chosen.items].filter(there), [...chosen.frames])
       // The page this person is on, deleted by someone else: they go to the first page, told why, rather than go on
       // working on a page nobody else can see.
       if (!pages().some((p) => p.id === pageId)) {

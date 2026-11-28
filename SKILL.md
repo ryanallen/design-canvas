@@ -292,7 +292,7 @@ An entrance has a speed (Quick 250, Smooth 450, Slow 800 ms) and a delay in ms, 
 
 An entrance is an `animation` on the element and the `@keyframes` it names. The same edit writes those into one `<style data-canvas-keyframes>` in the head, so Play and the file run it wherever it is shown. Properties reads an element's resting look, never a frame of its entrance.
 
-## Fonts
+## Properties
 
 Number fields in Properties work as in Figma.
 
@@ -338,6 +338,8 @@ Text has these.
 - **Case** shows it in upper, lower or title case. The words in the file stay unchanged.
 - **Truncate** (Lines) stops the text with an ellipsis past so many lines.
 - **Text shadow** is a shadow that follows the letters (`text-shadow`, with X, Y, Blur and its color).
+
+## Fonts
 
 Properties › Font lists the fonts the prototype already uses, the fonts on this computer, and generic families. On a served canvas it also lists **web fonts** from Google Fonts.
 

@@ -757,7 +757,10 @@
       dc.reloadSheet(body.sheet, body.text)
       return hint(redo ? 'Redone' : 'Undone', 900)
     }
-    const keep = sel && sel.frame.file === body.file ? { file: body.file, key: sel.frame.key, cv: cvOf(primary()), copies: sel.els.length > 1 } : null
+    // What changed comes back selected, as Figma's undo does: the element round the change, in the screen the
+    // selection was in (else the first one showing that file); with no such element, the selection as it was.
+    const same = sel && sel.frame.file === body.file
+    const keep = body.cv != null ? { file: body.file, key: same ? sel.frame.key : null, cv: body.cv, copies: false } : same ? { file: body.file, key: sel.frame.key, cv: cvOf(primary()), copies: sel.els.length > 1 } : null
     pendingSelect = keep
     dc.reloadFile(body.file, body.html)
     for (const [other, html] of Object.entries(body.others ?? {})) dc.reloadFile(other, html)

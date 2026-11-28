@@ -859,9 +859,22 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
           from.push(step)
           return json(res, 409, { error: `${stuck.file} changed outside the canvas where this was made; nothing was ${back ? 'undone' : 'redone'}` })
         }
+        const was = readFile(step.file)
         parts.forEach((p, i) => writeFile(p.file, next[i]))
         to.push(step)
         const want = next[0]
+        // The innermost element round what changed, by its offset in the file as it is now, so the canvas can select
+        // what came back, as Figma's undo does. Nothing for a change in the head, a style or a script.
+        const changedAt = (() => {
+          let s = 0
+          while (s < was.length && s < want.length && was[s] === want[s]) s++
+          let ea = was.length
+          let eb = want.length
+          while (ea > s && eb > s && was[ea - 1] === want[eb - 1]) { ea--; eb-- }
+          let best = null
+          for (const el of parse(want).byStart.values()) if (el.start <= s && el.end >= eb && (!best || el.start > best.start)) best = el
+          return best && !['html', 'head', 'body', 'style', 'script', 'meta', 'link', 'title'].includes(best.tag) ? best.start : null
+        })()
         record({ op: url.pathname.slice(5), id: randomId('e'), at: new Date().toISOString(), name: String(name || 'someone').slice(0, 80), file: step.file, summary: url.pathname === '/api/undo' ? 'undid the last edit' : 'redid an edit', sha: sha(want) })
         if (step.sheet) {
           const text = sheetChanged(step.file, want)
@@ -870,7 +883,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         }
         for (const p of parts) refresh(p.file)
         writeOut()
-        return json(res, 200, { file: step.file, html: servedFile(step.file), others: Object.fromEntries((step.also ?? []).map((p) => [p.file, servedFile(p.file)])) })
+        return json(res, 200, { file: step.file, cv: changedAt, html: servedFile(step.file), others: Object.fromEntries((step.also ?? []).map((p) => [p.file, servedFile(p.file)])) })
       }
       if (url.pathname === '/api/selection') {
         if (req.method === 'POST') {

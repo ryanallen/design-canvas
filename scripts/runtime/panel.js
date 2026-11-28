@@ -28,7 +28,10 @@
   // screen; a row inside another picked with it is left to it, and a row not shown is not taken), Ctrl+click adds a row or takes it out, Alt+click
   // selects every copy. The row last clicked is where a Shift+click range starts.
   let layerAnchor = null
+  // A row drawn for a page since drawn again (its screen redrawn for an edit before the list was): its element is gone.
+  const gone = (c) => !c.isConnected || !c.ownerDocument.defaultView
   function layerClick(e, f, c, rows) {
+    if (gone(c)) return renderLayers()
     const sel = ed.sel
     // From the row last clicked while it is still selected, else from what was selected last on the screen.
     const from = sel?.frame === f ? (sel.els.includes(layerAnchor) ? layerAnchor : sel.els.at(-1)) : null
@@ -155,6 +158,7 @@
     }
     const clear = () => row.classList.remove('drop-before', 'drop-after', 'drop-inside')
     row.addEventListener('dragstart', (e) => {
+      if (gone(el)) { e.preventDefault(); return renderLayers() }
       dragging = { f, el }
       e.dataTransfer.effectAllowed = 'move'
       e.dataTransfer.setData('text/plain', ed.nameOf(el).text)
@@ -180,6 +184,7 @@
     // Renamed in the row itself, as in Figma's layers: Enter or a click away keeps the name, Escape leaves it.
     row.addEventListener('dblclick', (e) => {
       e.preventDefault()
+      if (gone(el)) return renderLayers()
       const label = row.querySelector('.ln')
       if (!label) return
       const now = el.getAttribute('data-name') ?? ''

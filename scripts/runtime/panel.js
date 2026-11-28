@@ -819,18 +819,17 @@
       if (!out(v)) return set({ position: v, left: '', top: '', right: '', bottom: '' })
       const r = el.getBoundingClientRect()
       const w = Math.round(el.offsetWidth - extraOf(c, 'width'))
-      const props = { position: v, width: `${Math.max(0, w)}px`, right: '', bottom: '', margin: '0' }
-      const items = []
-      if (v === 'fixed') Object.assign(props, { left: `${Math.round(r.left)}px`, top: `${Math.round(r.top)}px` })
-      else {
-        const holder = parent && parent !== el.ownerDocument.body && cs(parent).position === 'static' && ed.editable(parent) && ed.cvOf(parent) != null ? parent : null
-        if (holder) items.push({ cv: ed.cvOf(holder), props: { position: 'relative' } })
-        const box = (holder ?? el.offsetParent ?? el.ownerDocument.documentElement)
-        const b = box.getBoundingClientRect()
-        const bk = cs(box)
-        const base = box === el.ownerDocument.body || box === el.ownerDocument.documentElement ? { left: -el.ownerDocument.defaultView.scrollX, top: -el.ownerDocument.defaultView.scrollY } : { left: b.left + n(bk.borderLeftWidth), top: b.top + n(bk.borderTopWidth) }
-        Object.assign(props, { left: `${Math.round(r.left - base.left)}px`, top: `${Math.round(r.top - base.top)}px` })
-      }
+      const holder = v === 'absolute' && parent && parent !== el.ownerDocument.body && cs(parent).position === 'static' && ed.editable(parent) && ed.cvOf(parent) != null ? parent : null
+      // Where left 0 and top 0 would put it, measured with it placed so for a moment: its margins, auto or not, stay
+      // as they are (they come back with it into the flow), and left and top are what is left over.
+      const keep = (x, ps) => ps.map((p) => [p, x.style.getPropertyValue(p), x.style.getPropertyPriority(p)])
+      const back = [[el, keep(el, ['position', 'width', 'left', 'top', 'right', 'bottom'])], ...(holder ? [[holder, keep(holder, ['position'])]] : [])]
+      if (holder) holder.style.setProperty('position', 'relative')
+      for (const [p, val] of [['position', v], ['width', `${Math.max(0, w)}px`], ['left', '0px'], ['top', '0px'], ['right', 'auto'], ['bottom', 'auto']]) el.style.setProperty(p, val, 'important')
+      const zero = el.getBoundingClientRect()
+      for (const [x, list] of back) for (const [p, val, pri] of list) val ? x.style.setProperty(p, val, pri) : x.style.removeProperty(p)
+      const props = { position: v, width: `${Math.max(0, w)}px`, left: `${Math.round(r.left - zero.left)}px`, top: `${Math.round(r.top - zero.top)}px`, right: '', bottom: '' }
+      const items = holder ? [{ cv: ed.cvOf(holder), props: { position: 'relative' } }] : []
       items.push({ cv: ed.cvOf(el), props })
       ed.send({ op: 'styles', items }, { then: ed.reselect() })
     }

@@ -443,10 +443,32 @@
       else select(null, [])
       if (keep.then) keep.then(f, el)
     } else if (sel && sel.frame === f) {
-      select(null, [])
+      // Redrawn for a change made elsewhere (someone else's edit, the file changed on disk): what was selected is
+      // found again in the new page, as Figma keeps a selection while others work, else let go.
+      const again = sel.els.map((x) => findAgain(x, f.doc)).filter(Boolean)
+      if (again.length === sel.els.length && !sel.els.some((x) => x.localName === 'body')) select(f, again, { quiet: true })
+      else if (sel.els.length === 1 && sel.els[0].localName === 'body' && f.doc.body) select(f, [f.doc.body], { quiet: true })
+      else select(null, [])
     }
     api.onFrameLoad(f)
     draw()
+  }
+  /** An element of a page that has since been drawn again, in the new page: at the same place among its parents if
+      the same kind is there with the same words, else the one element there of its kind with its words, else at its
+      place if only its own words changed, else none. */
+  function findAgain(old, doc) {
+    if (!doc?.body) return null
+    const sig = (x) => `${x.localName}.${[...x.classList].join('.')}`
+    const words = (x) => x.textContent.replace(/\s+/g, ' ').trim().slice(0, 200)
+    const path = []
+    for (let x = old; x && x.parentElement && x.localName !== 'body'; x = x.parentElement) path.unshift([...x.parentElement.children].indexOf(x))
+    let at = doc.body
+    for (const i of path) at = at?.children[i]
+    if (at && sig(at) === sig(old) && words(at) === words(old)) return at
+    const like = [...doc.body.querySelectorAll(old.localName)].filter((x) => sig(x) === sig(old) && words(x) === words(old))
+    if (like.length === 1) return like[0]
+    // Its own words changed (nothing added or taken away beside it): the same place, the same kind.
+    return at && sig(at) === sig(old) && at.parentElement?.children.length === old.parentElement?.children.length ? at : null
   }
   hooks.selectedFile = () => sel?.frame.file ?? null
   // The whole screen selected (its label clicked): its key, for what the board does with screens.

@@ -1186,7 +1186,12 @@
       field('Opacity', slider, h('span', { class: 'val' }, across((x, k) => Math.round(Number(k.opacity) * 100)) === MIXED ? 'Mixed' : `${op}%`)),
       // Figma's layer blend mode, and Clip content: what overflows the element cut off at its edge (and its radius).
       field('Blend', select(['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity'], (() => { const v = across((x, k) => k.mixBlendMode); return v === MIXED ? 'Mixed' : v })(), (v) => { if (v !== 'Mixed') set({ 'mix-blend-mode': v }) })),
-      field('Clip content', seg([['visible', 'Off'], ['hidden', 'Clip']], (() => { const v = across((x, k) => (k.overflowX === 'visible' && k.overflowY === 'visible' ? 'visible' : k.overflowX === 'hidden' && k.overflowY === 'hidden' ? 'hidden' : 'other')); return v })(), (v) => set({ overflow: v }))),
+      field('Clip content', seg([['visible', 'Off'], ['hidden', 'Clip']], across((x, k) => (k.overflowX === 'visible' && k.overflowY === 'visible' ? 'visible' : k.overflowX !== 'visible' && k.overflowY !== 'visible' ? 'hidden' : 'other')), (v) => set({ 'overflow-x': '', 'overflow-y': '', overflow: v }))),
+      // Figma's overflow scrolling, for Play: what is more than the box scrolls down, across or both ways inside it
+      // (it is clipped then too); None leaves it clipped and still.
+      field('Scrolling', seg([['none', 'None'], ['y', 'Down', 'Scrolls up and down'], ['x', 'Across', 'Scrolls side to side'], ['both', 'Both', 'Scrolls both ways']],
+        across((x, k) => { const sx = /auto|scroll/.test(k.overflowX); const sy = /auto|scroll/.test(k.overflowY); return sx && sy ? 'both' : sy ? 'y' : sx ? 'x' : 'none' }),
+        (v) => set({ overflow: '', 'overflow-x': v === 'x' || v === 'both' ? 'auto' : 'hidden', 'overflow-y': v === 'y' || v === 'both' ? 'auto' : 'hidden' }))),
       radiusCorners || !sameR
         ? field('Radius', ...['top-left', 'top-right', 'bottom-right', 'bottom-left'].map((k) => input(across((x, s) => num(s.getPropertyValue(`border-${k}-radius`))), (v) =>set({ [`border-${k}-radius`]: px(v) }), { class: 'n s', title: k })), h('button', { type: 'button', class: 'mini', onclick: () => { radiusCorners = false; renderProps() } }, '▢'))
         : field('Radius', input(across((x, s) => lever(x, 'border-radius') ?? num(s.borderTopLeftRadius)),(v) => set({ 'border-radius': px(v) }), { class: 'n' }), h('button', { type: 'button', class: 'mini', title: 'Each corner', onclick: () => { radiusCorners = true; renderProps() } }, '⊞')),

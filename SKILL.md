@@ -302,6 +302,7 @@ Properties' **Appearance** holds the element's look. Each change is one undo ste
 - **Fill** is a color. With ◐ it is a gradient (Linear, Radial or Angular, with two colors and an angle). With ◍ it is a point mesh. That means color points you drag on the element, each a radial gradient fading at its spread, in plain CSS. With ◫ it is a grid mesh, a lattice of 2 to 6 rows and columns whose points you drag to bend the colors. The grid mesh is drawn to a small picture in the element's own CSS, and the lattice is kept in `data-mesh` so you can edit it again.
 - Every color field has ▦. It lists the screen's levers (custom properties on `:root` holding a color) and the colors the screen already uses. A lever picked in Fill or text Color is written as `var(--name)`.
 - **Opacity**, **Blend** (the sixteen blend modes) and **Clip content** (overflow cut at the edge and radius).
+- **Scrolling**: None, Down, Across or Both, like Figma's overflow scrolling. Whatever doesn't fit then scrolls inside the box in Play and in the page, and is clipped.
 - **Radius** is one value, or one per corner.
 - **Border** reads the side that has one, so a line under a bar shows. Its style changes only the sides that have it. **Border sides** sets each side's width, and a new side takes the line's style and color.
 - **Shadow** lists each shadow of the element in turn, with Drop or Inner, X, Y, Blur, Spread and color. + adds another.

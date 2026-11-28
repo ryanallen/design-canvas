@@ -146,6 +146,8 @@ Text being typed keeps the browser's own right-click menu, so its spelling sugge
 
 In a prototype, the arrow keys nudge a positioned element (absolute, fixed, relative or sticky) by 1 px, or 10 with Shift. Each selected element moves from its own place, and each press is one undo step. Alt+arrows move an element in the flow one place along in it.
 
+Ctrl+] brings the selected part forward one place among its siblings, and Ctrl+[ sends it back one. With Shift they take it to the front or the back. The same four are in the toolbar's More menu. What comes later among siblings is drawn over the ones before it, and comes after them in a row or column, so this is its place in the HTML.
+
 ## Typing in place
 
 With text selected (not being typed in), Figma's text keys step it up with > and down with <. Ctrl+Shift changes the size by 1px, Ctrl+Alt the weight by 100, Alt+Shift the line height by 1px, and Alt the letter spacing by 0.5px. Each selected element steps from its own value, in one undo step. Ctrl+Alt+L, T, R and J align it left, center, right or to both edges, as the toolbar's Align does.

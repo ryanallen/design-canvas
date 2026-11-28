@@ -1457,6 +1457,19 @@
       if (!sib || cvOf(sib) == null) return
       send({ op: 'move', cv: cvOf(el), target: cvOf(sib), where: prev ? 'before' : 'after' })
     },
+    // Figma's Bring forward, Send backward, Bring to front, Send to back. In a page, what comes later among its
+    // siblings is drawn over the ones before it and comes after them in a row or column, so the order is moved there.
+    restack: (forward, all) => {
+      if (!needEditable()) return
+      const el = primary()
+      if (sel.els.length !== 1 || el.localName === 'body') return hint('Select one part to move it in front or behind', 1600)
+      const sibs = [...el.parentElement.children].filter((c) => !SKIP.has(c.localName) && cvOf(c) != null)
+      const i = sibs.indexOf(el)
+      const to = all ? (forward ? sibs.at(-1) : sibs[0]) : sibs[i + (forward ? 1 : -1)]
+      if (!to || to === el) return hint(forward ? 'It is already in front' : 'It is already at the back', 1200)
+      if (!editable(to)) return hint('What it would pass is locked', 1600)
+      send({ op: 'move', cv: cvOf(el), target: cvOf(to), where: forward ? 'after' : 'before' })
+    },
   }
   let clip = null
   let look = null
@@ -1595,6 +1608,8 @@
     else if (mod && e.shiftKey && !e.altKey && (e.code === 'Digit8' || e.code === 'Digit7')) listAs(e.code === 'Digit8' ? 'ul' : 'ol')
     // Figma's Strikethrough (Ctrl+Shift+X), on or off, keeping an underline that is there.
     else if (mod && e.shiftKey && !e.altKey && e.code === 'KeyX') strike()
+    // Figma's layer order: Ctrl+] forward and Ctrl+[ backward one place, with Shift to the front or back.
+    else if (mod && !e.altKey && (e.code === 'BracketRight' || e.code === 'BracketLeft')) ops.restack(e.code === 'BracketRight', e.shiftKey)
     // Figma's Show/Hide: hides what is selected, or shows it when all of it is hidden.
     else if (mod && e.shiftKey && k === 'h') setHidden(sel.frame, sel.els, sel.els.some((x) => cs(x).display !== 'none'))
     // Figma's Lock (Ctrl+Shift+L): the owner locks the selected part, or unlocks it, as the toolbar's padlock does.
@@ -2227,6 +2242,10 @@
             { label: 'Copy', key: 'Ctrl+C', run: ops.copy },
             clip ? { label: 'Paste after it', key: 'Ctrl+V', run: ops.paste } : null,
             clip && sel.els.length === 1 && primary().localName !== 'body' ? { label: 'Paste to replace it', key: 'Ctrl+Shift+R', run: ops.pasteReplace } : null,
+            sel.els.length === 1 && primary().localName !== 'body' ? { label: 'Bring forward', key: 'Ctrl+]', run: () => ops.restack(true, false) } : null,
+            sel.els.length === 1 && primary().localName !== 'body' ? { label: 'Bring to front', key: 'Ctrl+Shift+]', run: () => ops.restack(true, true) } : null,
+            sel.els.length === 1 && primary().localName !== 'body' ? { label: 'Send backward', key: 'Ctrl+[', run: () => ops.restack(false, false) } : null,
+            sel.els.length === 1 && primary().localName !== 'body' ? { label: 'Send to back', key: 'Ctrl+Shift+[', run: () => ops.restack(false, true) } : null,
             { label: 'Copy properties', key: 'Ctrl+Alt+C', run: ops.copyProps },
             look ? { label: 'Paste properties', key: 'Ctrl+Alt+V', run: ops.pasteProps } : null,
           ]

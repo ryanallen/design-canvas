@@ -847,6 +847,9 @@
     } else if (e.key === 'Tab' && !mod && !e.altKey) {
       e.preventDefault()
       tabOut(e.shiftKey)
+    } else if (mod && e.shiftKey && !e.altKey && e.code === 'KeyX') {
+      e.preventDefault()
+      editing.frame.doc.execCommand('strikeThrough')
     } else if (mod && ['b', 'i', 'u'].includes(e.key.toLowerCase())) {
       e.preventDefault()
       editing.frame.doc.execCommand({ b: 'bold', i: 'italic', u: 'underline' }[e.key.toLowerCase()])
@@ -978,6 +981,12 @@
     if (!editing) return
     const { frame, el, before, chain, held } = editing
     editing = null
+    // The browser's strikethrough writes <strike>, which HTML dropped; the file gets <s>.
+    for (const x of chain ?? [el]) for (const old of x.querySelectorAll('strike')) {
+      const s = frame.doc.createElement('s')
+      s.append(...old.childNodes)
+      old.replaceWith(s)
+    }
     frame.doc.removeEventListener('pointerdown', pressAway, true)
     // The file changed outside while this was typed in: the words go where the element now is in it. When the
     // element itself was changed there, nothing is written over it: the words are put on the clipboard instead.
@@ -1562,6 +1571,11 @@
       else if (!mod && e.altKey && e.shiftKey) textStep('line-height', d)
       else if (!mod && e.altKey) textStep('letter-spacing', d)
     }
+    // Figma's list keys: Ctrl+Shift+8 bullets, Ctrl+Shift+7 numbers; the same key on that kind of list turns it back
+    // into a paragraph.
+    else if (mod && e.shiftKey && !e.altKey && (e.code === 'Digit8' || e.code === 'Digit7')) listAs(e.code === 'Digit8' ? 'ul' : 'ol')
+    // Figma's Strikethrough (Ctrl+Shift+X), on or off, keeping an underline that is there.
+    else if (mod && e.shiftKey && !e.altKey && e.code === 'KeyX') strike()
     // Figma's Show/Hide: hides what is selected, or shows it when all of it is hidden.
     else if (mod && e.shiftKey && k === 'h') setHidden(sel.frame, sel.els, sel.els.some((x) => cs(x).display !== 'none'))
     // Figma's Lock (Ctrl+Shift+L): the owner locks the selected part, or unlocks it, as the toolbar's padlock does.
@@ -2129,17 +2143,35 @@
       paragraph again. The element keeps its own attributes (class, style, id) and its lines their markup. */
   function list() {
     const el = primary()
+    listAs(el.localName === 'ul' ? 'ol' : el.localName === 'ol' ? 'p' : 'ul')
+  }
+  /** One line of text or a list made into bullets (ul), numbers (ol), or a paragraph (p); asked for the kind it already
+      is, it goes back to a paragraph. */
+  function listAs(want) {
+    const el = primary()
     if (!needEditable()) return
+    const isList = el.localName === 'ul' || el.localName === 'ol'
+    if (sel.els.length !== 1 || !(isList || isText(el))) return hint('Select one line of text or a list.', 1600)
+    if (want === el.localName) want = 'p'
+    if (want === 'p' && !isList) return
     const attrs = [...el.attributes].filter((a) => !['data-cv', 'contenteditable', 'spellcheck'].includes(a.name)).map((a) => ` ${a.name}="${a.value.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`).join('')
     const clean = (html) => html.replace(/\s+data-cv="\d+"/g, '').trim()
     let html
-    if (el.localName === 'ul') html = `<ol${attrs}>${clean(el.innerHTML)}</ol>`
-    else if (el.localName === 'ol') html = `<p${attrs}>${[...el.children].map((li) => clean(li.innerHTML)).join('<br>')}</p>`
+    if (isList && want !== 'p') html = `<${want}${attrs}>${clean(el.innerHTML)}</${want}>`
+    else if (isList) html = `<p${attrs}>${[...el.children].map((li) => clean(li.innerHTML)).join('<br>')}</p>`
     else {
       const lines = clean(el.innerHTML).split(/<br\s*\/?>|\n/i).map((l) => l.trim()).filter(Boolean)
-      html = `<ul${attrs}>${lines.map((l) => `<li>${l}</li>`).join('')}</ul>`
+      html = `<${want}${attrs}>${lines.map((l) => `<li>${l}</li>`).join('')}</${want}>`
     }
     send({ op: 'outer', cv: cvOf(el), html })
+  }
+  /** Strikethrough on or off for what is selected, as Figma's Ctrl+Shift+X; an underline already there stays. */
+  function strike() {
+    if (!needEditable() || !sel.els.some(isText)) return
+    const lines = cs(primary()).textDecorationLine.split(/\s+/).filter((l) => l && l !== 'none')
+    const on = lines.includes('line-through')
+    const rest = lines.filter((l) => l !== 'line-through')
+    toggleStyle('text-decoration-line', !on, [...rest, 'line-through'].join(' '), rest.join(' ') || 'none', (v) => v.includes('line-through'))
   }
   function more(anchor) {
     const can = sel.els.every(editable)

@@ -160,3 +160,20 @@ test("a timer someone sets reaches everyone, the setter too, and a newcomer gets
   a.message(JSON.stringify({ t: 'timer', ms: 99e9 }))
   assert.equal(got.b.at(-1).left, 3_600_000, 'an hour at most')
 })
+
+test('a timer goes on for the room when the one who set it leaves', () => {
+  let n = 0
+  let t = 1000
+  const room = makeRoom({ newId: () => `p${++n}`, now: () => t })
+  const a = room.join(() => {})
+  const b = room.join(() => {})
+  a.message(JSON.stringify({ t: 'hello', name: 'Ana' }))
+  b.message(JSON.stringify({ t: 'hello', name: 'Sam' }))
+  a.message(JSON.stringify({ t: 'timer', ms: 60000 }))
+  a.leave()
+  t += 20000
+  const late = []
+  const c = room.join((m) => late.push(m))
+  c.message(JSON.stringify({ t: 'hello', name: 'Kim' }))
+  assert.deepEqual(late[0].timer, { left: 40000, by: 'Ana' })
+})

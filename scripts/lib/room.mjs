@@ -134,6 +134,10 @@ export function makeRoom({ newId = () => Math.random().toString(36).slice(2, 10)
         },
         leave() {
           if (!peers.delete(p.id)) return
+          // A timer still running goes on for the room: someone still here keeps it (each person's kept state is what
+          // a room is made again from), so a newcomer still gets what is left.
+          const heir = p.timer && p.timer.until > now() ? [...peers.values()].find((o) => !o.host) ?? [...peers.values()][0] : null
+          if (heir) heir.timer = p.timer
           if (p.host) tellHost()
           else if (p.here) others(p.id, { t: 'leave', id: p.id })
         },

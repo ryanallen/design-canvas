@@ -11,6 +11,28 @@
   const data = JSON.parse(document.getElementById('rc-data').textContent)
   const web = location.protocol === 'http:' || location.protocol === 'https:'
   let serve = !!data.serve && web
+  // This tab's own id, sent with every /api/ call to this site, so the server's Ctrl+Z takes back this person's
+  // changes alone and not someone else's made since.
+  const tabId = (() => {
+    const make = () => Math.random().toString(36).slice(2, 12)
+    try {
+      let t = sessionStorage.getItem('dc-tab')
+      if (!t) sessionStorage.setItem('dc-tab', (t = make()))
+      return t
+    } catch { return make() }
+  })()
+  {
+    const plain = window.fetch.bind(window)
+    window.fetch = (input, init = {}) => {
+      const url = typeof input === 'string' ? input : input?.url ?? ''
+      if (/^\/api\//.test(url.startsWith(location.origin) ? url.slice(location.origin.length) : url)) {
+        const headers = new Headers(init.headers || {})
+        headers.set('x-dc-client', tabId)
+        init = { ...init, headers }
+      }
+      return plain(input, init)
+    }
+  }
   let local = false
   // A visitor to a published copy in play mode: edits, but never locks or unlocks.
   let visitor = false
@@ -3367,6 +3389,7 @@
   $('#bar-right').prepend(peerBar)
   let roomSocket = null
   let helloName = ''
+  let roomId = ''
   let roomTries = 0
   let lastSent = 0
   let cursorTimer = 0
@@ -3401,6 +3424,7 @@
     if (m.t === 'answer') return answered(m)
     if (m.t === 'tell') return told(m)
     if (m.t === 'welcome') {
+      roomId = m.id
       // A name set while the room was still connecting was not sent: send it now.
       if ((me || 'Someone') !== helloName) roomSend({ t: 'name', name: me || 'Someone' })
       peers.clear()
@@ -3582,7 +3606,7 @@
   function told(m) {
     if (!remote) return
     const d = m.data ?? {}
-    if (m.event === 'file' && d.file) fileChanged(d.file, { quiet: true })
+    if (m.event === 'file' && d.file) { if (d.by !== `room-${roomId}`) fileChanged(d.file, { quiet: true }) }
     else if (m.event === 'lines') refresh()
     else if (m.event === 'board') refreshBoard()
     else if (m.event === 'sheet' && d.sheet) reloadSheet(d.sheet, d.text)
@@ -4974,7 +4998,12 @@
   if (serve) {
     try {
       const stream = new EventSource('/api/stream')
-      stream.addEventListener('file', (e) => fileChanged(JSON.parse(e.data).file))
+      // A file someone changed: one changed outside the canvas says so; another person's edit redraws quietly; this
+      // page's own is already drawn.
+      stream.addEventListener('file', (e) => {
+        const d = JSON.parse(e.data)
+        if (d.by !== tabId) fileChanged(d.file, { quiet: d.by != null })
+      })
       stream.addEventListener('lines', refresh)
       stream.addEventListener('board', refreshBoard)
       stream.addEventListener('sheet', (e) => { const { sheet, text } = JSON.parse(e.data); reloadSheet(sheet, text) })

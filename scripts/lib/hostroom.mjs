@@ -37,7 +37,8 @@ export function hostRoom({ room, ownerKey, base, log = () => {} }) {
       try {
         const res = await fetch(new URL(u.pathname + u.search, base), {
           method: m.method,
-          headers: { origin: base, 'content-type': 'application/json' },
+          // Each guest's own undo history: their room id stands for their page.
+          headers: { origin: base, 'content-type': 'application/json', 'x-dc-client': `room-${m.from}` },
           body: m.method === 'POST' ? (typeof m.body === 'string' ? m.body : '') : undefined,
         })
         status = res.status

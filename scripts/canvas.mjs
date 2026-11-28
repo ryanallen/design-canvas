@@ -420,9 +420,14 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
   // Each step holds the whole file before and after, so the history keeps the last 200 (as the board's does): a long
   // day of edits to large screens does not grow the server without end.
   const UNDO_STEPS = 200
-  const pushUndo = (step) => {
-    undo.push(step)
+  // Each step is tagged with who made it (the page's x-dc-client header, or a room guest's id), so Ctrl+Z takes back
+  // that person's own last change, as Figma's does, and not someone else's made since. A new change clears only that
+  // person's redo.
+  const whoOf = (req) => String(req.headers['x-dc-client'] ?? '').slice(0, 80)
+  const pushUndo = (step, who) => {
+    undo.push({ ...step, by: who })
     if (undo.length > UNDO_STEPS) undo.splice(0, undo.length - UNDO_STEPS)
+    for (let i = redo.length - 1; i >= 0; i--) if (redo[i].by === who) redo.splice(i, 1)
   }
   let selection = null
   const clients = new Set()
@@ -788,8 +793,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         }
         if (after === before) return json(res, 200, { sheet, text: payload.assets[sheet].text, same: true })
         writeFile(sheet, after)
-        pushUndo({ file: sheet, before, after, sheet: true })
-        redo.length = 0
+        pushUndo({ file: sheet, before, after, sheet: true }, whoOf(req))
         record({ op: 'decl', id: randomId('e'), at: new Date().toISOString(), name: String(name || 'someone').slice(0, 80), file: sheet, summary: `${selector} ${prop}: ${value === '' || value == null ? '(removed)' : value}`.slice(0, 600), sha: sha(after) })
         const text = sheetChanged(sheet, after)
         writeOut()
@@ -813,11 +817,10 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
             count += r.count ?? 0
           }
           if (!parts.length) return json(res, 200, { same: true, count: 0, files: {} })
-          pushUndo({ ...parts[0], also: parts.slice(1) })
-          redo.length = 0
+          pushUndo({ ...parts[0], also: parts.slice(1) }, whoOf(req))
           const elsewhere = parts.length > 1 ? ` (and on ${parts.length - 1} other screen${parts.length === 2 ? '' : 's'})` : ''
           record({ op: edit.op, id: randomId('e'), at: new Date().toISOString(), name: String(name || 'someone').slice(0, 80), file: parts[0].file, summary: `${summarize(parts[0].before, edit)}${elsewhere}`.slice(0, 600), sha: sha(parts[0].after) })
-          for (const p of parts) refresh(p.file)
+          for (const p of parts) { refresh(p.file); tell('file', { file: p.file, by: whoOf(req) }) }
           writeOut()
           return json(res, 200, { count, files: Object.fromEntries(parts.map((p) => [p.file, servedFile(p.file)])) })
         }
@@ -846,12 +849,13 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
             also.push({ file: other, before: was, after: r.src, count: r.count })
           }
         }
-        pushUndo({ file, before, after: result.src, also: also.map(({ file, before, after }) => ({ file, before, after })) })
-        redo.length = 0
+        pushUndo({ file, before, after: result.src, also: also.map(({ file, before, after }) => ({ file, before, after })) }, whoOf(req))
         const elsewhere = also.length ? ` (and on ${also.length} other screen${also.length === 1 ? '' : 's'})` : ''
         record({ op: edit.op, id: randomId('e'), at: new Date().toISOString(), name: String(name || 'someone').slice(0, 80), file, summary: `${summarize(before, edit)}${elsewhere}`.slice(0, 600), sha: sha(result.src) })
         refresh(file)
         for (const a of also) refresh(a.file)
+        // Every other page with the canvas open redraws what changed; the page that made the change skips its own.
+        for (const f of [file, ...also.map((a) => a.file)]) tell('file', { file: f, by: whoOf(req) })
         writeOut()
         return json(res, 200, { select: result.select, linked: (result.linked ?? 0) + also.reduce((n, a) => n + a.count, 0), screens: also.length, count: result.count, html: servedFile(file), others: Object.fromEntries(also.map((a) => [a.file, servedFile(a.file)])) })
       }
@@ -859,8 +863,12 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         const { name } = await readBody(req)
         const from = url.pathname === '/api/undo' ? undo : redo
         const to = url.pathname === '/api/undo' ? redo : undo
-        const step = from.pop()
-        if (!step) return json(res, 200, { none: true })
+        // This person's own last step, wherever it is in the history.
+        const who = whoOf(req)
+        let at = -1
+        for (let i = from.length - 1; i >= 0 && at < 0; i--) if (from[i].by === who) at = i
+        if (at < 0) return json(res, 200, { none: true })
+        const [step] = from.splice(at, 1)
         const back = url.pathname === '/api/undo'
         // Every file the step changed (a component's copies on other screens too) is worked out before any is
         // written. A file changed outside since (an agent wrote another part of it) has the step's own change undone
@@ -870,7 +878,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         const next = parts.map((p) => rebase(readFile(p.file), back ? p.after : p.before, back ? p.before : p.after))
         const stuck = parts.find((p, i) => next[i] == null)
         if (stuck) {
-          from.push(step)
+          from.splice(at, 0, step)
           return json(res, 409, { error: `${stuck.file} changed outside the canvas where this was made; nothing was ${back ? 'undone' : 'redone'}` })
         }
         const was = readFile(step.file)
@@ -895,7 +903,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
           writeOut()
           return json(res, 200, { sheet: step.file, text })
         }
-        for (const p of parts) refresh(p.file)
+        for (const p of parts) { refresh(p.file); tell('file', { file: p.file, by: who }) }
         writeOut()
         return json(res, 200, { file: step.file, cv: changedAt, html: servedFile(step.file), others: Object.fromEntries((step.also ?? []).map((p) => [p.file, servedFile(p.file)])) })
       }

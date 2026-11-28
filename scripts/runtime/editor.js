@@ -2057,7 +2057,15 @@
     }
     // A list selected whole is not text, but the List button is how it becomes numbers or a paragraph again.
     if (!text && canEdit && ['ul', 'ol'].includes(el.localName)) parts.push(h('button', { type: 'button', class: 'fbtn', title: 'List', 'aria-label': el.localName === 'ul' ? 'List: make it numbered' : 'List: make it a paragraph', onclick: list }, el.localName === 'ul' ? '1.' : '¶'))
-    if (boxy && canEdit) {
+    // An icon: its own color (for shapes drawn in currentColor) and its shapes' fill, as Properties' Vector, in place of
+    // a box's fill, corners and padding, which an icon does not show.
+    const icon = sel.els.length === 1 && el.localName === 'svg'
+    if (icon && canEdit) {
+      parts.push(colorButton('Icon color', 'color', shared('color'), (v) => setStyle({ color: v })))
+      const filled = [...el.querySelectorAll('path, circle, ellipse, rect, line, polyline, polygon, text, use')].filter((x) => cvOf(x) != null && !['none', ''].includes(cs(x).fill) && !/^url\(/.test(cs(x).fill))
+      if (filled.length) parts.push(colorButton('Fill of its shapes', 'fill', cs(filled[0]).fill, (v) => send({ op: 'styles', items: filled.map((x) => ({ cv: cvOf(x), props: { fill: v } })) }, { then: reselect() }), () => filled))
+    }
+    if (boxy && canEdit && !icon) {
       if (text) parts.push(h('span', { class: 'sep' }))
       const d = shared('display')
       // A group with no box of its own (display: contents) draws no fill, corners or padding: only its layout is offered.

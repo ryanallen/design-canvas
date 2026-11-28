@@ -10,9 +10,10 @@ test('the invite key is the same for one owner key and room, and differs for ano
   assert.match(inviteKey('k1', room), /^[A-Za-z0-9_-]{24}$/)
 })
 
-test('a guest may edit, comment and draw, but not make files, take pictures, fetch fonts or reach the agent', () => {
+test('a guest may edit, comment, draw and export pictures, but not make files, fetch fonts or reach the agent', () => {
   for (const p of ['/api/edit', '/api/undo', '/api/board', '/api/canvas-comments']) assert.ok(GUEST_CALLS.POST.includes(p), p)
-  for (const p of ['/api/artboard', '/api/png', '/api/pdf', '/api/font', '/api/agent', '/api/selection', '/api/canvas', '/api/image', '/api/refresh']) {
+  for (const p of ['/api/png', '/api/pdf', '/api/board-png']) assert.ok(GUEST_CALLS.GET.includes(p) && !GUEST_CALLS.POST.includes(p), p)
+  for (const p of ['/api/artboard', '/api/font', '/api/agent', '/api/selection', '/api/canvas', '/api/image', '/api/refresh']) {
     assert.ok(!GUEST_CALLS.POST.includes(p) && !GUEST_CALLS.GET.includes(p), p)
   }
 })

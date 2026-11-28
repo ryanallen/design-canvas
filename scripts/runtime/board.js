@@ -3733,12 +3733,15 @@
   function roomCall(method, path, body) {
     return new Promise((resolve) => {
       const n = ++callN
-      const done = (status, text) => {
+      // A picture or a PDF comes as base64 with its type: made into bytes again here.
+      const done = (status, text, type) => {
         clearTimeout(c.timer)
         calls.delete(n)
-        resolve(new Response(text, { status, headers: { 'content-type': 'application/json' } }))
+        const bytes = type ? Uint8Array.from(atob(text), (ch) => ch.charCodeAt(0)) : null
+        resolve(new Response(bytes ?? text, { status, headers: { 'content-type': type || 'application/json' } }))
       }
-      const c = { parts: [], done, timer: setTimeout(() => done(504, JSON.stringify({ error: "The owner's canvas didn't answer in time." })), 30000) }
+      // A picture takes the owner's browser a while to make.
+      const c = { parts: [], done, timer: setTimeout(() => done(504, JSON.stringify({ error: "The owner's canvas didn't answer in time." })), /png|pdf/.test(path) ? 90000 : 30000) }
       calls.set(n, c)
       if (roomSocket?.readyState !== 1) return done(503, JSON.stringify({ error: 'Not connected to the room right now. Trying again.' }))
       roomSocket.send(JSON.stringify({ t: 'call', n, method, path, body: typeof body === 'string' ? body : null }))
@@ -3749,7 +3752,8 @@
     if (!c) return
     c.parts[m.part ?? 0] = m.body ?? ''
     const of = m.of ?? 1
-    if (c.parts.filter((x) => x != null).length === of) c.done(m.status, c.parts.join(''))
+    if (m.type) c.type = m.type
+    if (c.parts.filter((x) => x != null).length === of) c.done(m.status, c.parts.join(''), c.type)
   }
   function told(m) {
     if (!remote) return

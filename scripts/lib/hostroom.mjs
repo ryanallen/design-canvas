@@ -5,10 +5,10 @@
 // (a file changed, new lines, the board) goes to the room too.
 import { createHmac } from 'node:crypto'
 
-/** The calls a guest may make, by method. Not: making files or screens, pictures of screens, fonts fetched from the
- *  web, the agent's endpoints, or the whole canvas. */
+/** The calls a guest may make, by method. Not: making files or screens, fonts fetched from the web, the agent's
+ *  endpoints, or the whole canvas. Pictures and PDFs of screens and of the board, as an editor in Figma exports. */
 export const GUEST_CALLS = {
-  GET: ['/api/file', '/api/board', '/api/canvas-comments', '/api/history', '/api/source'],
+  GET: ['/api/file', '/api/board', '/api/canvas-comments', '/api/history', '/api/source', '/api/png', '/api/pdf', '/api/board-png'],
   POST: ['/api/edit', '/api/undo', '/api/redo', '/api/board', '/api/canvas-comments', '/api/sheet'],
 }
 // An answer's body in parts of this many characters: well under the 1 MB a Cloudflare WebSocket message may be,
@@ -31,6 +31,8 @@ export function hostRoom({ room, ownerKey, base, log = () => {} }) {
   async function answer(m) {
     let status = 403
     let body = JSON.stringify({ error: "That isn't something a guest can do." })
+    // A picture or a PDF goes as base64 with its type, the guest's page making bytes of it again.
+    let type = null
     let u = null
     try { u = new URL(String(m.path ?? ''), base) } catch {}
     if (u && u.origin === new URL(base).origin && GUEST_CALLS[m.method]?.includes(u.pathname)) {
@@ -42,14 +44,18 @@ export function hostRoom({ room, ownerKey, base, log = () => {} }) {
           body: m.method === 'POST' ? (typeof m.body === 'string' ? m.body : '') : undefined,
         })
         status = res.status
-        body = await res.text()
+        const kind = res.headers.get('content-type') ?? ''
+        if (/^(image\/|application\/pdf)/.test(kind)) {
+          type = kind
+          body = Buffer.from(await res.arrayBuffer()).toString('base64')
+        } else body = await res.text()
       } catch (err) {
         status = 502
         body = JSON.stringify({ error: err.message })
       }
     }
     const of = Math.max(1, Math.ceil(body.length / PART))
-    for (let i = 0; i < of; i++) send({ t: 'answer', to: m.from, n: m.n, status, part: i, of, body: body.slice(i * PART, (i + 1) * PART) })
+    for (let i = 0; i < of; i++) send({ t: 'answer', to: m.from, n: m.n, status, part: i, of, body: body.slice(i * PART, (i + 1) * PART), ...(type ? { type } : {}) })
   }
   function connect() {
     if (closed) return

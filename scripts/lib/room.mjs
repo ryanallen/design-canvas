@@ -37,7 +37,7 @@ export function makeRoom({ newId = () => Math.random().toString(36).slice(2, 10)
   const tellHost = () => {
     for (const p of peers.values()) if (p.here && !p.host) p.send({ t: 'host', on: !!hostNow(), edit: mayEdit(p) })
   }
-  const shown = (p) => ({ id: p.id, name: p.name, color: p.color, ...(p.cursor ? { cursor: p.cursor } : {}), ...(p.sel ? { sel: p.sel } : {}), ...(p.spotlight ? { spotlight: true } : {}) })
+  const shown = (p) => ({ id: p.id, name: p.name, color: p.color, ...(p.cursor ? { cursor: p.cursor } : {}), ...(p.sel ? { sel: p.sel } : {}), ...(p.spotlight ? { spotlight: true } : {}), ...(p.chat ? { chat: p.chat } : {}) })
   return {
     get size() { return peers.size },
     join(send, state = null) {
@@ -50,7 +50,7 @@ export function makeRoom({ newId = () => Math.random().toString(36).slice(2, 10)
       let calls = []
       return {
         id: p.id,
-        get state() { return { id: p.id, name: p.name, color: p.color, cursor: p.cursor, sel: p.sel ?? null, spotlight: !!p.spotlight, timer: p.timer ?? null, here: p.here, host: !!p.host, key: p.key ?? '', editKey: p.editKey ?? '' } },
+        get state() { return { id: p.id, name: p.name, color: p.color, cursor: p.cursor, sel: p.sel ?? null, spotlight: !!p.spotlight, timer: p.timer ?? null, chat: p.chat ?? '', here: p.here, host: !!p.host, key: p.key ?? '', editKey: p.editKey ?? '' } },
         message(text) {
           if (typeof text !== 'string' || text.length > MAX_MESSAGE) return
           let m
@@ -115,7 +115,8 @@ export function makeRoom({ newId = () => Math.random().toString(36).slice(2, 10)
             others(p.id, { t: 'spotlight', id: p.id, on: p.spotlight })
           } else if (m.t === 'chat') {
             // Cursor chat, as Figma's: a few words shown by their pointer while they type them (empty takes it away).
-            others(p.id, { t: 'chat', id: p.id, text: clean(m.text, 100) })
+            p.chat = clean(m.text, 100)
+            others(p.id, { t: 'chat', id: p.id, text: p.chat })
           } else if (m.t === 'sel') {
             // What they have selected, as boxes on the board (at most 50), for others to outline in their color.
             const page = clean(m.page, 240)

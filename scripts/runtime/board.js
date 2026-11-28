@@ -3425,8 +3425,11 @@
     if (m.t === 'tell') return told(m)
     if (m.t === 'welcome') {
       roomId = m.id
-      // A name set while the room was still connecting was not sent: send it now.
+      // A name set while the room was still connecting was not sent: send it now; so too where this pointer is and
+      // what is selected, for anyone here or coming in.
       if ((me || 'Someone') !== helloName) roomSend({ t: 'name', name: me || 'Someone' })
+      if (pendingCursor) roomSend({ t: 'cursor', ...pendingCursor })
+      selSent = ''
       peers.clear()
       for (const p of m.peers ?? []) peers.set(p.id, p)
       if (m.timer) setTimer(m.timer.left, m.timer.by)
@@ -3500,7 +3503,7 @@
       let el = peerLayer.querySelector(`[data-peer="${p.id}"]`)
       if (!el) {
         el = h('div', { class: 'peer-cursor', 'data-peer': p.id, style: `--c:${p.color}` }, h('span', { class: 'peer-name' }), h('span', { class: 'peer-chat', hidden: !p.chat }, p.chat ?? ''))
-        el.insertAdjacentHTML('afterbegin', '<svg viewBox="0 0 16 20" width="16" height="20"><path d="M1 1 L1 16 L5 12.5 L8 19 L10.5 18 L7.6 11.6 L13 11.6 Z" fill="var(--c)" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>')
+        el.insertAdjacentHTML('afterbegin', '<svg viewBox="0 0 16 20" width="16" height="20"><path d="M1 1 L1 16 L5 12.5 L8 19 L10.5 18 L7.6 11.6 L13 11.6 Z" style="fill: var(--c)" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>')
         peerLayer.append(el)
       }
       el.querySelector('.peer-name').textContent = p.name
@@ -3664,7 +3667,6 @@
   let chatTimer = 0
   let chatClear = 0
   function openChat() {
-    if (!peers.size) return hint('Cursor chat shows to others once someone else has the canvas open.', 2400)
     if (chatBox) return chatBox.querySelector('input').focus()
     clearTimeout(chatClear)
     const input = h('input', { type: 'text', maxlength: '100', placeholder: 'Say something', 'aria-label': 'Cursor chat' })

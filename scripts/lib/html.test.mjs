@@ -207,7 +207,7 @@ test('duplicate then delete gives back the file, on a shared line and with CRLF'
 })
 
 test('an edit at an offset that is not an element is refused', () => {
-  assert.throws(() => applyEdit(fixture, { op: 'style', cv: 3, props: { color: 'red' } }), /no element at 3/)
+  assert.throws(() => applyEdit(fixture, { op: 'style', cv: 3, props: { color: 'red' } }), /isn't there any more/)
 })
 
 test('a locked element and what holds it are refused; around it, editing goes on', () => {

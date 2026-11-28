@@ -473,7 +473,7 @@ function applyOne(src, edit) {
   const { byStart } = parse(src)
   const get = (cv) => {
     const el = byStart.get(Number(cv))
-    if (!el) throw new Error(`no element at ${cv}; the file changed, reload the frame`)
+    if (!el) throw new Error(`That element isn't there any more because the file changed. Reload the screen.`)
     return el
   }
   if (RESHAPES.has(edit.op)) {

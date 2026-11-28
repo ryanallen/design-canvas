@@ -665,7 +665,7 @@
   }
   async function pngOf() {
     if (!dc.serve || dc.local) {
-      hint('A picture is made by node: serve the folder (node scripts/canvas.mjs serve <folder>)', 5000)
+      hint('To make a picture, run the canvas from its folder with node scripts/canvas.mjs serve <folder>', 5000)
       return null
     }
     const el = primary()
@@ -989,7 +989,7 @@
         dc.reloadFile(frame.file, held)
         if (changed) {
           navigator.clipboard?.writeText(words).catch(() => {})
-          hint(`That line was changed outside the canvas while you typed, so your words were not written over it: they are copied, to paste where they belong`, 6000)
+          hint(`That line was changed somewhere else while you were typing, so your words weren't saved over it. They're copied, ready to paste where they belong.`, 6000)
         }
         return
       }
@@ -1195,9 +1195,9 @@
     group: (style, name) => {
       if (!needEditable()) return
       // The page itself is never wrapped (Ctrl+G, or Shift+A on the whole screen): said here, before anything is sent.
-      if (sel.els.some((x) => x.localName === 'body')) return hint('The whole screen cannot be wrapped: select parts of it', 2500)
+      if (sel.els.some((x) => x.localName === 'body')) return hint('You can\'t wrap a whole screen. Select parts of it first.', 2500)
       const parent = primary().parentElement
-      if (!sel.els.every((x) => x.parentElement === parent)) return hint('Only elements side by side in one parent group together', 3000)
+      if (!sel.els.every((x) => x.parentElement === parent)) return hint('Only elements next to each other in the same parent can be grouped.', 3000)
       // As in Figma, grouping moves nothing: in a grid or flex row a plain box would take one cell or item for all
       // of them, so there the group has no box of its own and its parts keep their places.
       const laid = /flex|grid/.test(cs(parent).display)
@@ -1207,7 +1207,7 @@
       if (!needEditable()) return
       if (sel.els.length !== 1 || !primary().children.length) return hint('Select one element that holds others to ungroup it', 2500)
       // The page itself is never taken apart: said here, before anything is sent.
-      if (primary().localName === 'body') return hint('The whole screen cannot be ungrouped: select a part of it', 2500)
+      if (primary().localName === 'body') return hint('You can\'t ungroup a whole screen. Select a part of it first.', 2500)
       send({ op: 'unwrap', cv: cvOf(primary()) })
     },
     makeComponent: async () => {
@@ -1259,9 +1259,9 @@
       const made = pngOf()
       try {
         navigator.clipboard.write([new ClipboardItem({ 'image/png': made.then((b) => b ?? Promise.reject(new Error('no picture'))) })])
-          .then(() => hint('Copied as PNG', 1200), () => made.then((b) => b && hint('This browser would not take a picture onto the clipboard: Export PNG under … saves it', 5000)))
+          .then(() => hint('Copied as PNG', 1200), () => made.then((b) => b && hint('This browser won\'t copy pictures. Use Export PNG in the … menu to save it instead.', 5000)))
       } catch {
-        hint('This browser would not take a picture onto the clipboard: Export PNG under … saves it', 5000)
+        hint('This browser won\'t copy pictures. Use Export PNG in the … menu to save it instead.', 5000)
       }
     },
     exportPng: async () => {
@@ -1279,7 +1279,7 @@
     // The screen the selection is on as a PDF, one page as tall as it, its words kept as type.
     exportPdf: async () => {
       if (!sel) return
-      if (!dc.serve || dc.local) return hint('A PDF is made by node: serve the folder (node scripts/canvas.mjs serve <folder>)', 5000)
+      if (!dc.serve || dc.local) return hint('To make a PDF, run the canvas from its folder with node scripts/canvas.mjs serve <folder>', 5000)
       const f = sel.frame
       const name = String(f.label || f.file).replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'screen'
       hint('Making the PDF…', 8000)
@@ -1423,7 +1423,7 @@
         for (const it of items) Object.assign(sel.els.find((x) => cvOf(x) === it.cv).style, it.props)
         return send({ op: 'styles', items }, { then: reselect() })
       }
-      if (!alt) return hint('In flow it moves by its order: hold Alt to move it one place', 2000)
+      if (!alt) return hint('This one sits in the page flow. Hold Alt with an arrow key to move it one place.', 2000)
       const prev = dx < 0 || dy < 0
       const sib = prev ? el.previousElementSibling : el.nextElementSibling
       if (!sib || cvOf(sib) == null) return
@@ -1548,8 +1548,8 @@
     else if (mod && e.shiftKey && k === 'h') setHidden(sel.frame, sel.els, sel.els.some((x) => cs(x).display !== 'none'))
     // Figma's Lock (Ctrl+Shift+L): the owner locks the selected part, or unlocks it, as the toolbar's padlock does.
     else if (mod && e.shiftKey && k === 'l') {
-      if (!dc.owner) hint('Only the owner locks', 1600)
-      else if (sel.els.length !== 1 || cvOf(el) == null || fileLocked(sel.frame.file) || (!el.hasAttribute('data-locked') && el.parentElement?.closest('[data-locked]'))) hint('Select one part that is not inside a locked one', 2000)
+      if (!dc.owner) hint('Only the owner can lock things.', 1600)
+      else if (sel.els.length !== 1 || cvOf(el) == null || fileLocked(sel.frame.file) || (!el.hasAttribute('data-locked') && el.parentElement?.closest('[data-locked]'))) hint('Select one part that isn\'t inside a locked one.', 2000)
       else send({ op: 'attr', cv: cvOf(el), name: 'data-locked', value: el.hasAttribute('data-locked') ? null : 'true' })
     }
     // The whole screen selected (its label clicked): Ctrl+D copies the screen, as Figma duplicates a frame.
@@ -2074,7 +2074,7 @@
     const href = await dc.question(message, value)
     if (href == null) return null
     if (/^(javascript|vbscript|data):/i.test(href.replace(/[\u0000-\u0020]/g, ''))) {
-      hint('That address runs script; a link takes a web address, a #place, mailto: or tel:', 3500)
+      hint('That address would run a script. A link can be a web address, a #place on the page, mailto: or tel:.', 3500)
       return null
     }
     return href.trim()
@@ -2139,7 +2139,7 @@
         const url = `${location.origin}${location.pathname}#page=${encodeURIComponent(dc.page)}&screen=${encodeURIComponent(sel.frame.key)}`
         try {
           await navigator.clipboard.writeText(url)
-          hint('Link copied: it opens the canvas on this screen', 1800)
+          hint('Link copied. It opens the canvas on this screen.', 1800)
         } catch {
           hint(url, 8000)
         }

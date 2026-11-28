@@ -2333,7 +2333,7 @@
     const moving = along.items.map((x) => board.items.find((i) => i.id === x)).filter((i) => i && i.kind !== 'guide' && !isLocked(i.id) && !i.from && !i.to)
     const frameList = along.frames.map((k) => allFrames.get(k)).filter((f) => f && !isLocked(f.key))
     if (!moving.length && !frameList.length) {
-      if (along.items.some(isLocked) || along.frames.some(isLocked)) hint('Locked by its owner: it stays where it is', 1800)
+      if (along.items.some(isLocked) || along.frames.some(isLocked)) hint('Its owner locked this, so it stays where it is.', 1800)
       return true
     }
     for (const m of moving) Object.assign(m, { x: m.x + dx, y: m.y + dy })
@@ -2537,7 +2537,7 @@
       return
     }
     if (kind === 'guide') {
-      if (!f) return hint('Click a frame to lay a 12-column guide over it.')
+      if (!f) return hint('Click a screen to put a 12-column guide over it.')
       addItem({ kind: 'guide', frame: f.key, x: f.x, y: f.y, cols: 12, gutter: 24, margin: 80 }).then((id) => {
         setTool('select')
         if (id) pickItem(id)
@@ -2683,7 +2683,7 @@
   }
   /** Why a board change may not be made, or null. */
   function lockedReason(input) {
-    if (input.op === 'lock') return owner() ? null : 'Only the owner locks and unlocks'
+    if (input.op === 'lock') return owner() ? null : 'Only the owner can lock and unlock things.'
     if ((input.op === 'item' || input.op === 'remove') && isLocked(input.id)) return LOCKED
     if (input.op === 'move' && isLocked(input.key)) return LOCKED
     if (owner()) return null
@@ -3066,7 +3066,7 @@
   let api = serve ? '/api/canvas-comments' : data.comments || (web ? '/api/canvas-comments' : null)
   const crossSite = () => /^https?:/.test(api) && new URL(api).origin !== location.origin
   const withCredentials = () => (crossSite() ? { credentials: 'include', mode: 'cors' } : {})
-  const readOnly = 'Opened from disk, so it only shows until editing is on. Click Edit here (Chrome or Edge) and allow the folder it is in.'
+  const readOnly = 'This was opened from disk, so it\'s view-only for now. To edit, click Edit here (in Chrome or Edge) and allow its folder.'
   let events = []
   let threads = []
   let commentDraft = null
@@ -3934,8 +3934,8 @@
       serve ? { label: 'Templates…', run: () => setTimeout(() => templateMenu($('#title-btn')), 0) } : null,
       // Which element a click in a prototype picks: the one under the pointer, or the outermost block (as Figma), a
       // click inside the selection then going one level in. Kept in this browser.
-      { label: `Clicks pick the line${store.get('clickDepth') === 'outer' ? '' : '  ✓'}`, run: () => { store.set('clickDepth', 'inner'); hint('A click picks what is under the pointer; Esc climbs out', 2200) } },
-      { label: `Clicks pick the card${store.get('clickDepth') === 'outer' ? '  ✓' : ''}`, run: () => { store.set('clickDepth', 'outer'); hint('A click picks the outermost block, as in Figma; click inside it to go in', 2600) } },
+      { label: `Clicks pick the line${store.get('clickDepth') === 'outer' ? '' : '  ✓'}`, run: () => { store.set('clickDepth', 'inner'); hint('A click now selects exactly what you click. Press Esc to select what holds it.', 2200) } },
+      { label: `Clicks pick the card${store.get('clickDepth') === 'outer' ? '  ✓' : ''}`, run: () => { store.set('clickDepth', 'outer'); hint('A click now selects the whole block, as in Figma. Click inside it again to go deeper.', 2600) } },
       { label: 'Keyboard shortcuts', key: 'Shift+?', run: openKeys },
       window.designCanvas?.startOver ? { label: 'Start over', run: () => window.designCanvas.startOver() } : null,
       serve && !data.memory && !local ? { label: 'Refresh from the prototypes', run: rebuild } : null,
@@ -4251,7 +4251,7 @@
       const keys = chosen ? [...chosen.items, ...chosen.frames] : picked ? withGroup(picked) : []
       if (keys.length) {
         e.preventDefault()
-        if (!owner()) return hint('Only the owner locks', 1600)
+        if (!owner()) return hint('Only the owner can lock things.', 1600)
         return setLock(keys, !keys.every(isLocked))
       }
     }

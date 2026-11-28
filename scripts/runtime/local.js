@@ -83,7 +83,7 @@
     try {
       localStorage.setItem(keepKey, JSON.stringify(kept))
     } catch {
-      if (!full) dc.hint('This browser has no room to keep more changes: they last until the page is closed', 5000)
+      if (!full) dc.hint('This browser is out of room for saved changes. New ones will last until you close the page.', 5000)
       full = true
     }
   }
@@ -251,7 +251,7 @@
         }
         const event = makeBoardEvent(body.event)
         const held = locks()
-        if (play && event.op === 'lock') return answer(403, { error: 'Only the owner locks and unlocks' })
+        if (play && event.op === 'lock') return answer(403, { error: 'Only the owner can lock and unlock things.' })
         if (held.includes(event.op === 'move' ? event.key : event.id) && ['item', 'remove', 'move'].includes(event.op)) return answer(403, { error: 'That is locked' })
         lines.push(lineOf(event, 'board'))
         await writeCanvas()
@@ -296,7 +296,7 @@
         const now = play ? raw.get(step.file) : await readText(step.file)
         if (now !== (back ? step.after : step.before)) {
           ;(back ? undo : redo).push(step)
-          return answer(409, { error: `${step.file} changed outside the canvas since; nothing was undone` })
+          return answer(409, { error: `${step.file} has changed somewhere else since then, so nothing was undone.` })
         }
         const want = back ? step.before : step.after
         raw.set(step.file, want)
@@ -319,11 +319,11 @@
       case '/api/canvas':
         return new Response(canvasText, { headers: { 'content-type': 'text/html' } })
       case '/api/refresh':
-        return answer(409, { error: 'Rebuilding lays the prototypes out again, which needs node: node scripts/canvas.mjs build <folder>' })
+        return answer(409, { error: 'Rebuilding lays the prototypes out again, which needs node. Run node scripts/canvas.mjs build <folder>.' })
       case '/api/image': {
         // A picture dropped or pasted, saved into the folder's images/, as the server does: known kinds by their
         // bytes, the same picture again the file already there, another of the same name numbered.
-        if (play) return answer(409, { error: 'A picture is saved into the folder, so it needs the folder: download the canvas and open it with Edit here' })
+        if (play) return answer(409, { error: 'A picture is saved into the folder, so this needs the folder. Download the canvas and open it with Edit here.' })
         const bytes = new Uint8Array(await init.body.arrayBuffer())
         if (bytes.length > 15_000_000) return answer(413, { error: 'the picture is larger than 15 MB' })
         const str = (a, b) => String.fromCharCode(...bytes.subarray(a, b))
@@ -426,14 +426,14 @@
     try {
       canvasText = await readText(canvasName)
     } catch {
-      throw new Error(`There is no ${canvasName} in that folder: pick the folder this canvas is in.`)
+      throw new Error(`There's no ${canvasName} in that folder. Pick the folder this canvas is in.`)
     }
     for (const file of Object.keys(data.files)) {
       try {
         raw.set(file, await readText(file))
         seen.set(file, (await (await fileHandle(file)).getFile()).lastModified)
       } catch {
-        throw new Error(`${file} is not in that folder: pick the folder this canvas is in.`)
+        throw new Error(`${file} isn't in that folder. Pick the folder this canvas is in.`)
       }
     }
     lines = storedLines(canvasText)
@@ -508,7 +508,7 @@
       if (!handle) handle = await window.showDirectoryPicker({ id: 'design-canvas', mode: 'readwrite', startIn: 'desktop' })
       await useFolder(handle)
       await remember(handle)
-      dc.hint(`Editing ${handle.name}: changes are saved into its files`, 2600)
+      dc.hint(`Editing ${handle.name}. Changes are saved into its files.`, 2600)
     } catch (err) {
       if (err?.name !== 'AbortError') dc.hint(err.message, 5000)
     }

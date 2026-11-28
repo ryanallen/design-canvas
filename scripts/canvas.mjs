@@ -615,7 +615,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         return res.end(memory ? renderPage(payload, lines, folder) : canvasText)
       }
       if (url.pathname === '/api/refresh' && req.method === 'POST') {
-        if (memory) return json(res, 409, { error: 'a canvas held in memory cannot be rebuilt' })
+        if (memory) return json(res, 409, { error: 'This canvas is held in memory, so it can\'t be rebuilt.' })
         await rebuild()
         return json(res, 200, { ok: true })
       }
@@ -625,7 +625,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         // Or copies of prototypes on the board (Ctrl+D on screens): each file copied whole to <name>-copy.html, the
         // next free name, and placed where asked.
         if (Array.isArray(body.copies)) {
-          if (memory) return json(res, 409, { error: 'a canvas held in memory makes no files' })
+          if (memory) return json(res, 409, { error: 'This canvas is held in memory, so it can\'t make new files.' })
           const made = []
           for (const c of body.copies.slice(0, 20)) {
             const from = String(c?.from ?? '')
@@ -650,7 +650,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         const w = Math.max(240, Math.min(3840, Math.round(Number(body.w) || WIDTH)))
         const title = String(body.name).trim().slice(0, 120)
         const html = `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>${esc(title)}</title>\n${w === WIDTH ? '' : `<meta name="canvas-width" content="${w}">\n`}<style>\n  body { margin: 0; font-family: system-ui, sans-serif; }\n</style>\n</head>\n<body>\n<main style="min-height: ${Math.max(240, Math.round(Number(body.h) || 900))}px">\n</main>\n</body>\n</html>\n`
-        if (memory) return json(res, 409, { error: 'a canvas held in memory makes no files' })
+        if (memory) return json(res, 409, { error: 'This canvas is held in memory, so it can\'t make new files.' })
         writeFileAtomic(path.join(folder, file), html)
         const event = makeBoardEvent({ op: 'move', key: file, x: Number(body.x) || 0, y: Number(body.y) || 0, page: body.page, name: body.by })
         lines.push(insertEvent('', event, 'board').trim())
@@ -677,7 +677,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
       // show by its path there. The same picture dropped again is the file already there; another of the same name
       // takes a number. Only PNG, JPEG, GIF, WebP and AVIF, by their bytes: an SVG can carry script.
       if (url.pathname === '/api/image' && req.method === 'POST') {
-        if (memory) return json(res, 409, { error: 'a canvas held in memory makes no files' })
+        if (memory) return json(res, 409, { error: 'This canvas is held in memory, so it can\'t make new files.' })
         const bytes = await readBytes(req, 15_000_000)
         const ext = Object.keys(PICTURES).find((k) => PICTURES[k](bytes))
         if (!ext) return json(res, 415, { error: 'a PNG, JPEG, GIF, WebP or AVIF picture' })
@@ -712,7 +712,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
           if (scheme === 'dark' || scheme === 'light') await page.emulateMedia({ colorScheme: scheme })
           await page.evaluate(() => document.fonts?.ready)
           const el = cv != null && cv !== '' ? await page.$(`[data-cv="${Number(cv)}"]`) : null
-          if (cv != null && cv !== '' && !el) return json(res, 404, { error: 'that element is not in the file as it is now' })
+          if (cv != null && cv !== '' && !el) return json(res, 404, { error: 'That element isn\'t in the file any more.' })
           const png = el ? await el.screenshot({ type: 'png' }) : await page.screenshot({ type: 'png', fullPage: true })
           res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'no-store' })
           return res.end(png)
@@ -752,7 +752,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
       if (url.pathname === '/api/font' && req.method === 'POST') {
         const { file, family } = await readBody(req)
         if (!onCanvas(file)) return json(res, 404, { error: `${file} is not on this canvas` })
-        if (memory) return json(res, 409, { error: 'a canvas held in memory makes no files' })
+        if (memory) return json(res, 409, { error: 'This canvas is held in memory, so it can\'t make new files.' })
         try {
           const { sheet, fetched } = await fetchWebFont(folder, String(family))
           return json(res, 200, { href: path.posix.relative(path.posix.dirname(file), sheet), value: familyValue(String(family)), fetched })
@@ -809,7 +809,7 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
         }
         if (!onCanvas(file)) return json(res, 404, { error: `${file} is not on this canvas` })
         const before = readFile(file)
-        if (v && v !== sha(before)) return json(res, 409, { error: `${file} changed outside the canvas just before this; it is drawn again as it is now, so do it once more` })
+        if (v && v !== sha(before)) return json(res, 409, { error: `${file} changed somewhere else just before this. It's shown as it is now, so please do that again.` })
         const frameLocked = foldBoard(lines.flatMap((l) => parseLines(l, 'board'))).locked.some((k) => k === file || k.startsWith(`${file}#`))
         const refused = frameLocked ? 'This artboard is locked: unlock it on the board first' : lockedFor(before, edit, { owner: true })
         if (refused) return json(res, 403, { error: refused })

@@ -180,7 +180,7 @@ After an outside write, Ctrl+Z and Ctrl+Shift+Z undo or redo the edit where it n
 
 ## Commenting in Play
 
-Play shows a screen at full size. ← and → step through the page's screens. R starts over from the screen it was opened on, as that screen first was.
+Play shows a screen at full size. ← and → step through the page's screens. R starts over from the screen it was opened on, as that screen first was. A prototype's own Back button (`history.back()`) goes back to the screen played before it, as Figma's Navigate back does. It never takes the browser tab off the canvas, in Play or on the board.
 
 A click on something that does nothing briefly lights up everything on the screen that does something, such as links, buttons and fields. This is how a Figma prototype shows its hotspots.
 

@@ -156,8 +156,10 @@
     const cut = f.crop ? `<script>addEventListener('DOMContentLoaded',()=>(${data.crop})(${JSON.stringify(f.crop)}))</script>` : ''
     // Nor can it take an address in history.replaceState or pushState (a prototype keeping its state in a #), which
     // throws there and stops the prototype's handler half way; the state is kept and the address left as it is, and
-    // pushState replaces, so a screen adds nothing to the canvas tab's Back. First in <head>, before its own scripts.
-    const hist = `<script>{const h=History.prototype,r=h.replaceState;h.replaceState=function(s,t,u){try{return r.call(this,s,t,u)}catch(e){return r.call(this,s,t)}};h.pushState=function(s,t,u){return h.replaceState.call(this,s,t,u)}}</script>`
+    // pushState replaces, so a screen adds nothing to the canvas tab's Back. Its own Back (history.back, or go with a
+    // step back) would take the canvas tab back, off the canvas: it is asked of the canvas instead, which in Play goes
+    // back to the screen played before, as Figma's Navigate back. First in <head>, before its own scripts.
+    const hist = `<script>{const h=History.prototype,r=h.replaceState;h.replaceState=function(s,t,u){try{return r.call(this,s,t,u)}catch(e){return r.call(this,s,t)}};h.pushState=function(s,t,u){return h.replaceState.call(this,s,t,u)};h.back=function(){parent.postMessage({dc:'back'},'*')};const g=h.go;h.go=function(n){if(n<0)parent.postMessage({dc:'back'},'*');else if(!n)g.call(this,0)};h.forward=function(){}}</script>`
     const top = html.match(/<head\b[^>]*>/i)
     const withHist = top ? html.slice(0, top.index + top[0].length) + hist + html.slice(top.index + top[0].length) : html
     const at = withHist.search(/<\/head>/i)
@@ -4111,8 +4113,11 @@
   let playWidth = 'fill'
   // The screen Play was opened on, where R starts over.
   let playStart = null
-  function openPlay(f, width) {
-    if (!play.classList.contains('open')) playStart = f
+  // The screens played before this one, for a prototype's own Back.
+  let playTrail = []
+  function openPlay(f, width, back = false) {
+    if (!play.classList.contains('open')) { playStart = f; playTrail = [] }
+    else if (!back && playing && playing !== f) playTrail.push(playing)
     playing = f
     $('#play-title').textContent = `${pages().find((p) => p.id === f.page)?.title ?? ''} · ${f.label}`
     playFrame.srcdoc = docFor(f)
@@ -4146,7 +4151,7 @@
     else if (e.key === 'ArrowLeft') stepPlay(-1)
     else if ((e.key === 'c' || e.key === 'C') && api) setPlayCommenting(playCatch.hidden)
     // Figma's R: start over from the screen Play was opened on, as it first was (anything typed or opened in it gone).
-    else if ((e.key === 'r' || e.key === 'R') && playStart) openPlay(playStart, playWidth)
+    else if ((e.key === 'r' || e.key === 'R') && playStart) { openPlay(playStart, playWidth, true); playTrail = [] }
     else return
     e.preventDefault()
   }
@@ -4306,6 +4311,12 @@
   addEventListener('resize', () => renderPlayPins())
   // A link to another prototype, posted by the frame: move to that prototype.
   addEventListener('message', (e) => {
+    if (e.data?.dc === 'back' && e.source === playFrame.contentWindow && playing) {
+      const to = playTrail.pop()
+      if (to && allFrames.has(to.key)) openPlay(allFrames.get(to.key), playWidth, true)
+      else hint('This is the first screen played', 1600)
+      return
+    }
     if (!e.data || e.data.dc !== 'go' || e.source !== playFrame.contentWindow) return
     const [file, hash = ''] = String(e.data.href).replace(/^\.\//, '').split('#')
     const to = [...allFrames.values()].find((f) => f.file === file && (f.hash || '') === hash) ?? [...allFrames.values()].find((f) => f.file === file)

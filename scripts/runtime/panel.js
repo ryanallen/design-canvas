@@ -862,11 +862,17 @@
     if (ed.isText(el) || ['input', 'textarea', 'select', 'button'].includes(el.localName)) {
       const fams = [...new Set([...el.ownerDocument.querySelectorAll('body *')].slice(0, 400).map((x) => cs(x).fontFamily))]
       const deco = c.textDecorationLine
-      host.append(section('Text', ['font-style', 'text-transform', 'white-space', 'text-shadow', 'word-spacing', 'text-indent', 'font-variant'],
+      // Figma's Vertical align moves the text to the top, middle or bottom of a box taller than it. On a block that is
+      // align-content, so nothing about how the box is laid out changes; a flex or grid box sets it in Layout.
+      const block = ['block', 'inline-block', 'flow-root', 'list-item', 'table-cell'].includes(c.display)
+      host.append(section('Text', ['font-style', 'text-transform', 'white-space', 'text-shadow', 'word-spacing', 'font-variant'],
         field('Style', h('span', { class: 'val' }, el.classList[0] ? `.${el.classList[0]}` : el.localName)),
         field('Font', fontBox(S('font-family'), fams, (v) => set({ 'font-family': v }))),
         field('Weight', select(['100', '200', '300', '400', '500', '600', '700', '800', '900'], S('font-weight'), (v) => set({ 'font-weight': v })), input(across((x, k) => num(k.fontSize)),(v) => set({ 'font-size': px(v) }), { class: 'n', title: 'Size' })),
         field('Line · Letter', input(across((x, k) => (k.lineHeight === 'normal' ? 'normal' : num(k.lineHeight))),(v) => set({ 'line-height': v === 'normal' ? 'normal' : px(v) }), { class: 'n', title: 'Line height' }), input(across((x, k) => (k.letterSpacing === 'normal' ? 'normal' : num(k.letterSpacing))),(v) => set({ 'letter-spacing': v === 'normal' ? 'normal' : px(v) }), { class: 'n', title: 'Letter spacing' })),
+        // Figma's Paragraph spacing (the space after it) and Paragraph indent (its first line pushed in).
+        field('Paragraph', input(across((x, k) => num(k.marginBottom)), (v) => set({ 'margin-bottom': px(v) }), { class: 'n', title: 'Space after the paragraph', 'aria-label': 'Paragraph spacing' }), input(across((x, k) => num(k.textIndent)), (v) => set({ 'text-indent': px(v) }), { class: 'n', title: 'How far its first line is pushed in', 'aria-label': 'Paragraph indent' })),
+        block ? field('Vertical', seg([['normal', '⤒', 'Top'], ['center', '↕', 'Middle'], ['end', '⤓', 'Bottom']], across((x, k) => ({ start: 'normal', 'flex-start': 'normal', 'space-between': 'normal', 'flex-end': 'end', 'safe center': 'center' })[k.alignContent] ?? k.alignContent), (v) => set({ 'align-content': v }))) : null,
         field('Color', color(S('color'), (v) => set({ color: v }), null, lever(el, 'color'))),
         contrast(el),
         field('Emphasis', seg([['underline', 'U̲', 'Underline'], ['line-through', 'S̶', 'Strikethrough']], deco.includes('underline') ? 'underline' : deco.includes('line-through') ? 'line-through' : '', (v) => set({ 'text-decoration': deco.includes(v) ? 'none' : v }))),

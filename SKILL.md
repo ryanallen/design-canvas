@@ -147,6 +147,8 @@ Text being typed keeps the browser's own right-click menu, so its spelling sugge
 
 In a prototype, the arrow keys nudge a positioned element (absolute, fixed, relative or sticky) by 1 px, or 10 with Shift. Each selected element moves from its own place, and each press is one undo step. Alt+arrows move an element in the flow one place along in it.
 
+A right-click in a prototype has **Select layer…**, as in Figma. It lists everything under the pointer, from the part itself out to the whole screen, innermost first, with what is selected ticked. Pick one to select it, however deep it sits.
+
 Ctrl+] brings the selected part forward one place among its siblings, and Ctrl+[ sends it back one. With Shift they take it to the front or the back. The same four are in the toolbar's More menu. What comes later among siblings is drawn over the ones before it, and comes after them in a row or column, so this is its place in the HTML.
 
 ## Typing in place

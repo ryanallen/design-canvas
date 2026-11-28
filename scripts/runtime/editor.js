@@ -356,7 +356,10 @@
       pick(frame, el)
     }
     if (!sel) return false
-    more({ x: e.clientX, y: e.clientY })
+    // Figma's Select layer: everything under the pointer, from the part itself out to what holds it all.
+    const chain = []
+    for (let x = deep; x && x.localName !== 'html'; x = x.parentElement) if (!SKIP.has(x.localName)) chain.push(x)
+    more({ x: e.clientX, y: e.clientY }, { frame, chain })
     return true
   }
   /** With "Click selects the whole block" (as Figma): a click outside the selection picks the outermost block holding the
@@ -2318,9 +2321,14 @@
     const rest = lines.filter((l) => l !== 'line-through')
     toggleStyle('text-decoration-line', !on, [...rest, 'line-through'].join(' '), rest.join(' ') || 'none', (v) => v.includes('line-through'))
   }
-  function more(anchor) {
+  function more(anchor, under = null) {
     const can = sel.els.every(editable)
     dc.openMenu(anchor, [
+      under?.chain.length > 1 ? { label: 'Select layer…', run: () => setTimeout(() => dc.openMenu(anchor, [
+        { note: 'Under the pointer' },
+        ...under.chain.slice(0, 20).map((x) => ({ label: x.localName === 'body' ? `${under.frame.label} (the whole screen)` : nameOf(x).text, tick: sel?.frame === under.frame && sel.els.includes(x), run: () => select(under.frame, [x]) })),
+      ]), 0) } : null,
+      under?.chain.length > 1 ? '-' : null,
       { label: 'Properties', run: () => dc.openPanel('properties') },
       { label: 'Code', run: () => dc.openPanel('code') },
       '-',

@@ -411,7 +411,7 @@ A picture dropped on a prototype, or pasted while one of its elements is selecte
 
 A title's bar sets its size to S, M, L or XL.
 
-A section is a labeled area drawn under everything else. Dragged by its label or its border, it carries every object and frame wholly inside it. A drag anywhere else inside it draws a selection box.
+A section is a labeled area drawn under everything else. Dragged by its label or its border, it carries every object and frame wholly inside it. Deleted, it takes every object wholly inside it too, as in FigJam, in one undo step. Screens in it stay, since each is a file, and so do locked objects. Ctrl+Backspace, or the right-click menu's Delete the section, keeping what is in it, deletes the section alone. A drag anywhere else inside it draws a selection box.
 
 Undo, nudging, order and zoom work like this.
 

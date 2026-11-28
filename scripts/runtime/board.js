@@ -1187,6 +1187,7 @@
       '-',
       // What the menu was opened for, even if the selection changed while it stayed open.
       free ? { label: 'Delete', key: 'Del', danger: true, run: () => removeChosen(ids.filter((id) => board.items.some((i) => i.id === id))) } : null,
+      free && ids.some((id) => board.items.find((i) => i.id === id)?.kind === 'section') ? { label: 'Delete the section, keeping what is in it', key: 'Ctrl+Backspace', danger: true, run: () => removeChosen(ids.filter((id) => board.items.some((i) => i.id === id)), { keepInside: true }) } : null,
     ].filter(Boolean).reduce((out, m) => (m === '-' && (!out.length || out.at(-1) === '-') ? out : [...out, m]), []).filter((m, i, all) => m !== '-' || i < all.length - 1)
   }
   viewport.addEventListener('pointermove', (e) => {
@@ -1821,8 +1822,9 @@
     }
     boardClip = { items: list.map((i) => ({ ...i })), times: -1 }
     hint(`Cut ${list.length === 1 ? 'it' : list.length}.${screensLeft()}`, screensLeft() ? 3000 : 900)
-    if (chosen) removeChosen()
-    else removeItem(picked)
+    // What was cut is what goes: a section cut alone leaves what is in it.
+    if (chosen) removeChosen(undefined, { keepInside: true })
+    else removeItem(picked, { keepInside: true })
     return true
   }
   // What was copied, as one box on the board.
@@ -2167,13 +2169,19 @@
       takeBoardAgain()
     }
   }
-  async function removeChosen(all = [...(chosen?.items ?? [])]) {
+  /** `keepInside`: a section goes alone, as FigJam's Ctrl+Backspace, rather than with everything wholly inside it. */
+  async function removeChosen(all = [...(chosen?.items ?? [])], { keepInside = false } = {}) {
     // Screens chosen with them are files of their own, which the canvas does not delete: said, and left.
     const screens = chosen?.frames?.size ?? 0
     if (screens) hint(`${screens === 1 ? 'The screen stays: it is' : `The ${screens} screens stay: each is`} a file of its own. To take ${screens === 1 ? 'it' : 'them'} off the board, delete or move ${screens === 1 ? 'it' : 'them'} in the folder.`, 4000)
     if (!all.length) return
+    // A section deleted takes what is wholly inside it, as in FigJam (screens in it stay: they are files).
+    const sections = keepInside ? [] : all.map((id) => board.items.find((i) => i.id === id)).filter((i) => i?.kind === 'section')
+    const within = [...new Set(sections.flatMap((sec) => inside(sec).items))].filter((id) => !all.includes(id))
+    all = [...all, ...within]
     const ids = all.filter((id) => !isLocked(id))
     if (ids.length < all.length) hint(`${all.length - ids.length} locked, left where they are`, 2400)
+    else if (within.length) hint(`Deleted the section and the ${within.length === 1 ? 'one thing' : `${within.length} things`} in it. Ctrl+Z puts them back; Ctrl+Backspace deletes a section alone.`, 3000)
     chosen = null
     // Gone at once, as in Figma, while their lines are saved.
     const saving = sendAll(ids.map((id) => ({ op: 'remove', id })))
@@ -2325,9 +2333,10 @@
       takeBoardAgain()
     }
   }
-  async function removeItem(id) {
+  async function removeItem(id, { keepInside = false } = {}) {
     if (!id) return
     if (isLocked(id)) return hint(LOCKED, 2000)
+    if (!keepInside && board.items.find((i) => i.id === id)?.kind === 'section') { picked = null; return removeChosen([id]) }
     picked = null
     try {
       await sendBoard({ op: 'remove', id })
@@ -4770,7 +4779,7 @@
   const SHORTCUTS = [
     ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['E', 'Stamp'], ['R', 'Rectangle'], ['O', 'Ellipse'], ['L, Shift+L', 'Line, arrow'], ['S', 'Section'], ['Shift, Alt while drawing', 'Square or level, from the middle'], ['A', 'Artboard'], ['C', 'Comment']]],
     ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['Page Down, Page Up', 'Next, previous screen'], ['+ and −, Ctrl+= and Ctrl+−', 'Zoom in and out'], ['0, Shift+0 or Ctrl+0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+Alt+O', 'Show or hide outlines'], ['Ctrl+Shift+K', 'Place a picture from this computer'], ['Ctrl+Shift+\\', 'Hide or show the bars'], ['Ctrl+\\', 'Panel']]],
-    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Ctrl+Shift+A', 'Select everything not selected'], ['Ctrl+Alt+A', 'Select matching: same kind and color'], ['Tab, Shift+Tab', 'Next or previous object'], ['Enter', 'Type in the one picked'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+Alt+G', 'Wrap in a section'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+R', 'Paste to replace what is selected'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centers, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Shift+drag', 'Move straight across or down; resize in proportion'], ['Alt+drag a corner', 'Resize from the middle'], ['Alt (held)', 'Measure to what is pointed at'], ['Delete', 'Delete']]],
+    ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Ctrl+Shift+A', 'Select everything not selected'], ['Ctrl+Alt+A', 'Select matching: same kind and color'], ['Tab, Shift+Tab', 'Next or previous object'], ['Enter', 'Type in the one picked'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+Alt+G', 'Wrap in a section'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+R', 'Paste to replace what is selected'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centers, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Shift+drag', 'Move straight across or down; resize in proportion'], ['Alt+drag a corner', 'Resize from the middle'], ['Alt (held)', 'Measure to what is pointed at'], ['Delete', 'Delete (a section with what is in it)'], ['Ctrl+Backspace', 'Delete a section, keeping what is in it']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Shift+A', 'Select what sits alongside it, leaving it out'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, center, right'], ['Alt+W, V, S', 'Align top, middle, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Alt+drag', 'Drop a copy'], ['Shift+drag', 'Straight across or down; resize in proportion'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+Shift+X', 'Strikethrough'], ['Ctrl+Shift+8, Ctrl+Shift+7', 'Bulleted list, numbered list'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste after it'], ['Ctrl+Shift+R', 'Paste to replace it'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+R', 'Rename in Layers, or several at once'], ['Alt+L', 'Collapse every layer'], ['Alt+click a ▸', 'Open or close every layer inside'], ['Ctrl+Shift+H', 'Hide or show'], ['Ctrl+Shift+L', 'Lock or unlock a part'], ['Ctrl+Alt+L, T, R, J', 'Align text left, center, right, justified'], ['Ctrl+Shift+>, Ctrl+Shift+<', 'Text 1px bigger, smaller'], ['Ctrl+Alt+>, Ctrl+Alt+<', 'Bolder, lighter'], ['Alt+>, Alt+<', 'Letter spacing up, down'], ['Alt+Shift+>, Alt+Shift+<', 'Line height up, down'], ['Shift+A', 'Add auto layout'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
     ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['C', 'Comment on it, then click where'], ['R', 'Start over from the first screen'], ['Esc', 'Back to the canvas']]],
     ['Everywhere', [['Ctrl+Z', 'Undo'], ['Ctrl+Shift+Z or Ctrl+Y', 'Redo'], ['Shift+C', 'Show or hide comments'], ['/', 'Cursor chat: words by your pointer for others here'], ['Ctrl+Alt+\\', "Hide or show others' pointers"], ['Shift+?', 'This sheet']]],
@@ -5426,6 +5435,11 @@
       e.preventDefault()
       window.designCanvas.collapseLayers()
       return hint('Layers collapsed', 1000)
+    }
+    // FigJam's Ctrl+Backspace: a section deleted alone, what is in it left where it is.
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && serve && (e.key === 'Backspace' || e.key === 'Delete') && (picked || chosen?.items.size) && !call('selectedFile')) {
+      e.preventDefault()
+      return chosen ? removeChosen(undefined, { keepInside: true }) : removeItem(picked, { keepInside: true })
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return
     if (e.key === '?') {

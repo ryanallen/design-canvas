@@ -610,16 +610,37 @@
     const el = ed.primary()
     if (!el || !ed.sel || !dc.serve || dc.local) return null
     const screen = el.localName === 'body'
-    if (exportAs.type === 'pdf' && !screen) exportAs.type = 'png'
-    const types = [['png', 'PNG'], ['jpeg', 'JPG'], ...(screen ? [['pdf', 'PDF']] : [])]
+    const icon = el.localName === 'svg'
+    if ((exportAs.type === 'pdf' && !screen) || (exportAs.type === 'svg' && !icon)) exportAs.type = 'png'
+    const types = [['png', 'PNG'], ['jpeg', 'JPG'], ...(screen ? [['pdf', 'PDF']] : []), ...(icon ? [['svg', 'SVG']] : [])]
     const scales = ['0.5', '1', '2', '3', '4']
     const pdf = exportAs.type === 'pdf'
-    const run = () => (pdf ? ed.ops.exportPdf() : ed.ops.exportPng({ scale: exportAs.scale, type: exportAs.type, suffix: true }))
+    const vector = exportAs.type === 'svg'
+    const run = () => (pdf ? ed.ops.exportPdf() : vector ? exportSvg(el) : ed.ops.exportPng({ scale: exportAs.scale, type: exportAs.type, suffix: true }))
     return section('Export', null,
       field('Scale · Format',
-        pdf ? null : h('select', { 'aria-label': 'Export scale', onchange: (e) => { exportAs.scale = Number(e.target.value) } }, ...scales.map((v) => h('option', { value: v, selected: Number(v) === exportAs.scale }, `${v}x`))),
+        pdf || vector ? null : h('select', { 'aria-label': 'Export scale', onchange: (e) => { exportAs.scale = Number(e.target.value) } }, ...scales.map((v) => h('option', { value: v, selected: Number(v) === exportAs.scale }, `${v}x`))),
         h('select', { 'aria-label': 'Export format', onchange: (e) => { exportAs.type = e.target.value; renderProps() } }, ...types.map(([v, t]) => h('option', { value: v, selected: v === exportAs.type }, t)))),
       h('button', { type: 'button', class: 'btn export-btn', onclick: run }, `Export ${screen ? (ed.sel.frame.label || 'the screen') : ed.nameOf(el).text}`))
+  }
+  /** An icon saved as an SVG file, as Figma exports a vector: its markup as the file has it (where node serves the
+      canvas), with the SVG namespace it needs on its own, and its color written on it when its shapes are drawn in
+      currentColor, so it looks the same outside the page. */
+  async function exportSvg(el) {
+    let text = el.outerHTML.replace(/\s+data-cv="\d+"/g, '')
+    const cv = ed.cvOf(el)
+    if (dc.serve && cv != null) {
+      try { const b = await (await fetch(`/api/source?f=${encodeURIComponent(ed.sel.frame.file)}&cv=${cv}`)).json(); if (b.html) text = b.html } catch {}
+    }
+    if (!/^<svg\b[^>]*\sxmlns=/i.test(text)) text = text.replace(/^<svg\b/i, '<svg xmlns="http://www.w3.org/2000/svg"')
+    if (/currentColor/i.test(text) && !/^<svg\b[^>]*\s(?:color=|style="[^"]*(?<![\w-])color:)/i.test(text)) text = text.replace(/^<svg\b/i, `<svg color="${ed.rgbHex(cs(el).color)}"`)
+    const name = `${ed.nameOf(el).text.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'icon'}.svg`
+    const a = h('a', { href: URL.createObjectURL(new Blob([`${text}\n`], { type: 'image/svg+xml' })), download: name })
+    document.body.append(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000)
+    dc.hint(`Saved ${name}`, 1600)
   }
   function drawPropsFor() {
     const el = ed.primary()

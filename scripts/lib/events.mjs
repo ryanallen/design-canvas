@@ -218,6 +218,12 @@ export function foldEvents(events) {
   return [...threads.values()]
 }
 
+/** Why a comment line can't be taken, or null: a reply to a thread someone has deleted would be kept and never shown. */
+export function commentRefused(events, event) {
+  if (event.op === 'reply' && !foldEvents(events).some((t) => t.id === event.to)) return "That thread was deleted, so your reply wasn't sent."
+  return null
+}
+
 /** The board's own objects, the frames moved by hand, the pages and the canvas's name; last line wins. */
 export function foldBoard(events) {
   const items = new Map()

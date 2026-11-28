@@ -3651,7 +3651,12 @@
         if (linkedComment && threads.some((t) => t.id === linkedComment)) goCommentFromHash()
         else if (activeId) {
           if (threads.some((t) => t.id === activeId)) showThread({ id: activeId }, true)
-          else closeThread()
+          else {
+            // Someone deleted the thread open here: a reply half written to it can't be sent, so it is said, words and all.
+            const words = thread.querySelector('textarea')?.value.trim()
+            closeThread()
+            if (words) hint(`That thread was deleted, so your reply wasn't sent: "${words.length > 120 ? `${words.slice(0, 120)}…` : words}"`, 8000)
+          }
         }
       }
     } catch {}

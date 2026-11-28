@@ -240,6 +240,8 @@
           const own = parseEvents(lines.slice(0, builtLines).join('\n')).flatMap((e) => [e.id].filter(Boolean))
           if (own.includes(event.to)) return answer(403, { error: 'That comment belongs to the owner' })
         }
+        const refused = commentRefused(parseEvents(lines.join('\n')), event)
+        if (refused) return answer(409, { error: refused })
         lines.push(lineOf(event, 'comment'))
         await writeCanvas()
         return answer(200, { event })

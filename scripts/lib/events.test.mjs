@@ -306,3 +306,11 @@ test('a stamp goes with the note that holds it, and comes back with it', () => {
   assert.deepEqual(ids([note, stamp, loose, { op: 'remove', id: 'n1' }]), ['s2'])
   assert.deepEqual(ids([note, stamp, loose, { op: 'remove', id: 'n1' }, note]), ['n1', 's1', 's2'])
 })
+
+test('a reply to a thread that was deleted is refused', async () => {
+  const { commentRefused } = await import('./events.mjs')
+  const add = { op: 'add', id: 'c1', name: 'Ana', text: 'Blue?' }
+  assert.equal(commentRefused([add], { op: 'reply', to: 'c1' }), null)
+  assert.match(commentRefused([add, { op: 'delete', to: 'c1' }], { op: 'reply', to: 'c1' }), /deleted/)
+  assert.equal(commentRefused([], { op: 'add' }), null)
+})

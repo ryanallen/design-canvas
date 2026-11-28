@@ -3492,7 +3492,8 @@
     sendCursor({ page: pageId, x: p.x, y: p.y })
   })
   viewport.addEventListener('pointerleave', () => { if (roomSocket) sendCursor(null) })
-  const initials = (n) => String(n || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '?'
+  // The first letter or digit of the first two words that have one: "Check (Chromium)" is CC, not C(.
+  const initials = (n) => String(n || '').split(/\s+/).map((w) => w.match(/[\p{L}\p{N}]/u)?.[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?'
   function drawPeers() {
     const list = [...peers.values()]
     const shown = list.slice(0, 5)

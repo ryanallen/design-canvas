@@ -725,15 +725,19 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
           shooter ??= launchChromium(folder).then((r) => r.browser)
           // As tall as its frame is drawn, so the whole screen comes out the size it is on the board.
           const tall = Math.min(20000, Math.max(200, Math.round(Number(url.searchParams.get('h')) || 900)))
-          page = await (await shooter).newPage({ viewport: { width: w, height: tall }, deviceScaleFactor: 2 })
+          // Figma's export scale (0.5× to 4×, twice by default) and format: PNG, or JPG with no see-through parts.
+          const scale = Math.min(4, Math.max(0.5, Number(url.searchParams.get('scale')) || 2))
+          const type = url.searchParams.get('type') === 'jpeg' ? 'jpeg' : 'png'
+          page = await (await shooter).newPage({ viewport: { width: w, height: tall }, deviceScaleFactor: scale })
           await page.goto(`http://127.0.0.1:${server.address().port}/${file.split('/').map(encodeURIComponent).join('/')}${hash ? `#${hash}` : ''}`, { waitUntil: 'load', timeout: 20000 })
           const scheme = url.searchParams.get('scheme')
           if (scheme === 'dark' || scheme === 'light') await page.emulateMedia({ colorScheme: scheme })
           await page.evaluate(() => document.fonts?.ready)
           const el = cv != null && cv !== '' ? await page.$(`[data-cv="${Number(cv)}"]`) : null
           if (cv != null && cv !== '' && !el) return json(res, 404, { error: 'That element isn\'t in the file any more.' })
-          const png = el ? await el.screenshot({ type: 'png' }) : await page.screenshot({ type: 'png', fullPage: true })
-          res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'no-store' })
+          const how = { type, ...(type === 'jpeg' ? { quality: 90 } : {}) }
+          const png = el ? await el.screenshot(how) : await page.screenshot({ ...how, fullPage: true })
+          res.writeHead(200, { 'content-type': `image/${type}`, 'cache-control': 'no-store' })
           return res.end(png)
         } catch (e) {
           return json(res, 422, { error: `no picture was made (${String(e.message).split('\n')[0]})` })

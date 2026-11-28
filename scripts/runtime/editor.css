@@ -137,6 +137,7 @@ body:has(#thread.open) #float.open, body:has(#thread.open) #itembar.open { displ
 #panel input.n { width: 58px; flex: none !important; font-variant-numeric: tabular-nums; }
 #panel input.n.s { width: 44px; }
 #panel select { flex: 1; }
+#panel .export-btn { display: block; width: 100%; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #panel input[type='range'] { flex: 1; accent-color: var(--accent); }
 #panel input:disabled, #panel select:disabled, #panel button:disabled { opacity: 0.45; }
 .val { color: var(--ink-2); font-variant-numeric: tabular-nums; font-size: 12px; }

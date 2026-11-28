@@ -671,7 +671,7 @@
     if (want == null) return []
     return [...el.ownerDocument.body.querySelectorAll('*')].filter((x) => !SKIP.has(x.localName) && live(x) && key(x) === want)
   }
-  async function pngOf() {
+  async function pngOf({ scale, type } = {}) {
     if (!dc.serve || dc.local) {
       hint('To make a picture, run the canvas from its folder with node scripts/canvas.mjs serve <folder>', 5000)
       return null
@@ -680,7 +680,7 @@
     const f = sel.frame
     hint('Making the picture…', 6000)
     // In the mode the screen is seen in on the board.
-    const q = new URLSearchParams({ f: f.file, w: String(Math.round(f.w)), h: String(Math.round(f.h)), ...(dc.schemeOf?.(f) !== 'auto' ? { scheme: dc.schemeOf(f) } : {}), ...(f.hash ? { hash: f.hash } : {}), ...(el.localName === 'body' || cvOf(el) == null ? {} : { cv: String(cvOf(el)) }) })
+    const q = new URLSearchParams({ f: f.file, w: String(Math.round(f.w)), h: String(Math.round(f.h)), ...(dc.schemeOf?.(f) !== 'auto' ? { scheme: dc.schemeOf(f) } : {}), ...(f.hash ? { hash: f.hash } : {}), ...(el.localName === 'body' || cvOf(el) == null ? {} : { cv: String(cvOf(el)) }), ...(scale ? { scale: String(scale) } : {}), ...(type ? { type } : {}) })
     const res = await fetch(`/api/png?${q}`)
     if (!res.ok) {
       hint((await res.json().catch(() => ({}))).error || 'No picture was made', 5000)
@@ -1284,17 +1284,19 @@
         hint('This browser won\'t copy pictures. Use Export PNG in the … menu to save it instead.', 5000)
       }
     },
-    exportPng: async () => {
+    // From Properties › Export, a scale and a format; its file named as Figma names one, with @2x and so on.
+    exportPng: async ({ scale, type, suffix } = {}) => {
       if (!sel) return
-      const name = (primary().localName === 'body' ? sel.frame.label : nameOf(primary()).text).replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'picture'
-      const blob = await pngOf()
+      const base = (primary().localName === 'body' ? sel.frame.label : nameOf(primary()).text).replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'picture'
+      const name = `${base}${suffix && scale !== 1 ? `@${scale}x` : ''}.${type === 'jpeg' ? 'jpg' : 'png'}`
+      const blob = await pngOf({ scale, type })
       if (!blob) return
-      const a = h('a', { href: URL.createObjectURL(blob), download: `${name}.png` })
+      const a = h('a', { href: URL.createObjectURL(blob), download: name })
       document.body.append(a)
       a.click()
       a.remove()
       setTimeout(() => URL.revokeObjectURL(a.href), 4000)
-      hint(`Saved ${name}.png`, 1600)
+      hint(`Saved ${name}`, 1600)
     },
     // The screen the selection is on as a PDF, one page as tall as it, its words kept as type.
     exportPdf: async () => {
@@ -2262,7 +2264,7 @@
       } },
       // A picture of it, locked or not.
       dc.serve && !dc.local ? { label: 'Copy as PNG', key: 'Ctrl+Shift+C', run: ops.copyPng } : null,
-      dc.serve && !dc.local ? { label: 'Export PNG', run: ops.exportPng } : null,
+      dc.serve && !dc.local ? { label: 'Export PNG', run: () => ops.exportPng() } : null,
       dc.serve && !dc.local ? { label: 'Export the screen as PDF', run: ops.exportPdf } : null,
       sel.els.length > 1 ? { label: 'Select this one alone', run: () => select(sel.frame, [primary()]) } : null,
       copiesOf(primary()).length > 1 && sel.els.length === 1 ? { label: 'Select every copy', key: 'Ctrl+Alt+A', run: () => select(sel.frame, copiesOf(primary())) } : null,

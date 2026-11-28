@@ -217,7 +217,7 @@ Pasted into another prototype, each part carries on itself whatever of its look 
 
 An `id` already on the page gets a new one.
 
-Ctrl+Shift+C copies a picture of the selection as a PNG, like Figma's Copy as PNG. **Export PNG** under … saves it. It takes the element alone, or the whole screen when its label was clicked. The picture is the size its frame is drawn, doubled for sharpness.
+Ctrl+Shift+C copies a picture of the selection as a PNG, like Figma's Copy as PNG. **Export PNG** under … saves it. It takes the element alone, or the whole screen when its label was clicked. The picture is the size its frame is drawn, doubled for sharpness. Properties ends with **Export**, as in Figma: pick a scale from 0.5x to 4x and PNG or JPG, then press Export. A file at any scale but 1x is named with it, like `home@3x.png`. A whole screen can also be saved as a PDF there. Export needs a canvas run with `serve`, because the server's browser makes the picture.
 
 A whole screen selected by its label moves on the board with the arrow keys (10 at a time with Shift), as a Figma frame does. Ctrl+Shift+G and Alt+arrows leave it whole.
 

@@ -559,11 +559,32 @@
       ? { label: document.activeElement.closest('.pf')?.querySelector(':scope > label')?.textContent, n: [...(document.activeElement.closest('.pf')?.querySelectorAll('input') ?? [])].indexOf(document.activeElement) }
       : null
     drawPropsFor()
+    const x = exportSection()
+    if (x) host?.append(x)
     if (at?.label != null && at.n >= 0) {
       const row = [...(document.querySelector('#props')?.querySelectorAll('.pf') ?? [])].find((r) => r.querySelector(':scope > label')?.textContent === at.label)
       const again = row?.querySelectorAll('input')[at.n]
       if (again && document.activeElement !== again) { again.focus({ preventScroll: true }); again.setSelectionRange?.(again.value.length, again.value.length) }
     }
+  }
+  // Figma's Export: what is selected (the whole screen when it is the screen) as a picture at a scale, or the screen as
+  // a PDF. A picture is made by the server's browser, so only a canvas node serves has it. The choice is kept while
+  // the canvas is open.
+  const exportAs = { scale: 2, type: 'png' }
+  function exportSection() {
+    const el = ed.primary()
+    if (!el || !ed.sel || !dc.serve || dc.local) return null
+    const screen = el.localName === 'body'
+    if (exportAs.type === 'pdf' && !screen) exportAs.type = 'png'
+    const types = [['png', 'PNG'], ['jpeg', 'JPG'], ...(screen ? [['pdf', 'PDF']] : [])]
+    const scales = ['0.5', '1', '2', '3', '4']
+    const pdf = exportAs.type === 'pdf'
+    const run = () => (pdf ? ed.ops.exportPdf() : ed.ops.exportPng({ scale: exportAs.scale, type: exportAs.type, suffix: true }))
+    return section('Export', null,
+      field('Scale · Format',
+        pdf ? null : h('select', { 'aria-label': 'Export scale', onchange: (e) => { exportAs.scale = Number(e.target.value) } }, ...scales.map((v) => h('option', { value: v, selected: Number(v) === exportAs.scale }, `${v}x`))),
+        h('select', { 'aria-label': 'Export format', onchange: (e) => { exportAs.type = e.target.value; renderProps() } }, ...types.map(([v, t]) => h('option', { value: v, selected: v === exportAs.type }, t)))),
+      h('button', { type: 'button', class: 'btn export-btn', onclick: run }, `Export ${screen ? (ed.sel.frame.label || 'the screen') : ed.nameOf(el).text}`))
   }
   function drawPropsFor() {
     const el = ed.primary()

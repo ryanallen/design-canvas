@@ -567,8 +567,11 @@
   // so the next press goes to it, not to the board.
   function renderProps() {
     const host = document.querySelector('#props')
-    const at = host?.contains(document.activeElement) && document.activeElement.matches('input')
-      ? { label: document.activeElement.closest('.pf')?.querySelector(':scope > label')?.textContent, n: [...(document.activeElement.closest('.pf')?.querySelectorAll('input') ?? [])].indexOf(document.activeElement) }
+    // The field being typed in, found again after the redraw with what was typed in it (if it differs from what was
+    // drawn: someone else's change redraws the panel, and what is half typed is not theirs to wipe) and the caret.
+    const a = document.activeElement
+    const at = host?.contains(a) && a.matches('input')
+      ? { label: a.closest('.pf')?.querySelector(':scope > label')?.textContent, n: [...(a.closest('.pf')?.querySelectorAll('input') ?? [])].indexOf(a), typed: a.value !== a.defaultValue ? a.value : null, caret: a.selectionStart }
       : null
     drawPropsFor()
     const x = exportSection()
@@ -576,7 +579,8 @@
     if (at?.label != null && at.n >= 0) {
       const row = [...(document.querySelector('#props')?.querySelectorAll('.pf') ?? [])].find((r) => r.querySelector(':scope > label')?.textContent === at.label)
       const again = row?.querySelectorAll('input')[at.n]
-      if (again && document.activeElement !== again) { again.focus({ preventScroll: true }); again.setSelectionRange?.(again.value.length, again.value.length) }
+      if (again && at.typed != null) again.value = at.typed
+      if (again && document.activeElement !== again) { again.focus({ preventScroll: true }); const c = at.typed != null && at.caret != null ? at.caret : again.value.length; try { again.setSelectionRange(c, c) } catch {} }
     }
   }
   // Figma's Export: what is selected (the whole screen when it is the screen) as a picture at a scale, or the screen as
@@ -1707,12 +1711,13 @@
     // Its source, as the file has it.
     const area = h('textarea', { class: 'source', spellcheck: 'false', rows: 10 })
     area.value = el.outerHTML.replace(/\s+data-cv="\d+"/g, '')
+    area.defaultValue = area.value
     area.addEventListener('keydown', (e) => e.stopPropagation())
     host.append(h('div', { class: 'chead' }, 'Source HTML'), area,
       h('div', { class: 'row' }, h('button', { type: 'button', class: 'btn', disabled: !can, onclick: () => ed.send({ op: 'outer', cv: ed.cvOf(el), html: area.value }) }, 'Apply')))
     if (dc.serve && can) {
       sourceFor = el
-      fetch(`/api/source?f=${encodeURIComponent(ed.sel.frame.file)}&cv=${ed.cvOf(el)}`).then((r) => r.json()).then((b) => { if (sourceFor === el && b.html != null) area.value = b.html }).catch(() => {})
+      fetch(`/api/source?f=${encodeURIComponent(ed.sel.frame.file)}&cv=${ed.cvOf(el)}`).then((r) => r.json()).then((b) => { if (sourceFor === el && b.html != null && !area.dataset.typed) { area.value = b.html; area.defaultValue = b.html } }).catch(() => {})
     }
   }
   // Dev Mode's box model: margin, border and padding round the content's own width × height, each side in px as laid
@@ -1896,7 +1901,18 @@
         renderProps()
       } else if (tab === 'code') {
         renderLayers()
+        // As in Properties: the field being typed in keeps what was typed, its caret and the focus.
+        const code = $('#code')
+        const a = document.activeElement
+        const fields = () => [...code.querySelectorAll('input, textarea')]
+        const at = code.contains(a) && a.matches('input, textarea') ? { n: fields().indexOf(a), typed: a.value !== a.defaultValue ? a.value : null, s: a.selectionStart, e: a.selectionEnd } : null
         renderCode()
+        const again = at ? fields()[at.n] : null
+        if (again) {
+          if (at.typed != null) { again.value = at.typed; again.dataset.typed = '1' }
+          again.focus({ preventScroll: true })
+          try { again.setSelectionRange(at.s, at.e) } catch {}
+        }
       } else if (tab === 'tweaks') renderTweaks()
     })
   }

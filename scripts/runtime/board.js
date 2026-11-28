@@ -1753,19 +1753,30 @@
       hint(err.message, 4000)
     }
   }
+  // Screens chosen with board objects are files: they are not copied or cut with them (Ctrl+D copies a screen).
+  const screensLeft = () => {
+    const n = chosen?.frames?.size ?? 0
+    return n ? ` The ${n === 1 ? 'screen is' : `${n} screens are`} files, so ${n === 1 ? 'it is' : 'they are'} left: Ctrl+D copies ${n === 1 ? 'it' : 'them'}.` : ''
+  }
   function copyItems() {
     const list = selectedItems()
-    if (!list.length) return false
+    if (!list.length) {
+      if (chosen?.frames?.size) { hint(screensLeft().trim(), 3000); return true }
+      return false
+    }
     boardClip = { items: list.map((i) => ({ ...i })), times: 0 }
-    hint(`Copied ${list.length === 1 ? 'it' : list.length}`, 900)
+    hint(`Copied ${list.length === 1 ? 'it' : list.length}.${screensLeft()}`, screensLeft() ? 3000 : 900)
     return true
   }
   /** Ctrl+X, as Figma's Cut: copied, then deleted; the first paste puts them back where they were. */
   function cutItems() {
     const list = selectedItems().filter((i) => !isLocked(i.id))
-    if (!list.length) return false
+    if (!list.length) {
+      if (chosen?.frames?.size) { hint(screensLeft().trim(), 3000); return true }
+      return false
+    }
     boardClip = { items: list.map((i) => ({ ...i })), times: -1 }
-    hint(`Cut ${list.length === 1 ? 'it' : list.length}`, 900)
+    hint(`Cut ${list.length === 1 ? 'it' : list.length}.${screensLeft()}`, screensLeft() ? 3000 : 900)
     if (chosen) removeChosen()
     else removeItem(picked)
     return true

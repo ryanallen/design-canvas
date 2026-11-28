@@ -5515,6 +5515,12 @@
       // The canvas's name is a board line too: a rename made elsewhere, or kept by a visitor's browser, shows.
       setTitle()
       relayout()
+      // The page this person is on, deleted by someone else: they go to the first page, told why, rather than go on
+      // working on a page nobody else can see.
+      if (!pages().some((p) => p.id === pageId)) {
+        goPage(firstPage())
+        hint(`Someone deleted the page you were on, so you're on ${pages()[0]?.title ?? 'the first page'} now.`, 4000)
+      }
     } catch {}
   }
   // ── the server's news ──

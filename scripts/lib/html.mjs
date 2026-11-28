@@ -618,7 +618,9 @@ function applyOne(src, edit) {
       const body = [...byStart.values()].find((e) => e.tag === 'body')
       const from = body ? body.openEnd : 0
       const to = body ? body.closeStart : src.length
-      const re = new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
+      // Figma's find options: Match case (and the new words then exactly as typed), Whole words (not inside a longer word).
+      const word = edit.wholeWord ? ['(?<![\\p{L}\\p{N}_])', '(?![\\p{L}\\p{N}_])'] : ['', '']
+      const re = new RegExp(`${word[0]}${find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}${word[1]}`, edit.matchCase ? 'gu' : 'giu')
       let out = ''
       let at = 0
       let count = 0
@@ -629,7 +631,7 @@ function applyOne(src, edit) {
       out += swap(src.slice(at), at)
       function swap(text, start) {
         if (start + text.length <= from || start >= to || skip.some(([s, e]) => start >= s && start < e)) return text
-        return text.replace(re, (m) => (count++, escText(inCaseOf(m, String(edit.with ?? '')))))
+        return text.replace(re, (m) => (count++, escText(edit.matchCase ? String(edit.with ?? '') : inCaseOf(m, String(edit.with ?? '')))))
       }
       return { src: out, select: edit.cv ?? null, count }
     }

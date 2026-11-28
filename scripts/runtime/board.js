@@ -3053,8 +3053,16 @@
   const findIn = h('input', { type: 'search', placeholder: 'Find', 'aria-label': 'Find', spellcheck: 'false' })
   const replaceIn = h('input', { type: 'text', placeholder: 'Replace with', 'aria-label': 'Replace with', spellcheck: 'false' })
   const findCount = h('span', { class: 'find-n', 'aria-live': 'polite' })
+  // Figma's find options, kept while the canvas is open.
+  const findOpts = { matchCase: false, wholeWord: false }
+  const optButton = (key, label, title) => {
+    const b = h('button', { type: 'button', class: 'tool find-opt', title, 'aria-label': title, 'aria-pressed': 'false', onclick: () => { findOpts[key] = !findOpts[key]; b.setAttribute('aria-pressed', String(findOpts[key])); runFind() } }, label)
+    return b
+  }
+  /** What a search looks for: the words as typed, any case unless Match case, inside other words unless Whole words. */
+  const findRe = (q) => new RegExp(`${findOpts.wholeWord ? '(?<![\\p{L}\\p{N}_])' : ''}${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}${findOpts.wholeWord ? '(?![\\p{L}\\p{N}_])' : ''}`, findOpts.matchCase ? 'gu' : 'giu')
   findBar.append(
-    findIn, findCount,
+    findIn, findCount, optButton('matchCase', 'Aa', 'Match case'), optButton('wholeWord', 'ab|', 'Whole words'),
     h('button', { type: 'button', class: 'tool', title: 'Previous (Shift+Enter)', 'aria-label': 'Previous', onclick: () => stepFound(-1) }, '↑'),
     h('button', { type: 'button', class: 'tool', title: 'Next (Enter)', 'aria-label': 'Next', onclick: () => stepFound(1) }, '↓'),
     h('span', { class: 'sep' }),
@@ -3068,7 +3076,8 @@
     for (let i = 0; i < 50 && frames().some((f) => f.el && !f.doc); i++) await new Promise((r) => setTimeout(r, 100))
   }
   async function runFind() {
-    const q = findIn.value.trim().toLowerCase()
+    const q = findIn.value.trim()
+    const re = q ? findRe(q) : null
     found = []
     foundAt = -1
     if (q) {
@@ -3077,13 +3086,13 @@
         if (!f.doc?.body) continue
         const walk = f.doc.createTreeWalker(f.doc.body, NodeFilter.SHOW_TEXT, { acceptNode: (t) => (t.parentElement?.closest('script, style, template, noscript') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) })
         for (let t = walk.nextNode(); t; t = walk.nextNode()) {
-          const n = t.data.toLowerCase().split(q).length - 1
+          const n = (t.data.match(re) ?? []).length
           const el = call('climb', t.parentElement) ?? t.parentElement
           for (let i = 0; i < n; i++) found.push({ frame: f, el })
         }
       }
       for (const it of items()) {
-        const n = String(it.text ?? '').toLowerCase().split(q).length - 1
+        const n = (String(it.text ?? '').match(re) ?? []).length
         for (let i = 0; i < n; i++) found.push({ item: it.id })
       }
     }
@@ -3113,7 +3122,7 @@
     let fileStep = null
     try {
       if (files.length) {
-        const res = await fetch('/api/edit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ files, edit: { op: 'replaceText', find, with: put }, name: me || 'someone' }) })
+        const res = await fetch('/api/edit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ files, edit: { op: 'replaceText', find, with: put, ...findOpts }, name: me || 'someone' }) })
         const body = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(body.error || `Replacing failed (${res.status})`)
         if (!body.same) {
@@ -3124,11 +3133,11 @@
         }
       }
       openStep = null
-      const re = new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
+      const re = findRe(find)
       for (const id of [...new Set(found.filter((m) => m.item).map((m) => m.item))]) {
         const it = board.items.find((i) => i.id === id)
         if (!it || isLocked(id)) continue
-        const text = String(it.text ?? '').replace(re, (m) => (n++, typeof canvasHtml === 'undefined' ? put : canvasHtml.inCaseOf(m, put)))
+        const text = String(it.text ?? '').replace(re, (m) => (n++, findOpts.matchCase || typeof canvasHtml === 'undefined' ? put : canvasHtml.inCaseOf(m, put)))
         it.text = text
         await sendBoard({ op: 'item', id, text })
       }

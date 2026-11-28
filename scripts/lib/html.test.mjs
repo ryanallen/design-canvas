@@ -371,3 +371,16 @@ test('a linked stylesheet: one declaration of its nth rule changed in the file, 
   assert.throws(() => cssDecl(css, '.title', 2, 'color', 'red'), /no rule .title/)
   assert.equal(cssDecl(css, '.note', 0, 'color', 'red}</style><script>'), css.replace('color:gray', 'color:red/style>script>'))
 })
+
+test('replaceText with Match case and Whole words: only the words as typed, never inside a longer word', () => {
+  const src = '<html><body><p>wind and Wind, windy windows</p></body></html>'
+  const r = (opts) => applyEdit(src, { op: 'replaceText', find: 'wind', with: 'breeze', ...opts })
+  assert.equal(r({}).count, 4)
+  assert.equal(r({ matchCase: true }).count, 3)
+  assert.equal(r({ wholeWord: true }).count, 2)
+  const both = r({ matchCase: true, wholeWord: true })
+  assert.equal(both.count, 1)
+  assert.match(both.src, /<p>breeze and Wind, windy windows<\/p>/)
+  // Without Match case the new words take the case of those they replace; with it, they are as typed.
+  assert.match(r({ wholeWord: true }).src, /breeze and Breeze,/)
+})

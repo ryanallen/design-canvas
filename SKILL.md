@@ -343,7 +343,7 @@ A font picked from this computer shows only where that font is installed.
 
 ## Find and replace
 
-Ctrl+F opens Find. It counts the words wherever they appear in the text of the page's artboards and board objects, in any case. Enter and Shift+Enter step through them, selecting and zooming to each one.
+Ctrl+F opens Find. It counts the words wherever they appear in the text of the page's artboards and board objects, in any case. **Aa** (Match case) counts only the words with the same capitals, and Replace all then writes the new words exactly as typed. **ab|** (Whole words) leaves out matches inside a longer word, as in Figma. Enter and Shift+Enter step through them, selecting and zooming to each one.
 
 **Replace all** puts the new words in every place. Each takes the case of the words it replaces, so "Swell" becomes "Surf" and "SWELL" becomes "SURF". The exception is new words that have capitals of their own.
 

@@ -706,7 +706,7 @@
     if (want == null) return []
     return [...el.ownerDocument.body.querySelectorAll('*')].filter((x) => !SKIP.has(x.localName) && live(x) && key(x) === want)
   }
-  async function pngOf({ scale, type, of = null, frame = null } = {}) {
+  async function pngOf({ scale, type, of = null, frame = null, together = null } = {}) {
     if (!dc.serve || dc.local) {
       hint('To make a picture, run the canvas from its folder with node scripts/canvas.mjs serve <folder>', 5000)
       return null
@@ -715,7 +715,7 @@
     const f = frame ?? sel.frame
     hint('Making the picture…', 6000)
     // In the mode the screen is seen in on the board.
-    const q = new URLSearchParams({ f: f.file, w: String(Math.round(f.w)), h: String(Math.round(f.h)), ...(dc.schemeOf?.(f) !== 'auto' ? { scheme: dc.schemeOf(f) } : {}), ...(f.hash ? { hash: f.hash } : {}), ...(el.localName === 'body' || cvOf(el) == null ? {} : { cv: String(cvOf(el)) }), ...(scale ? { scale: String(scale) } : {}), ...(type ? { type } : {}) })
+    const q = new URLSearchParams({ f: f.file, w: String(Math.round(f.w)), h: String(Math.round(f.h)), ...(dc.schemeOf?.(f) !== 'auto' ? { scheme: dc.schemeOf(f) } : {}), ...(f.hash ? { hash: f.hash } : {}), ...(el.localName === 'body' || cvOf(el) == null ? {} : { cv: String(cvOf(el)) }), ...(scale ? { scale: String(scale) } : {}), ...(type ? { type } : {}), ...(together?.length > 1 ? { cvs: together.map(cvOf).filter((n) => n != null).join(',') } : {}) })
     const res = await fetch(`/api/png?${q}`)
     if (!res.ok) {
       hint((await res.json().catch(() => ({}))).error || 'No picture was made', 5000)
@@ -1367,7 +1367,9 @@
     // come, so the press still counts as the person's when it arrives.
     copyPng: () => {
       if (!sel) return
-      const made = pngOf()
+      // Several selected: one picture of the box round them all, as Figma copies a selection.
+      const many = sel.els.filter(live).filter((x) => x.localName !== 'body' && cvOf(x) != null)
+      const made = pngOf(many.length > 1 ? { together: many } : {})
       try {
         navigator.clipboard.write([new ClipboardItem({ 'image/png': made.then((b) => b ?? Promise.reject(new Error('no picture'))) })])
           .then(() => hint('Copied as PNG', 1200), () => made.then((b) => b && hint('This browser won\'t copy pictures. Use Export PNG in the … menu to save it instead.', 5000)))

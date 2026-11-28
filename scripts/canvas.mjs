@@ -736,7 +736,17 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
           const el = cv != null && cv !== '' ? await page.$(`[data-cv="${Number(cv)}"]`) : null
           if (cv != null && cv !== '' && !el) return json(res, 404, { error: 'That element isn\'t in the file any more.' })
           const how = { type, ...(type === 'jpeg' ? { quality: 90 } : {}) }
-          const png = el ? await el.screenshot(how) : await page.screenshot({ ...how, fullPage: true })
+          // Several elements (Copy as PNG with more than one selected): one picture of the box round them all.
+          const many = (url.searchParams.get('cvs') ?? '').split(',').filter((x) => /^\d+$/.test(x)).slice(0, 200).map(Number)
+          const clip = many.length > 1 ? await page.evaluate((cvs) => {
+            const rs = cvs.map((n) => document.querySelector(`[data-cv="${n}"]`)?.getBoundingClientRect()).filter((r) => r && (r.width || r.height))
+            if (!rs.length) return null
+            const x = Math.min(...rs.map((r) => r.left)) + scrollX
+            const y = Math.min(...rs.map((r) => r.top)) + scrollY
+            return { x, y, width: Math.max(...rs.map((r) => r.right)) + scrollX - x, height: Math.max(...rs.map((r) => r.bottom)) + scrollY - y }
+          }, many) : null
+          if (many.length > 1 && !clip) return json(res, 404, { error: "Those elements aren't in the file any more." })
+          const png = clip ? await page.screenshot({ ...how, fullPage: true, clip }) : el ? await el.screenshot(how) : await page.screenshot({ ...how, fullPage: true })
           res.writeHead(200, { 'content-type': `image/${type}`, 'cache-control': 'no-store' })
           return res.end(png)
         } catch (e) {

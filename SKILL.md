@@ -142,6 +142,8 @@ In a prototype, the arrow keys nudge a positioned element (absolute, fixed, rela
 
 ## Typing in place
 
+With text selected (not being typed in), Ctrl+Shift+> makes it 1px bigger and Ctrl+Shift+< 1px smaller, as Figma's keys do. Each selected element steps from its own size, in one undo step.
+
 Enter or double-click on a selected text element starts typing in it. While typing:
 
 - Enter goes on in a new element after it, as a text editor does. The new element has the same tag and attributes, except the id (a paragraph after a heading). It never puts a `<div>` inside the paragraph.

@@ -1547,6 +1547,8 @@
       if (sel.els.length !== 1 || el.localName === 'body' || cvOf(el) == null) hint('Select one part to rename it', 1600)
       else dc.renameLayer?.()
     }
+    // Figma's font size keys: Ctrl+Shift+> a point bigger, Ctrl+Shift+< a point smaller, each from its own size.
+    else if (mod && e.shiftKey && (e.code === 'Period' || e.code === 'Comma')) fontStep(e.code === 'Period' ? 1 : -1)
     // Figma's Show/Hide: hides what is selected, or shows it when all of it is hidden.
     else if (mod && e.shiftKey && k === 'h') setHidden(sel.frame, sel.els, sel.els.some((x) => cs(x).display !== 'none'))
     // Figma's Lock (Ctrl+Shift+L): the owner locks the selected part, or unlocks it, as the toolbar's padlock does.
@@ -1797,6 +1799,20 @@
     })
     if (new Set(each.map((e) => e.value)).size === 1 || everyCopy() || dc.stateRuleFor?.(primary())) return setStyle({ [prop]: each[0].value })
     send({ op: 'styles', items: each.filter((e) => editable(e.x) && cvOf(e.x) != null).map((e) => ({ cv: cvOf(e.x), props: { [prop]: e.value } })) }, { then: reselect() })
+  }
+  /** Text a point bigger or smaller: each element selected from its own size, as Figma's keys step them. */
+  function fontStep(d) {
+    if (!sel) return
+    if (!sel.els.every(editable)) return hint(notEditable(primary()), 3000)
+    const each = sel.els.filter(live).map((x) => ({ x, value: `${Math.max(1, Math.round(parseFloat(cs(x).fontSize) + d))}px` }))
+    if (!each.length) return
+    if (new Set(each.map((e) => e.value)).size === 1 || everyCopy() || dc.stateRuleFor?.(primary())) setStyle({ 'font-size': each[0].value })
+    else {
+      for (const e of each) e.x.style.setProperty('font-size', e.value)
+      draw()
+      send({ op: 'styles', items: each.filter((e) => cvOf(e.x) != null).map((e) => ({ cv: cvOf(e.x), props: { 'font-size': e.value } })) }, { then: reselect() })
+    }
+    hint(each.length === 1 ? each[0].value : `${d > 0 ? 'Bigger' : 'Smaller'} by 1px each`, 900)
   }
   function colorButton(title, prop, value, onPick, targets = () => sel?.els.filter(live) ?? []) {
     const input = h('input', { type: 'color', value: rgbHex(value), 'aria-label': title })

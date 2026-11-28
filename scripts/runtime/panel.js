@@ -1158,6 +1158,29 @@
       const has = (k, s) => k.getPropertyValue(`border-${s}-style`) !== 'none' && num(k.getPropertyValue(`border-${s}-width`)) > 0
       const litOf = (k) => S.find((s) => has(k, s))
       const lit = litOf(c)
+      // Figma's stroke position. Inside is a border, as the box is drawn; Outside an outline beside its edge, which
+      // takes no room and follows its radius; Center an outline half over its edge. One element at a time.
+      const ring = !lit && c.outlineStyle !== 'none' && num(c.outlineWidth) > 0
+      const where = ring ? (Math.round(num(c.outlineOffset)) === 0 ? 'outside' : 'center') : 'inside'
+      const placeRow = (lit || ring) && ed.sel.els.length === 1 && state === 'default'
+        ? field('Border at', seg([['inside', 'Inside', 'Inside its edge: a border'], ['center', 'Center', 'Half over its edge: an outline'], ['outside', 'Outside', 'Outside its edge: an outline, taking no room']], where, (v) => {
+          if (v === where) return
+          const w = num(ring ? c.outlineWidth : c.getPropertyValue(`border-${lit}-width`))
+          const st = ring ? c.outlineStyle : c.getPropertyValue(`border-${lit}-style`)
+          const col = ring ? c.outlineColor : c.getPropertyValue(`border-${lit}-color`)
+          if (v === 'inside') return set({ outline: '', 'outline-offset': '', border: `${w}px ${st} ${col}` })
+          set({ border: 'none', outline: `${w}px ${st} ${col}`, 'outline-offset': v === 'outside' ? '0px' : `${-Math.round((w / 2) * 100) / 100}px` })
+        }))
+        : null
+      if (ring) {
+        const w = num(c.outlineWidth)
+        const offFor = (n) => (where === 'center' ? `${-Math.round((n / 2) * 100) / 100}px` : '0px')
+        return [
+          field('Border', seg([['none', 'None'], ['solid', 'Solid'], ['dashed', 'Dash'], ['dotted', 'Dot']], c.outlineStyle, (v) => set(v === 'none' ? { outline: '', 'outline-offset': '' } : { 'outline-style': v }))),
+          placeRow,
+          field('Width · Color', input(String(w), (v) => { const n = Number(String(v).replace(/px$/, '')); if (Number.isFinite(n) && n >= 0) set({ 'outline-width': `${n}px`, 'outline-offset': offFor(n) }) }, { class: 'n', 'aria-label': 'Border width' }), color(c.outlineColor, (v) => set({ 'outline-color': v }))),
+        ]
+      }
       const style = lit ? c.getPropertyValue(`border-${lit}-style`) : 'none'
       const lineColor = lit ? c.getPropertyValue(`border-${lit}-color`) : ''
       const pick = (v) => (v === 'none'
@@ -1168,6 +1191,7 @@
         }))
       const rows = [field('Border', seg([['none', 'None'], ['solid', 'Solid'], ['dashed', 'Dash'], ['dotted', 'Dot']], style, pick))]
       if (!lit) return rows
+      if (placeRow) rows.push(placeRow)
       const same = S.every((s) => has(c, s) && c.getPropertyValue(`border-${s}-width`) === c.borderTopWidth)
       if (borderSides || !same) {
         // A side given a width takes the style and color of a side that has one.

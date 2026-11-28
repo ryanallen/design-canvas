@@ -309,7 +309,7 @@ Properties' **Appearance** holds the element's look. Each change is one undo ste
 - **Opacity**, **Blend** (the sixteen blend modes) and **Clip content** (overflow cut at the edge and radius).
 - **Scrolling**: None, Down, Across or Both, like Figma's overflow scrolling. Whatever doesn't fit then scrolls inside the box in Play and in the page, and is clipped.
 - **Radius** is one value, or one per corner.
-- **Border** reads the side that has one, so a line under a bar shows. Its style changes only the sides that have it. **Border sides** sets each side's width, and a new side takes the line's style and color.
+- **Border** reads the side that has one, so a line under a bar shows. Its style changes only the sides that have it. **Border sides** sets each side's width, and a new side takes the line's style and color. **Border at** is Figma's stroke position. Inside is a border. Outside is an outline beside the edge, which takes no room and follows the corners. Center is an outline half over the edge.
 - **Shadow** lists each shadow of the element in turn, with Drop or Inner, X, Y, Blur, Spread and color. + adds another.
 - **Layer blur** and **Background blur** change only the `blur()` of `filter` and `backdrop-filter`.
 - **Selection colors**, under Appearance, lists every color in the selection and inside it. Each is named by its uses (Text where words hold it, Fill, Border), most used first. A color changed there changes on every element of the selection that has it, in one edit.

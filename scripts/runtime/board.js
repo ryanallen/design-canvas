@@ -3366,6 +3366,7 @@
   const peerBar = h('div', { id: 'peers', role: 'list', 'aria-label': 'Who else is here' })
   $('#bar-right').prepend(peerBar)
   let roomSocket = null
+  let helloName = ''
   let roomTries = 0
   let lastSent = 0
   let cursorTimer = 0
@@ -3378,7 +3379,8 @@
     roomSocket = ws
     ws.onopen = () => {
       roomTries = 0
-      ws.send(JSON.stringify({ t: 'hello', name: me || 'Someone', ...(invite ? { key: invite } : {}) }))
+      helloName = me || 'Someone'
+      ws.send(JSON.stringify({ t: 'hello', name: helloName, ...(invite ? { key: invite } : {}) }))
     }
     ws.onmessage = (e) => {
       let m
@@ -3399,6 +3401,8 @@
     if (m.t === 'answer') return answered(m)
     if (m.t === 'tell') return told(m)
     if (m.t === 'welcome') {
+      // A name set while the room was still connecting was not sent: send it now.
+      if ((me || 'Someone') !== helloName) roomSend({ t: 'name', name: me || 'Someone' })
       peers.clear()
       for (const p of m.peers ?? []) peers.set(p.id, p)
     } else if (m.t === 'join') {

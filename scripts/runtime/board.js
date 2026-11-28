@@ -3558,8 +3558,11 @@
     if (!invite) return
     if (m.edit && !remote) startRemote()
     if (remote) {
+      const was = ownerHere
       ownerHere = !!(m.on ?? m.host)
       showRemote()
+      // The owner's canvas back after being away: what its files and board say now, over what this page last had.
+      if (ownerHere && !was) catchUp()
     } else if (m.host === false || m.on === false) hint("The owner's canvas isn't open right now. You can look around, and edit once it is.", 4000)
   }
   function showRemote() {
@@ -3577,7 +3580,11 @@
     serve = true
     api = '/api/canvas-comments'
     document.body.classList.add('serving', 'commenting')
-    // What the owner's files say now, over what this page was built with.
+    ownerHere = true
+    catchUp()
+  }
+  /** What the owner's files, board and comments say now, over what this page has. */
+  function catchUp() {
     for (const file of Object.keys(data.files)) fileChanged(file, { quiet: true })
     refreshBoard()
     refresh()

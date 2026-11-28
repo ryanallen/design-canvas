@@ -30,7 +30,11 @@ export function hostRoom({ room, ownerKey, base, log = () => {} }) {
   }
   async function answer(m) {
     let status = 403
-    let body = JSON.stringify({ error: "That isn't something a guest can do." })
+    // What a guest is told when a call is the owner's alone: the thing named, so they know who can do it.
+    const OWNER_ONLY = { '/api/artboard': 'Only the owner can add screens.', '/api/image': 'Only the owner can add pictures to the folder.', '/api/font': 'Only the owner can fetch web fonts into the folder.' }
+    let path = ''
+    try { path = new URL(String(m.path ?? ''), base).pathname } catch {}
+    let body = JSON.stringify({ error: OWNER_ONLY[path] ?? "That isn't something a guest can do." })
     // A picture or a PDF goes as base64 with its type, the guest's page making bytes of it again.
     let type = null
     let u = null

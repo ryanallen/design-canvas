@@ -2108,6 +2108,9 @@
     }
   }
   async function removeChosen(all = [...(chosen?.items ?? [])]) {
+    // Screens chosen with them are files of their own, which the canvas does not delete: said, and left.
+    const screens = chosen?.frames?.size ?? 0
+    if (screens) hint(`${screens === 1 ? 'The screen stays: it is' : `The ${screens} screens stay: each is`} a file of its own. To take ${screens === 1 ? 'it' : 'them'} off the board, delete or move ${screens === 1 ? 'it' : 'them'} in the folder.`, 4000)
     if (!all.length) return
     const ids = all.filter((id) => !isLocked(id))
     if (ids.length < all.length) hint(`${all.length - ids.length} locked, left where they are`, 2400)
@@ -5322,7 +5325,7 @@
       e.preventDefault()
       const step = e.shiftKey ? 10 : 1
       nudgeBoard(e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0, e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0)
-    } else if ((e.key === 'Delete' || e.key === 'Backspace') && chosen?.items.size) {
+    } else if ((e.key === 'Delete' || e.key === 'Backspace') && (chosen?.items.size || chosen?.frames?.size)) {
       removeChosen()
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && picked) {
       removeItem(picked)

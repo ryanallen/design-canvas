@@ -3054,15 +3054,16 @@
   const replaceIn = h('input', { type: 'text', placeholder: 'Replace with', 'aria-label': 'Replace with', spellcheck: 'false' })
   const findCount = h('span', { class: 'find-n', 'aria-live': 'polite' })
   // Figma's find options, kept while the canvas is open.
-  const findOpts = { matchCase: false, wholeWord: false }
+  const findOpts = { matchCase: false, wholeWord: false, allPages: false }
   const optButton = (key, label, title) => {
-    const b = h('button', { type: 'button', class: 'tool find-opt', title, 'aria-label': title, 'aria-pressed': 'false', onclick: () => { findOpts[key] = !findOpts[key]; b.setAttribute('aria-pressed', String(findOpts[key])); runFind() } }, label)
+    // Clicked, it leaves the typing where it was, so Enter goes on stepping through what is found.
+    const b = h('button', { type: 'button', class: 'tool find-opt', title, 'aria-label': title, 'aria-pressed': 'false', onmousedown: (e) => e.preventDefault(), onclick: () => { findOpts[key] = !findOpts[key]; b.setAttribute('aria-pressed', String(findOpts[key])); runFind() } }, label)
     return b
   }
   /** What a search looks for: the words as typed, any case unless Match case, inside other words unless Whole words. */
   const findRe = (q) => new RegExp(`${findOpts.wholeWord ? '(?<![\\p{L}\\p{N}_])' : ''}${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}${findOpts.wholeWord ? '(?![\\p{L}\\p{N}_])' : ''}`, findOpts.matchCase ? 'gu' : 'giu')
   findBar.append(
-    findIn, findCount, optButton('matchCase', 'Aa', 'Match case'), optButton('wholeWord', 'ab|', 'Whole words'),
+    findIn, findCount, optButton('matchCase', 'Aa', 'Match case'), optButton('wholeWord', 'ab|', 'Whole words'), optButton('allPages', 'All pages', 'Search every page, not only this one'),
     h('button', { type: 'button', class: 'tool', title: 'Previous (Shift+Enter)', 'aria-label': 'Previous', onclick: () => stepFound(-1) }, '↑'),
     h('button', { type: 'button', class: 'tool', title: 'Next (Enter)', 'aria-label': 'Next', onclick: () => stepFound(1) }, '↓'),
     h('span', { class: 'sep' }),
@@ -3095,6 +3096,24 @@
         const n = (String(it.text ?? '').match(re) ?? []).length
         for (let i = 0; i < n; i++) found.push({ item: it.id })
       }
+      // Figma's search on every page: the other pages' screens by their files' text (they are not drawn here), and
+      // their board objects.
+      if (findOpts.allPages) {
+        const seen = new Set()
+        for (const f of allFrames.values()) {
+          if (f.page === pageId || f.crop || seen.has(f.file)) continue
+          seen.add(f.file)
+          const doc = new DOMParser().parseFromString(data.files[f.file] ?? '', 'text/html')
+          for (const x of doc.querySelectorAll('script, style, template, noscript')) x.remove()
+          const n = (doc.body?.textContent.match(re) ?? []).length
+          for (let i = 0; i < n; i++) found.push({ frame: f, el: null })
+        }
+        for (const it of board.items) {
+          if ((it.page ?? firstPage()) === pageId || it.kind === 'guide') continue
+          const n = (String(it.text ?? '').match(re) ?? []).length
+          for (let i = 0; i < n; i++) found.push({ item: it.id, page: it.page ?? firstPage() })
+        }
+      }
     }
     findCount.textContent = q ? (found.length ? `${found.length} found` : 'None') : ''
   }
@@ -3104,12 +3123,20 @@
     const m = found[foundAt]
     findCount.textContent = `${foundAt + 1} of ${found.length}`
     if (m.item) {
+      // On another page: that page opened first.
+      const pg = board.items.find((i) => i.id === m.item)?.page ?? firstPage()
+      if (pg !== pageId) goPage(pg)
       pickItem(m.item)
       zoomToSelection()
     } else if (m.el?.isConnected) {
       pickItem(null)
       window.designCanvas.editor?.select(m.frame, [m.el])
       zoomToSelection()
+    } else if (m.frame) {
+      // A screen on another page (or one drawn again since): its page opened, the screen shown.
+      if (m.frame.page !== pageId) goPage(m.frame.page)
+      showFrame(m.frame)
+      hint(`On ${pages().find((p) => p.id === m.frame.page)?.title ?? 'another page'}: ${m.frame.label}`, 1600)
     }
   }
   async function replaceAll() {

@@ -142,7 +142,7 @@ In a prototype, the arrow keys nudge a positioned element (absolute, fixed, rela
 
 ## Typing in place
 
-With text selected (not being typed in), Ctrl+Shift+> makes it 1px bigger and Ctrl+Shift+< 1px smaller, as Figma's keys do. Each selected element steps from its own size, in one undo step.
+With text selected (not being typed in), Figma's text keys step it up with > and down with <. Ctrl+Shift changes the size by 1px, Ctrl+Alt the weight by 100, Alt+Shift the line height by 1px, and Alt the letter spacing by 0.5px. Each selected element steps from its own value, in one undo step.
 
 Enter or double-click on a selected text element starts typing in it. While typing:
 

@@ -1547,8 +1547,15 @@
       if (sel.els.length !== 1 || el.localName === 'body' || cvOf(el) == null) hint('Select one part to rename it', 1600)
       else dc.renameLayer?.()
     }
-    // Figma's font size keys: Ctrl+Shift+> a point bigger, Ctrl+Shift+< a point smaller, each from its own size.
-    else if (mod && e.shiftKey && (e.code === 'Period' || e.code === 'Comma')) fontStep(e.code === 'Period' ? 1 : -1)
+    // Figma's text keys, > up and < down, each element from its own value: Ctrl+Shift the size, Ctrl+Alt the weight,
+    // Alt the letter spacing, Alt+Shift the line height.
+    else if ((e.code === 'Period' || e.code === 'Comma') && (mod || e.altKey)) {
+      const d = e.code === 'Period' ? 1 : -1
+      if (mod && e.shiftKey && !e.altKey) textStep('font-size', d)
+      else if (mod && e.altKey && !e.shiftKey) textStep('font-weight', d)
+      else if (!mod && e.altKey && e.shiftKey) textStep('line-height', d)
+      else if (!mod && e.altKey) textStep('letter-spacing', d)
+    }
     // Figma's Show/Hide: hides what is selected, or shows it when all of it is hidden.
     else if (mod && e.shiftKey && k === 'h') setHidden(sel.frame, sel.els, sel.els.some((x) => cs(x).display !== 'none'))
     // Figma's Lock (Ctrl+Shift+L): the owner locks the selected part, or unlocks it, as the toolbar's padlock does.
@@ -1800,19 +1807,27 @@
     if (new Set(each.map((e) => e.value)).size === 1 || everyCopy() || dc.stateRuleFor?.(primary())) return setStyle({ [prop]: each[0].value })
     send({ op: 'styles', items: each.filter((e) => editable(e.x) && cvOf(e.x) != null).map((e) => ({ cv: cvOf(e.x), props: { [prop]: e.value } })) }, { then: reselect() })
   }
-  /** Text a point bigger or smaller: each element selected from its own size, as Figma's keys step them. */
-  function fontStep(d) {
+  /** A text setting stepped up or down, each element selected from its own value, as Figma's keys step them: size by
+   *  1px, weight by 100 (100 to 900), line height by 1px, letter spacing by 0.5px. */
+  const TEXT_STEP = {
+    'font-size': { by: 1, read: (k) => parseFloat(k.fontSize), out: (v) => `${Math.max(1, Math.round(v))}px`, say: 'Size' },
+    'font-weight': { by: 100, read: (k) => Number(k.fontWeight) || 400, out: (v) => String(Math.min(900, Math.max(100, Math.round(v / 100) * 100))), say: 'Weight' },
+    'line-height': { by: 1, read: (k) => (k.lineHeight === 'normal' ? Math.round(parseFloat(k.fontSize) * 1.2) : parseFloat(k.lineHeight)), out: (v) => `${Math.max(1, Math.round(v))}px`, say: 'Line height' },
+    'letter-spacing': { by: 0.5, read: (k) => (k.letterSpacing === 'normal' ? 0 : parseFloat(k.letterSpacing)), out: (v) => `${Math.round(v * 2) / 2}px`, say: 'Letter spacing' },
+  }
+  function textStep(prop, d) {
     if (!sel) return
     if (!sel.els.every(editable)) return hint(notEditable(primary()), 3000)
-    const each = sel.els.filter(live).map((x) => ({ x, value: `${Math.max(1, Math.round(parseFloat(cs(x).fontSize) + d))}px` }))
+    const t = TEXT_STEP[prop]
+    const each = sel.els.filter(live).map((x) => ({ x, value: t.out(t.read(cs(x)) + d * t.by) }))
     if (!each.length) return
-    if (new Set(each.map((e) => e.value)).size === 1 || everyCopy() || dc.stateRuleFor?.(primary())) setStyle({ 'font-size': each[0].value })
+    if (new Set(each.map((e) => e.value)).size === 1 || everyCopy() || dc.stateRuleFor?.(primary())) setStyle({ [prop]: each[0].value })
     else {
-      for (const e of each) e.x.style.setProperty('font-size', e.value)
+      for (const e of each) e.x.style.setProperty(prop, e.value)
       draw()
-      send({ op: 'styles', items: each.filter((e) => cvOf(e.x) != null).map((e) => ({ cv: cvOf(e.x), props: { 'font-size': e.value } })) }, { then: reselect() })
+      send({ op: 'styles', items: each.filter((e) => cvOf(e.x) != null).map((e) => ({ cv: cvOf(e.x), props: { [prop]: e.value } })) }, { then: reselect() })
     }
-    hint(each.length === 1 ? each[0].value : `${d > 0 ? 'Bigger' : 'Smaller'} by 1px each`, 900)
+    hint(each.length === 1 ? `${t.say} ${each[0].value}` : `${t.say} ${d > 0 ? 'up' : 'down'}, each from its own`, 900)
   }
   function colorButton(title, prop, value, onPick, targets = () => sel?.els.filter(live) ?? []) {
     const input = h('input', { type: 'color', value: rgbHex(value), 'aria-label': title })

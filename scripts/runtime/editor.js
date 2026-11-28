@@ -1298,7 +1298,8 @@
     duplicate: () => needEditable() && send({ op: 'duplicate', cv: cvOf(primary()) }),
     remove: () => {
       if (!needEditable()) return
-      if (sel.els.some((x) => x.localName === 'body')) return hint('The body stays', 1500)
+      // A whole screen is a file of its own in the folder: the canvas does not delete files.
+      if (sel.els.some((x) => x.localName === 'body')) return hint(`A whole screen is its own file. To take it off the board, delete or move ${sel.frame.file} in the folder.`, 4000)
       send({ op: 'delete', cv: sel.els.map(cvOf) })
     },
     group: (style, name) => {
@@ -1488,7 +1489,7 @@
     // Ctrl+X, as Figma's Cut: copied, then deleted in one step; Ctrl+V puts it after what is selected then.
     cut: async () => {
       if (!sel || !needEditable()) return
-      if (sel.els.some((x) => x.localName === 'body')) return hint('The body stays', 1500)
+      if (sel.els.some((x) => x.localName === 'body')) return hint(`A whole screen is its own file, so it isn't cut. Ctrl+D copies it as a new file.`, 3500)
       // What is deleted is what was copied: a selection changed while it was copying is left alone.
       const was = sel
       await ops.copy()

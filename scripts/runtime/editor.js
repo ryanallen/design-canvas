@@ -578,6 +578,10 @@
   // ── writing ──
   let busy = false
   /** One edit to the selected frame's file. The answer redraws every frame of that file and the selection returns. */
+  /** The screen and the version of its file as the selection stands, for an edit sent after a question is answered:
+      if the file changes while the question is open, the server refuses the edit rather than apply it to the element
+      that now has that place in the file. */
+  const held = () => ({ file: sel.frame.file, key: sel.frame.key, v: sel.frame.doc?.documentElement.getAttribute('data-dc-v') ?? undefined })
   async function send(edit, { file = sel?.frame.file, key = sel?.frame.key, copies = false, then, v } = {}) {
     if (!dc.serve) return
     if (!file) return
@@ -1293,18 +1297,20 @@
     makeComponent: async () => {
       if (!needEditable()) return
       const el = primary()
+      const at = held()
       const own = el.getAttribute('data-name') || el.classList[0] || nameOf(el).kind
       const name = await dc.question('Name the component. Duplicate it to make copies: a style or a part added or removed in any copy is made in all of them; text typed stays each copy\'s own.', own.charAt(0).toUpperCase() + own.slice(1))
       if (!name?.trim()) return
-      send({ op: 'attr', cv: cvOf(el), name: 'data-component', value: name.trim() })
+      send({ op: 'attr', cv: cvOf(el), name: 'data-component', value: name.trim() }, at)
     },
     /** A variant: this copy keeps the component's parts and takes a look of its own, shared with copies of the same variant. */
     variant: async () => {
       const c = componentOf(primary())
       if (!c || !needEditable()) return
+      const at = held()
       const name = await dc.question('Name this variant (empty for the main one). Styles changed on it reach only copies of the same variant; parts added or removed still reach every copy.', c.variant)
       if (name == null) return
-      send({ op: 'attr', cv: cvOf(c.root), name: 'data-variant', value: name.trim() || null })
+      send({ op: 'attr', cv: cvOf(c.root), name: 'data-variant', value: name.trim() || null }, at)
     },
     /** Switch this copy to another variant, as Figma's variant picker: each of its parts takes the style the same part has
         in a copy of that variant, and it takes that variant's name; its words stay its own. One edit. */
@@ -2228,15 +2234,16 @@
       return
     }
     if (!needEditable()) return
+    const at = held()
     if (el.localName === 'a') {
       const href = await askLink('Link to (empty to remove the address):', el.getAttribute('href') || '')
-      if (href != null) send({ op: 'attr', cv: cvOf(el), name: 'href', value: href })
+      if (href != null) send({ op: 'attr', cv: cvOf(el), name: 'href', value: href }, at)
       return
     }
     const href = await askLink('Link to:', '')
     if (!href) return
     const inner = el.innerHTML.replace(/\s+data-cv="\d+"/g, '')
-    send({ op: 'inner', cv: cvOf(el), html: `<a href="${href.replace(/"/g, '&quot;')}">${inner}</a>` })
+    send({ op: 'inner', cv: cvOf(el), html: `<a href="${href.replace(/"/g, '&quot;')}">${inner}</a>` }, at)
   }
   /** An address for a link, or null. A prototype runs in the canvas's own page, so an address that
       runs script (javascript:, vbscript:) or carries a page of its own (data:) is refused. */

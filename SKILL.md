@@ -228,7 +228,7 @@ Board objects have **Copy as PNG** (Ctrl+Shift+C) and **Export PNG** in their ri
 
 A whole screen selected by its label moves on the board with the arrow keys (10 at a time with Shift), as a Figma frame does. Ctrl+Shift+G and Alt+arrows leave it whole.
 
-A screen selected this way has **Mode** in Properties' Screen section, like a Figma frame's variable mode. The choices are Auto, Light and Dark. Light or Dark turns the screen's own `prefers-color-scheme` rules on or off for that screen alone, whatever this computer is set to. Only what is seen changes, never the file. The mode is kept per screen in this browser, and a PNG or PDF of the screen comes out in that mode.
+A screen selected this way has **Mode** in Properties' Screen section, like a Figma frame's variable mode. The choices are Auto, Light and Dark. Light or Dark turns the screen's own `prefers-color-scheme` rules on or off for that screen alone, whatever this computer is set to. Only what is seen changes, never the file. The mode is kept per screen in this browser, and Play, a PNG or a PDF of the screen shows it in that mode.
 
 **Hide the bars** in the canvas menu (Ctrl+Shift+\) leaves the board alone, with no top bar, tools, panel or toolbars, to present it or share your screen, like Figma's Hide UI. The same key, or the button in the corner, brings them back.
 

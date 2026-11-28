@@ -443,8 +443,7 @@
   // Only what is seen changes, never the file; kept per screen in this browser.
   const schemeOf = (f) => store.get(`scheme:${f.key}`) || 'auto'
   const schemeText = new WeakMap()
-  function applyScheme(f) {
-    const doc = f.doc
+  function applyScheme(f, doc = f.doc) {
     if (!doc) return
     const mode = schemeOf(f)
     const walk = (rules) => {
@@ -4421,6 +4420,8 @@
     showHotspots.timer = setTimeout(() => { for (const x of doc.querySelectorAll('[data-dc-hot]')) x.removeAttribute('data-dc-hot') }, 700)
   }
   playFrame.addEventListener('load', () => {
+    // Played in the mode its screen is seen in on the board, as Figma presents a frame in its variable mode.
+    if (playing && playFrame.contentDocument) applyScheme(playing, playFrame.contentDocument)
     playFrame.contentDocument?.addEventListener('keydown', playKey)
     playFrame.contentDocument?.addEventListener('click', (e) => {
       if (e.defaultPrevented || e.target.closest?.(HOT) || !playCatch.hidden) return

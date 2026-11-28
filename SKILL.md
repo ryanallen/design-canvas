@@ -231,6 +231,8 @@ As in Figma, grouping moves nothing. In a grid or a flex row, the group is writt
 
 ## Code tab
 
+**Copy CSS** at the top of the tab copies the styles that apply to the element as one CSS block under its class, as Figma's Dev Mode does. Each property is there once, with the value that wins.
+
 The **Code** tab first shows the element's own style, which you can edit. Then it lists each rule that matches the element, strongest first, ranked as the cascade ranks them, by `!important`, then specificity, then order in the file. Every declaration that a stronger one overrides is struck through, so the value shown unstruck is the one that applies.
 
 A rule in the prototype's own `<style>` is editable there. Its values show as the file writes them, and its heading counts the elements it styles. You can change a value, add one in the empty row under the rule, or empty one. The change is written into that rule where it stands, as a `decl` edit and one undo step. Every element the rule matches follows, and nothing else does.

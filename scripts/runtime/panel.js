@@ -1423,7 +1423,19 @@
     const el = ed.primary()
     if (!el) return host.append(h('div', { class: 'empty' }, 'Nothing selected. Click any element in the design to read its code here.'))
     const can = ed.editable(el)
-    host.append(h('div', { class: 'ctitle' }, h('code', {}, `<${el.localName}>`), ` ${ed.isText(el) ? `"${el.textContent.replace(/\s+/g, ' ').trim().slice(0, 40)}"` : ''}`))
+    // Figma's Copy CSS (Dev Mode): the styles that apply, its own first, then each rule's that nothing overrides.
+    const copyCss = async () => {
+      const own = [...el.style].filter((p) => !p.startsWith('--dc')).map((p) => [p, el.style.getPropertyValue(p)])
+      const rs = rulesFor(el).reverse()
+      const off = overridden(el, rs)
+      const seen = new Set(own.map(([p]) => p))
+      const all = [...own]
+      rs.forEach((r, i) => r.decls.forEach(([p, v], j) => { if (!off[i][j] && !seen.has(p)) { seen.add(p); all.push([p, v]) } }))
+      const name = el.classList[0] ? `.${el.classList[0]}` : el.localName
+      const text = `${name} {\n${all.map(([p, v]) => `  ${p}: ${v};`).join('\n')}\n}`
+      try { await navigator.clipboard.writeText(text); dc.hint(`Copied ${all.length} declaration${all.length === 1 ? '' : 's'}`, 1200) } catch { dc.hint('This browser would not copy it', 2000) }
+    }
+    host.append(h('div', { class: 'ctitle' }, h('code', {}, `<${el.localName}>`), ` ${ed.isText(el) ? `"${el.textContent.replace(/\s+/g, ' ').trim().slice(0, 40)}"` : ''}`, h('button', { type: 'button', class: 'mini copy-css', title: 'Copy the CSS that applies to it', onclick: copyCss }, 'Copy CSS')))
     if (!can) host.append(h('div', { class: 'note' }, ed.notEditable(el), !dc.serve && dc.startLocal ? h('button', { type: 'button', class: 'btn start-edit', onclick: () => dc.startLocal() }, 'Edit here') : null))
     // Where it cannot be changed, the same reading as text.
     if (!can) {

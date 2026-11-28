@@ -1263,14 +1263,15 @@
         itemLayer.append(h('div', { class: `chosen-box${grouped ? ' grouped' : ''}`, style: `left:${b.x}px;top:${b.y}px;width:${b.w}px;height:${b.h}px` }))
       }
       // FigJam's quick connectors: a dot beyond each side of a picked note or shape; dragged, it draws an arrow held by
-      // this one, to what it is let go on, or to a new one like it there.
+      // this one, to what it is let go on, or to a new one like it there. Clicked, it puts a new one like it on that
+      // side, joined by an arrow.
       const it = !chosen && serve && picked ? board.items.find((i) => i.id === picked) : null
       if (it && CONNECTS.includes(it.kind) && !isLocked(it.id) && (it.page ?? firstPage()) === pageId) {
         // Each at the middle of a side, set out from it and sized by the stylesheet in screen pixels, whatever the zoom.
         const at = { n: [it.x + it.w / 2, it.y], e: [it.x + it.w, it.y + it.h / 2], s: [it.x + it.w / 2, it.y + it.h], w: [it.x, it.y + it.h / 2] }
         for (const [side, [x, y]] of Object.entries(at)) {
           itemLayer.append(h('span', { class: 'connect', 'data-side': side, title: 'Drag to connect', style: `left:${x}px;top:${y}px`,
-            onpointerdown: (e) => { if (e.button !== 0) return; e.stopPropagation(); e.preventDefault(); startDraw(e, { x, y }, null, { kind: 'arrow', from: it.id }) } }))
+            onpointerdown: (e) => { if (e.button !== 0) return; e.stopPropagation(); e.preventDefault(); startDraw(e, { x, y }, null, { kind: 'arrow', from: it.id, side }) } }))
         }
       }
       for (const f of frames()) f.el?.classList.toggle('chosen', !!chosen?.frames.has(f.key))
@@ -2595,6 +2596,7 @@
         let item
         if (kind === 'pencil' || kind === 'line' || kind === 'arrow') {
           const all = kind === 'pencil' ? pts : [p.x, p.y, last.x, last.y]
+          if (!moved && from?.side) return quickMake(from.from, from.side)
           if (!moved || all.length < 4) return
           const xs = all.filter((_, i) => i % 2 === 0)
           const ys = all.filter((_, i) => i % 2 === 1)
@@ -2643,6 +2645,35 @@
       },
     }
     viewport.setPointerCapture(e.pointerId)
+  }
+  /** FigJam's quick create: a new note or shape like this one, a gap away on the side whose dot was clicked, with an
+   *  arrow from this one to it, picked to type in. Where that spot is taken it moves along until it is free. */
+  async function quickMake(srcId, side) {
+    const src = board.items.find((i) => i.id === srcId)
+    if (!src) return
+    const [dx, dy] = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] }[side]
+    const gap = 120
+    let x = src.x + dx * (src.w + gap)
+    let y = src.y + dy * (src.h + gap)
+    const solid = (i) => i.id !== src.id && !['line', 'arrow', 'pencil', 'section', 'guide'].includes(i.kind)
+    const taken = () => items().some((i) => solid(i) && x < i.x + (i.w ?? 0) && x + src.w > i.x && y < i.y + (i.h ?? 0) && y + src.h > i.y)
+    for (let k = 0; k < 20 && taken(); k++) {
+      if (dx) y += src.h + 40
+      else x += src.w + 40
+    }
+    x = Math.round(x)
+    y = Math.round(y)
+    const made = await addItem({ kind: src.kind, x, y, w: src.w, h: src.h, text: '', ...(src.color ? { color: src.color } : {}) })
+    if (!made) return
+    const a = [src.x + src.w / 2 + (dx * src.w) / 2, src.y + src.h / 2 + (dy * src.h) / 2]
+    const b = [x + src.w / 2 - (dx * src.w) / 2, y + src.h / 2 - (dy * src.h) / 2]
+    const ax = Math.round(Math.min(a[0], b[0]))
+    const ay = Math.round(Math.min(a[1], b[1]))
+    await addItem({ kind: 'arrow', x: ax, y: ay, w: Math.round(Math.abs(b[0] - a[0])), h: Math.round(Math.abs(b[1] - a[1])), points: [a[0] - ax, a[1] - ay, b[0] - ax, b[1] - ay].map(Math.round), from: src.id, to: made })
+    setTool('select')
+    renderItems()
+    pickItem(made)
+    editItemText(made)
   }
   async function newArtboard(x, y, w, hgt) {
     if (data.memory) return hint(NO_FILES, 4000)

@@ -348,7 +348,7 @@ The tools are these.
 
 Double-click a note, a shape or a section to type in it. Double-click a line or arrow to give it a label, drawn on its middle.
 
-A picked note or shape shows a dot beyond each side. Drag a dot onto another object to draw an arrow held by both. Let it go on empty board to make another object like the first there, held at that end and ready to type in. Either way it is one undo step.
+A picked note or shape shows a dot beyond each side. Drag a dot onto another object to draw an arrow held by both. Let it go on empty board to make another object like the first there, held at that end and ready to type in. Click a dot without dragging to put another one like it on that side, joined by an arrow. If that spot is taken, it goes on along the side until it finds room. Each way is one undo step.
 
 A picked shape's bar turns it into another shape in place, keeping its words and the lines bound to it. The bar also leaves it an outline (▢) or fills it with a tint of its color (■).
 

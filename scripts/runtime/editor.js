@@ -2125,7 +2125,10 @@
     const w = floatBar.offsetWidth
     const hh = floatBar.offsetHeight
     const maxLeft = innerWidth - w - 8 - (document.body.classList.contains('panel-open') && innerWidth > 640 ? 320 : 0)
-    const clamp = (c) => ({ x: Math.max(8, Math.min(maxLeft, c.x)), y: Math.min(innerHeight - 100, Math.max(56, c.y)) })
+    // On a narrow screen the open panel is a sheet over the bottom of the board: the bar stays above it.
+    const sheet = document.body.classList.contains('panel-open') && innerWidth <= 640 ? document.querySelector('#panel')?.getBoundingClientRect().top : null
+    const maxTop = sheet != null ? Math.max(56, sheet - hh - 8) : innerHeight - 100
+    const clamp = (c) => ({ x: Math.max(8, Math.min(maxLeft, c.x)), y: Math.min(maxTop, Math.max(56, c.y)) })
     // Above (clear of the selection's name tag), below, or to the right: whichever covers least of the
     // prototype's text and pictures, and never the selection itself; above when they tie.
     const spots = [{ x: b.x, y: b.y - hh - 30 }, { x: b.x, y: b.y + b.h + 10 }, { x: b.x + b.w + 12, y: b.y + b.h / 2 - hh / 2 }].map(clamp)

@@ -987,6 +987,26 @@
           : null))
     }
 
+    // Figma's vector fill and stroke, for an icon (an <svg>): Color is the svg's own color, which shapes drawn in
+    // currentColor follow; Fill and Stroke recolor every shape in it that has one, each shape's own style written (a
+    // style on the svg would lose to the shapes' fill and stroke attributes), in one edit.
+    if (el.localName === 'svg' && ed.sel.els.length === 1 && state === 'default') {
+      const SHAPES = 'path, circle, ellipse, rect, line, polyline, polygon, text, use'
+      const shapes = [...el.querySelectorAll(SHAPES)].filter((x) => ed.cvOf(x) != null)
+      const paint = (x, prop) => { const v = cs(x).getPropertyValue(prop); return v && v !== 'none' && !/^url\(/.test(v) && cs(x).getPropertyValue(`${prop}-opacity`) !== '0' ? v : null }
+      const filled = shapes.filter((x) => paint(x, 'fill'))
+      const stroked = shapes.filter((x) => paint(x, 'stroke'))
+      const colorsOf = (list, prop) => [...new Set(list.map((x) => ed.rgbHex(paint(x, prop))))]
+      const allTo = (list, props) => ed.send({ op: 'styles', items: list.map((x) => ({ cv: ed.cvOf(x), props })) }, { then: ed.reselect() })
+      const fills = colorsOf(filled, 'fill')
+      const strokes = colorsOf(stroked, 'stroke')
+      const width = [...new Set(stroked.map((x) => num(cs(x).strokeWidth)))]
+      host.append(section('Vector', ['fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin'],
+        field('Color', color(c.color, (v) => set({ color: v }))),
+        filled.length ? field('Fill', color(fills[0], (v) => allTo(filled, { fill: v })), h('span', { class: 'val' }, `${filled.length} shape${filled.length === 1 ? '' : 's'}${fills.length > 1 ? ', mixed' : ''}`)) : null,
+        stroked.length ? field('Stroke', color(strokes[0], (v) => allTo(stroked, { stroke: v })), input(width.length === 1 ? width[0] : MIXED, (v) => { const n = Number(String(v).replace(/px$/, '')); if (Number.isFinite(n) && n >= 0) allTo(stroked, { 'stroke-width': String(n) }) }, { class: 'n s', title: 'Stroke width', 'aria-label': 'Stroke width' })) : null))
+    }
+
     // Figma's Navigate to, for a link: which screen on the canvas it opens (its address worked out from this file),
     // a web address typed, or none.
     if (el.localName === 'a' && ed.sel.els.length === 1 && state === 'default') {

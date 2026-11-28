@@ -324,6 +324,8 @@ Size has these controls.
 - **Min · Max** width or height shows under the size where one is set, or after you press ⇔ beside it. It is read and written as drawn, with padding and border included, as Width is. When emptied, a limit written on the element goes, and a limit from its CSS is overruled.
 - **Rotation** in degrees, ↻ for a quarter turn, and ⇋ ⇵ (Shift+H, Shift+V) to mirror. These use the CSS `rotate` and `scale` properties, apart from any `transform`. A turned element's width and height read as laid out.
 
+An icon (an `<svg>`) has **Vector**, like Figma's vector fill and stroke. **Color** is the icon's own color, which shapes drawn in `currentColor` follow. **Fill** and **Stroke** recolor every shape in it that has one, over its fill and stroke attributes, and Stroke takes a width too.
+
 A link has **Link › Opens**, like Figma's Navigate to. Pick any screen on the canvas, and its address from this file is written for you. You can also type a web address, or pick None to take the link off.
 
 A picture or video has **Fit** (Fill, Fit, Stretch, Original) and **Focus**, which sets where a crop keeps its middle. A picture also has **Exposure**, **Contrast** and **Saturation**, from -100 to 100, as Figma's image adjustments. They're written as `brightness()`, `contrast()` and `saturate()` in its `filter`, leaving any blur there in place. The picture follows the slider as you drag, and a double-click puts one back to 0. A picture also has **Alt text**.

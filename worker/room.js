@@ -54,20 +54,33 @@ export class Room {
 
   async webSocketMessage(ws, text) {
     if (typeof text !== 'string') return
-    const me = this.room().handles.get(ws)
+    const { handles } = this.room()
+    const me = handles.get(ws)
     if (!me) return
     me.message(text)
-    ws.serializeAttachment(me.state)
+    // A message can change what others keep too (a new timer clears the one someone else set), so everyone's is kept.
+    keep(handles)
   }
 
   async webSocketClose(ws) {
-    this.room().handles.get(ws)?.leave()
+    const { handles } = this.room()
+    handles.get(ws)?.leave()
+    handles.delete(ws)
     ws.serializeAttachment(null)
+    // Who leaves can hand something on (a running timer goes to someone still here): kept with them.
+    keep(handles)
     try { ws.close() } catch {}
   }
 
   async webSocketError(ws) {
     return this.webSocketClose(ws)
+  }
+}
+
+/** Each person's state written back onto their socket, as the room is made again from them after it sleeps. */
+const keep = (handles) => {
+  for (const [ws, h] of handles) {
+    try { ws.serializeAttachment(h.state) } catch {}
   }
 }
 

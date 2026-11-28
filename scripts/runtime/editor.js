@@ -1388,6 +1388,14 @@
       const html = clip.file === sel.frame.file ? clip.html : lookedIn(el, where) ?? clip.styled
       send({ op: 'insert', cv: cvOf(el), where, html })
     },
+    pasteReplace: () => {
+      if (!clip) return hint('Nothing copied yet', 1200)
+      if (!needEditable()) return
+      const el = primary()
+      if (sel.els.length !== 1 || el.localName === 'body') return hint('Select one part to replace it', 1600)
+      const html = clip.file === sel.frame.file ? clip.html : lookedIn(el, 'after') ?? clip.styled
+      send({ op: 'outer', cv: cvOf(el), html })
+    },
     // Figma's Copy and Paste properties: the look alone (fill, border, radius, shadow, opacity, text), never the size,
     // place or content. A picture fill is left out: its URL as read is the served address, not the file's own path.
     copyProps: () => {
@@ -1553,6 +1561,9 @@
     // By the key's place, so a layout where Ctrl+Alt types a character still reaches them.
     else if (mod && e.altKey && e.code === 'KeyC') ops.copyProps()
     else if (mod && e.altKey && e.code === 'KeyV') ops.pasteProps()
+    // Figma's Paste to replace (Ctrl+Shift+R): what was copied takes the selected part's place. With nothing copied the
+    // key is left to the browser (a reload).
+    else if (mod && e.shiftKey && !e.altKey && e.code === 'KeyR' && clip) ops.pasteReplace()
     // Figma's Rename (Ctrl+R): the selected element's row in Layers takes its name, as a double-click on it does.
     else if (mod && !e.shiftKey && !e.altKey && k === 'r') {
       if (sel.els.length !== 1 || el.localName === 'body' || cvOf(el) == null) hint('Select one part to rename it', 1600)
@@ -2209,6 +2220,7 @@
             { label: 'Cut', key: 'Ctrl+X', run: ops.cut },
             { label: 'Copy', key: 'Ctrl+C', run: ops.copy },
             clip ? { label: 'Paste after it', key: 'Ctrl+V', run: ops.paste } : null,
+            clip && sel.els.length === 1 && primary().localName !== 'body' ? { label: 'Paste to replace it', key: 'Ctrl+Shift+R', run: ops.pasteReplace } : null,
             { label: 'Copy properties', key: 'Ctrl+Alt+C', run: ops.copyProps },
             look ? { label: 'Paste properties', key: 'Ctrl+Alt+V', run: ops.pasteProps } : null,
           ]

@@ -411,6 +411,7 @@ With a selection, you can do these.
 - Ctrl+D duplicates. The copies are moved and stay selected. Ctrl+D again puts the next copies as far on again, as Figma steps them.
 - Alt + drag places a copy where the drag ends.
 - Ctrl+C and Ctrl+V copy and paste. Ctrl+Shift+V (Paste in place) puts the copies exactly where the originals were, on whatever page is open. A line copied together with both objects it holds holds the copies.
+- Ctrl+Shift+R (Paste to replace) puts what was copied in place of what is selected, centered on it, in one undo step. In a prototype it replaces the one selected part. With nothing copied, the key is left to the browser.
 - **Page** on the bar moves the selection to another page, at the same spot. An arrow between two things that both move goes with them. An arrow holding only one of them lets go of it where it is drawn.
 - **✦ Ask agent** leaves the agent a thread carrying the box and everything in it.
 

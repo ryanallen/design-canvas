@@ -503,7 +503,7 @@ A host on another site is called with its cookies (`credentials: include`), so t
 
 ## Locks
 
-The owner is whoever edits where the canvas lives, either served by node or in its folder on disk. The owner locks what others must leave as it is. A guest editing the hosted copy through the room is not the owner, and the server holds them to the locks too.
+The owner is whoever edits where the canvas lives, either served by node or in its folder on disk. The owner locks what others must leave as it is. A guest editing the hosted copy through the room is not the owner. The server holds them to the locks, and lets them delete only the comments they wrote.
 
 - An artboard, by the padlock in its header.
 - A board object, by Lock in its bar or a drag box's bar.

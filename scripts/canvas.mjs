@@ -607,7 +607,13 @@ export function serveCanvas(built, { port = 4410, strictPort = false, quiet = fa
       if (url.pathname === '/api/canvas-comments') {
         if (req.method === 'GET') return json(res, 200, { events: parseEvents(lines.join('\n')), viewer: null })
         const event = makeEvent((await readBody(req)).event)
-        const refused = commentRefused(parseEvents(lines.join('\n')), event)
+        const said = parseEvents(lines.join('\n'))
+        // People delete what they wrote; the owner deletes anything.
+        if (isGuest(req) && event.op === 'delete') {
+          const m = foldEvents(said).flatMap((x) => [x, ...x.replies]).find((x) => x.id === event.to)
+          if (m && m.name !== event.name) return json(res, 403, { error: 'Only the one who wrote it, or the owner, can delete it.' })
+        }
+        const refused = commentRefused(said, event)
         if (refused) return json(res, 409, { error: refused })
         lines.push(insertEvent('', event).trim())
         writeOut()

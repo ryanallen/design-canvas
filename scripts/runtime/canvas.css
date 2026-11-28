@@ -652,3 +652,7 @@ body.has-banner #panel { top: 88px; }
 #peers .peer:first-child { margin-left: 0; }
 #peers .peer.more { background: var(--ink-3, #777); cursor: default; }
 @media (prefers-reduced-motion: reduce) { .peer-cursor { transition: none; } }
+#follow-ring { position: fixed; inset: 0; border: 3px solid var(--c); pointer-events: none; z-index: 26; }
+#follow-ring[hidden] { display: none; }
+.follow-tag { position: absolute; top: 56px; left: 50%; transform: translateX(-50%); background: var(--c); color: #fff; font-size: 12px; font-weight: 600; padding: 5px 6px 5px 10px; border-radius: 6px; display: flex; gap: 8px; align-items: center; pointer-events: auto; white-space: nowrap; }
+.follow-tag button { border: 0; background: rgb(255 255 255 / 0.25); color: #fff; font: inherit; padding: 2px 8px; border-radius: 4px; cursor: pointer; }

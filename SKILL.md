@@ -419,7 +419,7 @@ With a selection, you can do these.
 
 When served, every open copy of the canvas redraws when anyone changes the board.
 
-Everyone with a served canvas open sees each other, as in Figma. Each person's pointer shows on the board with their name in their color, and their face (initials) shows at the right of the top bar. Clicking a face goes to where that person's pointer is, on their page. The server holds this as a room at `/api/room`, a WebSocket that only the canvas's own page may open. `scripts/lib/room.mjs` holds the room and imports nothing.
+Everyone with a served canvas open sees each other, as in Figma. Each person's pointer shows on the board with their name in their color, and their face (initials) shows at the right of the top bar. Clicking a face follows that person, as in Figma: your view shows what theirs does, page and zoom too, with a ring in their color, until you pan, zoom or press a key yourself (or click the face again, or Stop). The server holds this as a room at `/api/room`, a WebSocket that only the canvas's own page may open. `scripts/lib/room.mjs` holds the room and imports nothing.
 
 `build` refuses a prototype whose file no longer matches its last edit line. That way a rebuild by the prototype's own script never drops a canvas edit silently. Carry the edits into the script, then run `accept`.
 

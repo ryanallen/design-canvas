@@ -553,6 +553,7 @@
   function apply() {
     world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.z})`
     placePeers()
+    sendView()
     // A pan leaves the zoom as it was: the counter-scaled labels, pins and strokes are restyled only on a zoom.
     if (view.z !== lastZ) {
       lastZ = view.z
@@ -3400,8 +3401,17 @@
     if (m.t === 'welcome') {
       peers.clear()
       for (const p of m.peers ?? []) peers.set(p.id, p)
-    } else if (m.t === 'join') peers.set(m.id, m)
-    else if (m.t === 'leave') peers.delete(m.id)
+    } else if (m.t === 'join') {
+      peers.set(m.id, m)
+      sendView(true)
+    } else if (m.t === 'leave') {
+      peers.delete(m.id)
+      if (following === m.id) stopFollow()
+    } else if (m.t === 'view' && peers.has(m.id)) {
+      peers.get(m.id).view = m
+      if (following === m.id) followTo(m)
+      return
+    }
     else if (m.t === 'name' && peers.has(m.id)) peers.get(m.id).name = m.name
     else if (m.t === 'cursor' && peers.has(m.id)) {
       peers.get(m.id).cursor = m.page ? { page: m.page, x: m.x, y: m.y } : null
@@ -3430,7 +3440,7 @@
   function drawPeers() {
     const list = [...peers.values()]
     const shown = list.slice(0, 5)
-    peerBar.replaceChildren(...shown.map((p) => h('button', { type: 'button', class: 'peer', role: 'listitem', style: `--c:${p.color}`, title: p.cursor ? `${p.name}: go to where they are` : `${p.name}, not on the board right now`, 'aria-label': p.name, onclick: () => goToPeer(p.id) }, initials(p.name))),
+    peerBar.replaceChildren(...shown.map((p) => h('button', { type: 'button', class: 'peer', role: 'listitem', style: `--c:${p.color}`, title: following === p.id ? `Following ${p.name}: click to stop` : `Follow ${p.name}: see what they see`, 'aria-label': p.name, 'aria-pressed': String(following === p.id), onclick: () => (following === p.id ? stopFollow() : startFollow(p.id)) }, initials(p.name))),
       ...(list.length > shown.length ? [h('span', { class: 'peer more', title: list.slice(5).map((p) => p.name).join(', ') }, `+${list.length - shown.length}`)] : []))
     for (const el of [...peerLayer.children]) if (!peers.has(el.dataset.peer)) el.remove()
     for (const p of list) {
@@ -3532,6 +3542,52 @@
     else if (m.event === 'board') refreshBoard()
     else if (m.event === 'sheet' && d.sheet) reloadSheet(d.sheet, d.text)
   }
+  // Figma's follow: a face clicked keeps this view on what that person sees, page and zoom too, until this person pans,
+  // zooms or presses a key. What each person sees is sent at most five times a second, only while others are here.
+  var following = null
+  let viewTimer = 0
+  let viewSent = 0
+  function sendView(now = false) {
+    // peers first: the view is drawn before this part of the script has run, when roomSocket is not yet made.
+    if (!peers?.size || !roomSocket) return
+    const go = () => {
+      viewTimer = 0
+      viewSent = Date.now()
+      const c = toWorld(viewport.clientWidth / 2, viewport.clientHeight / 2)
+      roomSend({ t: 'view', page: pageId, x: c.x, y: c.y, z: view.z })
+    }
+    if (now) return go()
+    if (!viewTimer) viewTimer = setTimeout(go, Math.max(0, 200 - (Date.now() - viewSent)))
+  }
+  const followRing = h('div', { id: 'follow-ring', hidden: true })
+  document.body.append(followRing)
+  function startFollow(id) {
+    const p = peers.get(id)
+    if (!p) return
+    following = id
+    followRing.style.setProperty('--c', p.color)
+    followRing.replaceChildren(h('span', { class: 'follow-tag' }, `Following ${p.name}`, h('button', { type: 'button', onclick: stopFollow }, 'Stop')))
+    followRing.hidden = false
+    drawPeers()
+    if (p.view) followTo(p.view)
+    else goToPeer(id)
+  }
+  function stopFollow() {
+    if (!following) return
+    following = null
+    followRing.hidden = true
+    drawPeers()
+  }
+  function followTo(v) {
+    if (v.page !== pageId) goPage(v.page)
+    view.z = v.z
+    view.x = viewport.clientWidth / 2 - v.x * v.z
+    view.y = viewport.clientHeight / 2 - v.y * v.z
+    apply()
+  }
+  // This person moving the board themselves stops following.
+  for (const type of ['wheel', 'pointerdown']) viewport.addEventListener(type, () => stopFollow(), { capture: true, passive: true })
+  addEventListener('keydown', (e) => { if (following && !e.target.closest?.('input, textarea, [contenteditable]')) stopFollow() }, true)
   /** A face clicked: to the page their pointer is on, with it in the middle of the window. */
   function goToPeer(id) {
     const c = peers.get(id)?.cursor

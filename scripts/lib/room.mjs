@@ -98,6 +98,13 @@ export function makeRoom({ newId = () => Math.random().toString(36).slice(2, 10)
             const y = num(m.y)
             p.cursor = page && x != null && y != null ? { page, x, y } : null
             others(p.id, { t: 'cursor', id: p.id, ...(p.cursor ?? { page: null }) })
+          } else if (m.t === 'view') {
+            // What they are looking at, for anyone following them: a page, the board point in the middle, the zoom.
+            const page = clean(m.page, 240)
+            const x = num(m.x)
+            const y = num(m.y)
+            const z = Number.isFinite(m.z) ? Math.min(64, Math.max(0.01, m.z)) : null
+            if (page && x != null && y != null && z != null) others(p.id, { t: 'view', id: p.id, page, x, y, z })
           }
         },
         leave() {

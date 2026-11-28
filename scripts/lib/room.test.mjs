@@ -83,3 +83,16 @@ test("a guest's calls reach the owner's canvas only with the edit key, and only 
   host.leave()
   assert.deepEqual(got.ana.at(-1), { t: 'host', on: false, edit: false })
 })
+
+test('what someone is looking at goes to the others, for following them', () => {
+  const room = makeRoom()
+  const got = []
+  const a = room.join(() => {})
+  const b = room.join((m) => got.push(m))
+  a.message(JSON.stringify({ t: 'hello', name: 'Ana' }))
+  b.message(JSON.stringify({ t: 'hello', name: 'Sam' }))
+  a.message(JSON.stringify({ t: 'view', page: 'p1', x: 100, y: 50, z: 0.5 }))
+  assert.deepEqual(got.at(-1), { t: 'view', id: a.id, page: 'p1', x: 100, y: 50, z: 0.5 })
+  a.message(JSON.stringify({ t: 'view', page: 'p1', x: 1, y: 1, z: 'far' }))
+  assert.equal(got.at(-1).x, 100, 'a view without a zoom goes nowhere')
+})

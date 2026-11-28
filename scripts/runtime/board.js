@@ -3988,6 +3988,8 @@
     // One dialog at a time: the ask box keeps what was typed in it for when it opens again.
     if ($('#ask').classList.contains('open')) closeAsk()
     const typed = keepTyping ? thread.querySelector('textarea')?.value : ''
+    // Drawn again while its reply is being typed (someone else commented): the box keeps the focus and the caret.
+    const was = keepTyping && document.activeElement?.matches?.('#thread textarea') ? { s: document.activeElement.selectionStart, e: document.activeElement.selectionEnd } : null
     const t = what.id ? threads.find((x) => x.id === what.id) : null
     const msgs = h('div', { class: 'msgs' })
     const error = h('div', { class: 'error' })
@@ -4179,6 +4181,7 @@
     threadAt = t ? { thread: t } : { draft: what.draft }
     placeThread()
     if (!keepTyping) (me ? textarea : nameIn).focus({ preventScroll: true })
+    else if (was) { textarea.focus({ preventScroll: true }); try { textarea.setSelectionRange(was.s, was.e) } catch {} }
   }
   function placeThread() {
     if (!threadAt || !thread.classList.contains('open')) return

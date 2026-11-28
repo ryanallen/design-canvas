@@ -1842,9 +1842,11 @@
   }
   /** For the server's browser making a picture of part of the board: that part at 100% from the window's top left,
       with nothing of the canvas's own over it. */
-  function shootBoard(box) {
+  function shootBoard(box, modes = {}) {
     picked = null
     chosen = null
+    // Each screen in the mode it is shown in where the picture was asked for.
+    for (const [key, mode] of Object.entries(modes)) { const f = allFrames.get(key); if (f && ['light', 'dark'].includes(mode)) setScheme(f, mode) }
     document.body.classList.add('shooting')
     view.z = 1
     view.x = -box.x
@@ -1860,7 +1862,8 @@
     if (!ids.length && !keys.length) return null
     if (!serve || local) { hint('To make a picture, run the canvas from its folder with node scripts/canvas.mjs serve <folder>', 5000); return null }
     const b = boxAround(ids, keys)
-    const q = new URLSearchParams({ page: pageId, x: String(Math.floor(b.x - 24)), y: String(Math.floor(b.y - 24)), w: String(Math.ceil(b.w + 48)), h: String(Math.ceil(b.h + 48)) })
+    const modes = Object.fromEntries(frames().map((f) => [f.key, schemeOf(f)]).filter(([, m]) => m !== 'auto'))
+    const q = new URLSearchParams({ page: pageId, x: String(Math.floor(b.x - 24)), y: String(Math.floor(b.y - 24)), w: String(Math.ceil(b.w + 48)), h: String(Math.ceil(b.h + 48)), ...(Object.keys(modes).length ? { modes: JSON.stringify(modes) } : {}) })
     hint('Making the picture…', 8000)
     return fetch(`/api/board-png?${q}`).then(async (res) => {
       if (!res.ok) { hint((await res.json().catch(() => ({}))).error || 'No picture was made', 5000); return null }
@@ -5296,7 +5299,7 @@
       }
     }
     // Copy as PNG, for board objects.
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.code === 'KeyC' && selectedItems().length && !call('selectedFile')) {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.code === 'KeyC' && (selectedItems().length || chosen?.frames?.size) && !call('selectedFile')) {
       e.preventDefault()
       return copyBoardPng()
     }

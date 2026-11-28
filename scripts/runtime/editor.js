@@ -1419,6 +1419,8 @@
     },
     copy: async () => {
       if (!sel) return
+      // The screen it is copied from, held: the selection may change or go while the file's own text is fetched.
+      const from = sel.frame
       // Every element selected, in the order the page has them; nested ones go with what holds them.
       const els = sel.els.filter(live).filter((e, _, all) => !all.some((o) => o !== e && o.contains(e)))
         .sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
@@ -1427,7 +1429,7 @@
         let html = el.outerHTML.replace(/\s+data-cv="\d+"/g, '')
         if (dc.serve && cvOf(el) != null) {
           try {
-            const res = await fetch(`/api/source?f=${encodeURIComponent(sel.frame.file)}&cv=${cvOf(el)}`)
+            const res = await fetch(`/api/source?f=${encodeURIComponent(from.file)}&cv=${cvOf(el)}`)
             const body = await res.json()
             if (body.html) html = body.html
           } catch {}
@@ -1437,7 +1439,7 @@
       // Another prototype may have none of this one's rules: what goes there carries on itself whatever of its look
       // that page would not give it. Each part's look is kept here, to compare against the page it lands in.
       const looks = els.map((el) => [el, ...el.querySelectorAll('*')].map((n) => Object.fromEntries(LOOK.map((p) => [p, cs(n).getPropertyValue(p)]))))
-      clip = { html: parts.join('\n'), file: sel.frame.file, styled: els.map(standalone).join('\n'), looks }
+      clip = { html: parts.join('\n'), file: from.file, styled: els.map(standalone).join('\n'), looks }
       try { await navigator.clipboard.writeText(clip.html) } catch {}
       hint(els.length > 1 ? `Copied ${els.length}` : 'Copied', 900)
     },
@@ -1445,7 +1447,10 @@
     cut: async () => {
       if (!sel || !needEditable()) return
       if (sel.els.some((x) => x.localName === 'body')) return hint('The body stays', 1500)
+      // What is deleted is what was copied: a selection changed while it was copying is left alone.
+      const was = sel
       await ops.copy()
+      if (sel !== was) return hint('The selection changed while it was copied, so nothing was cut', 2400)
       ops.remove()
     },
     paste: () => {

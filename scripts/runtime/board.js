@@ -4867,6 +4867,8 @@
       peers.size ? { label: document.body.classList.contains('pointers-off') ? "Show others' pointers" : "Hide others' pointers", key: 'Ctrl+Alt+\\', run: () => setPointersShown(document.body.classList.contains('pointers-off')) } : null,
       // FigJam's timer, for everyone here.
       { label: timerEnd ? 'Timer: stop' : 'Timer…', run: () => (timerEnd ? startTimer(0) : setTimeout(() => openMenu($('#title-btn'), [1, 3, 5, 10].map((n) => ({ label: `${n} minute${n === 1 ? '' : 's'}`, run: () => startTimer(n * 60000) }))), 0)) },
+      // FigJam's +1 minute, for everyone here, while it runs.
+      timerEnd > Date.now() ? { label: 'Timer: add a minute', run: () => startTimer(timerEnd - Date.now() + 60000) } : null,
       // Figma's Spotlight: everyone else here follows this view.
       peers.size ? { label: spotlit ? 'Stop the spotlight' : 'Spotlight me', run: () => { spotlit = !spotlit; roomSend({ t: 'spotlight', on: spotlit }); if (spotlit) sendView(true); hint(spotlit ? 'Everyone here is following you.' : 'Everyone can look around on their own again.', 2000) } } : null,
       // The owner's canvas, host of a hosted room: the hosted copy's address with the invite key.

@@ -777,6 +777,7 @@
   /** A style change to the selection: inline on one element, a rule for every copy, or on each element picked. */
   function setStyle(props) {
     if (!sel) return
+    if (!sel.els.every(live)) return hint('That part has changed since it was picked. Select it again.', 2400)
     const el = primary()
     if (!sel.els.every(editable)) return dc.serve && hint(notEditable(el), 3000)
     // While Properties shows a state (hover, pressed, focus), the toolbar changes that state too.

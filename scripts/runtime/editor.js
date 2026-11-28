@@ -1593,7 +1593,8 @@
     else if (mod && e.shiftKey && !e.altKey && e.code === 'KeyR' && clip) ops.pasteReplace()
     // Figma's Rename (Ctrl+R): the selected element's row in Layers takes its name, as a double-click on it does.
     else if (mod && !e.shiftKey && !e.altKey && k === 'r') {
-      if (sel.els.length !== 1 || el.localName === 'body' || cvOf(el) == null) hint('Select one part to rename it', 1600)
+      if (sel.els.length > 1) dc.renameLayers?.()
+      else if (el.localName === 'body' || cvOf(el) == null) hint('Select a part to rename it', 1600)
       else dc.renameLayer?.()
     }
     // Figma's text alignment keys: Ctrl+Alt+L left, T center, R right, J justified, as the toolbar's Align does.

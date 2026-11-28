@@ -1855,6 +1855,22 @@
     }
   }
   // Ctrl+R: the panel opens on Layers if it is shut or elsewhere, and the selected element's row is renamed in place.
+  // Figma's rename for several layers at once: one pattern for all, $& standing for each one's name now and $n for its
+  // number in page order ($nn as 01, 02 and so on), written in one edit.
+  const layerName = (el) => el.getAttribute('data-name') || ed.nameOf(el).text.replace(/^[.#◇]\s*|"[^"]*"/g, '').trim()
+  dc.renameLayers = async () => {
+    const sel = ed.sel
+    const els = sel.els.filter((x) => ed.editable(x) && ed.cvOf(x) != null && x.localName !== 'body')
+      .sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
+    if (els.length < 2) return dc.hint('Select the parts to rename', 1600)
+    const pattern = await dc.question(`Rename ${els.length} layers. $& is each one's name now, $n its number (1, 2, 3), $nn with a 0 (01, 02):`, '$&')
+    if (pattern == null) return
+    const items = els.map((x, i) => {
+      const name = String(pattern).replace(/\$(n+)/g, (_, ns) => String(i + 1).padStart(ns.length, '0')).replace(/\$&/g, () => layerName(x)).trim()
+      return { cv: ed.cvOf(x), props: {}, attrs: { 'data-name': name || null } }
+    })
+    ed.send({ op: 'styles', items }, { then: ed.reselect() })
+  }
   dc.renameLayer = () => {
     if (!document.body.classList.contains('panel-open') || !['properties', 'code'].includes(dc.currentTab())) dc.openPanel('properties')
     renderLayers()

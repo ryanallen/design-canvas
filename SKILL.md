@@ -203,7 +203,7 @@ To select rows:
 - Ctrl+click adds a row or takes it out.
 - Alt+click selects every copy.
 
-Double-click a layer to name it in its row. Ctrl+R names the selected layer, opening the panel if it is shut. The name is written as `data-name` when Enter is pressed or the row is left. Escape keeps the old name. An empty name takes it off.
+Double-click a layer to name it in its row. Ctrl+R names the selected layer, opening the panel if it is shut. The name is written as `data-name` when Enter is pressed or the row is left. Escape keeps the old name. An empty name takes it off. With several parts selected, Ctrl+R renames them all at once, as in Figma. You type one pattern: `$&` stands for each part's name now, and `$n` for its number in page order (`$nn` gives 01, 02). It's one undo step.
 
 The eye on a layer, or Ctrl+Shift+H, hides it and shows it again, in one undo step. If the layer is in the selection, the whole selection is hidden. Hiding writes `display: none` on the element, so Play hides it too. If the element has a display of its own, such as `flex` written by Layout, that is kept in `data-display` while it is hidden and comes back with it.
 

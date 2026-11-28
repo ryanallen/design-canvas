@@ -4,7 +4,7 @@ A skill that puts a folder of HTML prototypes on one board. You can view them, c
 
 Every page is also a whiteboard, with sticky notes, shapes with text, sections, arrows that stay attached, and a box you can draw to ask your agent about what's inside it. A folder with no prototypes opens as a plain whiteboard.
 
-It only needs Node. There's nothing to install, no build step, and the canvas never fetches anything from the internet.
+It only needs Node. There's nothing to install, no build step, and the canvas never fetches anything from the internet. The one exception is a room you set up yourself so people on a hosted copy can see each other.
 
 ## Install
 
@@ -41,6 +41,7 @@ node scripts/canvas.mjs accept <folder> <prototype.html>
 | [scripts/lib/html.mjs](scripts/lib/html.mjs) | A prototype as elements with their source offsets, and every edit as a replacement at them |
 | [scripts/lib/html.test.mjs](scripts/lib/html.test.mjs) | Every edit op checked to change only its own bytes (`node --test scripts/lib/*.test.mjs`) |
 | [scripts/lib/events.mjs](scripts/lib/events.mjs) | Comment, edit and board lines: written, read, checked and folded |
+| [worker/](worker/) | The room as a Cloudflare Worker with a Durable Object, for seeing each other on a hosted copy. HOSTING.md says how to put it up |
 | [scripts/lib/room.mjs](scripts/lib/room.mjs) | Who else has the canvas open and where their pointer is. It imports nothing, and the served canvas speaks it over a WebSocket at `/api/room` |
 | [scripts/lib/write.mjs](scripts/lib/write.mjs) | Writes every file whole or not at all, by writing a hidden file beside it and renaming it over the original |
 | [scripts/lib/inline.mjs](scripts/lib/inline.mjs) | A prototype made self-contained |

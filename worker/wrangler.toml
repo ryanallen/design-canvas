@@ -1,0 +1,17 @@
+# The hosted room (room.js). Deploy from this folder with `npx wrangler deploy`, after `npx wrangler login` once.
+# Durable Objects on the free Workers plan are SQLite-backed, so the class is declared with new_sqlite_classes.
+name = "design-canvas-room"
+main = "room.js"
+compatibility_date = "2025-06-01"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
+
+[vars]
+# The pages that may join, comma-separated, such as "https://ryanallen.com,http://127.0.0.1:4410". Empty lets any.
+ALLOWED_ORIGINS = ""

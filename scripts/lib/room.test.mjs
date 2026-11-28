@@ -30,3 +30,21 @@ test('a room tells each person who else is there, where their pointer is, and wh
   assert.deepEqual(got.b.at(-1), { t: 'leave', id: 'p1' })
   assert.equal(room.size, 1)
 })
+
+test('a room made again from what each person kept is the room it was', () => {
+  let n = 0
+  const room = makeRoom({ newId: () => `p${++n}` })
+  const a = room.join(() => {})
+  const b = room.join(() => {})
+  a.message(JSON.stringify({ t: 'hello', name: 'Ana' }))
+  b.message(JSON.stringify({ t: 'hello', name: 'Sam' }))
+  a.message(JSON.stringify({ t: 'cursor', page: 'p1', x: 1, y: 2 }))
+  const kept = [a.state, b.state]
+  const again = makeRoom()
+  const got = []
+  const a2 = again.join(() => {}, kept[0])
+  again.join((m) => got.push(m), kept[1])
+  a2.message(JSON.stringify({ t: 'cursor', page: 'p1', x: 3, y: 4 }))
+  assert.deepEqual(got.at(-1), { t: 'cursor', id: 'p1', page: 'p1', x: 3, y: 4 })
+  assert.notEqual(kept[0].color, kept[1].color)
+})

@@ -3356,8 +3356,8 @@
   }
 
   // ── who else is here, as Figma's multiplayer: each person's pointer on the board, with their name, and their faces
-  // in the top bar; a face clicked goes to where they are. Served, the room is the server's own (/api/room); elsewhere
-  // the address in canvas.json's "room", if any. ──
+  // in the top bar; a face clicked goes to where they are. The room is the address in canvas.json's "room" (a hosted
+  // room, worker/room.js) when it has one; else, served, the server's own (/api/room). ──
   // var, not const: the view is drawn (apply, which places the pointers) before this part of the script has run.
   var peers = new Map()
   var peerLayer = h('div', { id: 'peer-layer', 'aria-hidden': 'true' })
@@ -3369,7 +3369,7 @@
   let lastSent = 0
   let cursorTimer = 0
   let pendingCursor = null
-  const roomUrl = () => (data.serve && web && !local ? `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/room` : data.room || null)
+  const roomUrl = () => data.room || (data.serve && web && !local ? `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/room` : null)
   function joinRoom() {
     const url = roomUrl()
     if (!url || typeof WebSocket === 'undefined') return

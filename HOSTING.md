@@ -67,6 +67,18 @@ A shared host refuses, for anyone but the owner:
 - an `item`, `remove` or `move` line whose id or key is locked (`foldBoard(lines).locked`);
 - an edit for which `lockedFor(src, edit)` from `scripts/lib/html.mjs` gives a reason. It imports nothing, so the Worker uses it as is.
 
+## Seeing each other on a host
+
+A served canvas already shows everyone's pointer and face. To get the same on a hosted copy, run the room in `worker/` on Cloudflare's free Workers plan and point the canvas at it.
+
+1. Sign in once with `npx wrangler login`, which opens Cloudflare in your browser. A free account is enough.
+2. In `worker/wrangler.toml`, set `ALLOWED_ORIGINS` to the pages that may join, such as `"https://ryanallen.com"`. Leave it empty to let any page join.
+3. From `worker/`, run `npx wrangler deploy`. It prints the Worker's address, such as `https://design-canvas-room.<you>.workers.dev`.
+4. Put `"room": "wss://design-canvas-room.<you>.workers.dev/room/<room id>"` in the folder's `canvas.json`. The room id is any 8 to 64 letters, digits, `-` or `_`, one per canvas. A long random one keeps strangers out of it.
+5. Build and publish again.
+
+Everyone who opens that canvas, hosted or served, then joins the same room. The room is a Durable Object that runs `scripts/lib/room.mjs`, the same code as the local server's room. It sleeps between messages, so an idle room costs nothing. The free plan allows 100,000 requests a day, and each person's pointer counts as one request per 20 updates. To try it on your own machine first, run `npx wrangler dev --port 8799` in `worker/` and use `ws://127.0.0.1:8799/room/<room id>`.
+
 ## What a host does not share yet
 
-Only comments travel through a host. Board objects and prototype edits are shared between people only where the canvas lives, either served by node or in its folder. On a host they stay read-only, or, in play mode, private to each visitor.
+Pointers and faces travel through a room, and comments through a comments endpoint. Board objects and prototype edits are shared between people only where the canvas lives, either served by node or in its folder. On a host they stay read-only, or, in play mode, private to each visitor.

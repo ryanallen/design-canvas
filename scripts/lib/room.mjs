@@ -11,25 +11,29 @@ const clean = (v, max) => String(v ?? '').replace(/[\u0000-\u001f]/g, '').trim()
 const num = (v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null)
 
 /** A room's people. `join(send)` takes a function that sends one message (an object) to that person, and answers
- *  with what to do with each message they send and when they leave. */
+ *  with what to do with each message they send and when they leave, and `state`, what to keep of them. A host that
+ *  sleeps between messages (a Durable Object hibernating) keeps each `state` and hands it back with `join(send, state)`
+ *  to make the room as it was. */
 export function makeRoom({ newId = () => Math.random().toString(36).slice(2, 10) } = {}) {
   const peers = new Map()
-  let turn = 0
+  // The first color nobody here has, so two people never share one while there are colors to go round.
+  const nextColor = () => ROOM_COLORS.find((c) => ![...peers.values()].some((p) => p.color === c)) ?? ROOM_COLORS[peers.size % ROOM_COLORS.length]
   const others = (id, msg) => {
     for (const p of peers.values()) if (p.id !== id && p.here) p.send(msg)
   }
   const shown = (p) => ({ id: p.id, name: p.name, color: p.color, ...(p.cursor ? { cursor: p.cursor } : {}) })
   return {
     get size() { return peers.size },
-    join(send) {
-      if (peers.size >= MAX_PEERS) {
+    join(send, state = null) {
+      if (!state && peers.size >= MAX_PEERS) {
         send({ t: 'full' })
         return null
       }
-      const p = { id: newId(), name: '', color: ROOM_COLORS[turn++ % ROOM_COLORS.length], cursor: null, send, here: false }
+      const p = state ? { ...state, send } : { id: newId(), name: '', color: nextColor(), cursor: null, send, here: false }
       peers.set(p.id, p)
       return {
         id: p.id,
+        get state() { return { id: p.id, name: p.name, color: p.color, cursor: p.cursor, here: p.here } },
         message(text) {
           if (typeof text !== 'string' || text.length > MAX_MESSAGE) return
           let m

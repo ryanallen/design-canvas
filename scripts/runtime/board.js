@@ -1128,7 +1128,7 @@
   /** Figma's Tab on the canvas: the next object on the page is picked (Shift+Tab the one before), in reading order
    * (by its top, then its left), going round, and brought into view if it is out of it. */
   function tabItem(d) {
-    const list = items().filter((i) => i.kind !== 'guide').sort((a, b) => a.y - b.y || a.x - b.x)
+    const list = items().filter((i) => i.kind !== 'guide' && !hiddenVote(i.id)).sort((a, b) => a.y - b.y || a.x - b.x)
     if (!list.length) return
     const at = list.findIndex((i) => i.id === picked)
     const to = list[(at + d + list.length) % list.length]

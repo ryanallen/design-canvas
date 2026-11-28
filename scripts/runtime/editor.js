@@ -2440,7 +2440,10 @@
       dc.commenting || can ? '-' : null,
       dc.commenting ? { label: 'Ask agent about it', run: () => dc.openAsk() } : null,
       can ? { label: 'Delete', key: 'Del', danger: true, run: ops.remove } : null,
-    ].filter(Boolean))
+    ].filter(Boolean).map((m) => (m.run
+      // Every choice is about the parts the menu was opened on; gone from the page, none of it is done.
+      ? { ...m, run: (...a) => (sel?.els.every(live) ? m.run(...a) : hint('That part has changed since it was picked. Select it again.', 2400)) }
+      : m)))
   }
 
   // ── what panel.js works through ──

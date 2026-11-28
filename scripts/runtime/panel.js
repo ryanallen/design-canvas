@@ -911,6 +911,7 @@
         fit === 'cover' || fit === 'none' || fit === 'contain' || spot !== '50% 50%'
           ? field('Focus', select(SPOTS.map(([, n]) => n), spotName, (n) => { const v = SPOTS.find(([, x]) => x === n)?.[0]; if (v) set({ 'object-position': v }) }))
           : null,
+        ...(el.localName === 'img' ? adjustFields() : []),
         el.localName === 'img'
           ? field('Alt text', input(alt === MIXED ? '' : alt, (v) => ed.send({ op: 'styles', items: pics.map((x) => ({ cv: ed.cvOf(x), props: {}, attrs: { alt: String(v) } })) }, { then: ed.reselect() }), { class: 'w', placeholder: alt === MIXED ? 'Mixed' : 'Said in its place', 'aria-label': 'Alt text' }))
           : null))
@@ -1095,6 +1096,34 @@
           field(`${name} color`, color(sh.col, (v) => write({ col: withAlpha(v) }), () => writeAll(shadows.filter((_, j) => j !== k)))))
       })
       return rows
+    }
+    // Figma's image adjustments: Exposure, Contrast and Saturation from -100 to 100, 0 as it is, written as
+    // brightness(), contrast() and saturate() in the filter; its other parts (a blur) stay, element by element. The
+    // picture follows the slider as it moves; the change is written when it is let go.
+    function adjustFields() {
+      const FNS = [['brightness', 'Exposure'], ['contrast', 'Contrast'], ['saturate', 'Saturation']]
+      const amount = (v, fn) => { const m = new RegExp(fn + '\\(([\\d.]+)(%?)\\)').exec(v ?? ''); return m ? Math.round((Number(m[1]) / (m[2] ? 100 : 1) - 1) * 100) : 0 }
+      const withFn = (v, fn, n) => {
+        const rest = String(v === 'none' ? '' : v ?? '').replace(new RegExp('\\s*' + fn + '\\([^)]*\\)\\s*', 'g'), ' ').trim()
+        return [rest, n ? `${fn}(${Math.round((1 + n / 100) * 100) / 100})` : ''].filter(Boolean).join(' ') || 'none'
+      }
+      return FNS.map(([fn, label]) => {
+        const now = across((x, k) => amount(k.filter, fn))
+        const r = h('input', { type: 'range', min: -100, max: 100, step: 1, value: now === MIXED ? 0 : now, 'aria-label': label })
+        const out = h('span', { class: 'val unit' }, now === MIXED ? 'Mixed' : String(now))
+        const before = new Map(ed.sel.els.map((x) => [x, x.style.getPropertyValue('filter')]))
+        r.addEventListener('input', () => {
+          out.textContent = r.value
+          for (const x of ed.sel.els) x.style.setProperty('filter', withFn(cs(x).filter, fn, Number(r.value)))
+        })
+        r.addEventListener('change', () => {
+          for (const [x, v] of before) x.style.setProperty('filter', v)
+          const n = Number(r.value)
+          eachOwn((k) => ({ filter: withFn(k.filter, fn, n) }))
+        })
+        r.addEventListener('dblclick', () => { r.value = 0; r.dispatchEvent(new Event('input')); r.dispatchEvent(new Event('change')) })
+        return field(label, r, out)
+      })
     }
     // Figma's Layer blur and Background blur: the blur() in filter and in backdrop-filter, in px. Only the blur is
     // changed, so a filter's other parts (a brightness, a grayscale) stay as they are, element by element.

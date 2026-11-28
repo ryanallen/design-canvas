@@ -3405,6 +3405,9 @@
       if ((me || 'Someone') !== helloName) roomSend({ t: 'name', name: me || 'Someone' })
       peers.clear()
       for (const p of m.peers ?? []) peers.set(p.id, p)
+      // Someone was spotlighting when this person came in: follow them too.
+      const lit = (m.peers ?? []).find((p) => p.spotlight)
+      if (lit) setTimeout(() => startFollow(lit.id), 0)
     } else if (m.t === 'join') {
       peers.set(m.id, m)
       sendView(true)
@@ -3412,6 +3415,12 @@
     } else if (m.t === 'leave') {
       peers.delete(m.id)
       if (following === m.id) stopFollow()
+    } else if (m.t === 'spotlight' && peers.has(m.id)) {
+      if (m.on) {
+        startFollow(m.id)
+        hint(`${peers.get(m.id).name} asked everyone to follow them. Stop, or move the board, to look around yourself.`, 4000)
+      } else if (following === m.id) stopFollow()
+      return
     } else if (m.t === 'chat' && peers.has(m.id)) {
       peers.get(m.id).chat = m.text
       const el = peerLayer.querySelector(`.peer-cursor[data-peer="${m.id}"] .peer-chat`)
@@ -3634,6 +3643,7 @@
   // Figma's follow: a face clicked keeps this view on what that person sees, page and zoom too, until this person pans,
   // zooms or presses a key. What each person sees is sent at most five times a second, only while others are here.
   var following = null
+  let spotlit = false
   let viewTimer = 0
   let viewSent = 0
   function sendView(now = false) {
@@ -4421,6 +4431,8 @@
       sel ? { label: `Download ${sel}`, icon: 'download', run: () => downloadFile(sel) } : null,
       serve ? { label: 'Rename', run: rename } : null,
       { label: 'History', run: openHistory },
+      // Figma's Spotlight: everyone else here follows this view.
+      peers.size ? { label: spotlit ? 'Stop the spotlight' : 'Spotlight me', run: () => { spotlit = !spotlit; roomSend({ t: 'spotlight', on: spotlit }); if (spotlit) sendView(true); hint(spotlit ? 'Everyone here is following you.' : 'Everyone can look around on their own again.', 2000) } } : null,
       // The owner's canvas, host of a hosted room: the hosted copy's address with the invite key.
       serve && !local && data.room && data.url ? { label: 'Copy invite link', run: copyInvite } : null,
       items().some((i) => i.kind === 'stamp') ? { label: 'Stamps, counted', run: openStampCount } : null,

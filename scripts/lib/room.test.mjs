@@ -126,3 +126,16 @@ test('cursor chat goes to the others, cut to 100 characters', () => {
   a.message(JSON.stringify({ t: 'chat', text: 'x'.repeat(300) }))
   assert.equal(got.at(-1).text.length, 100)
 })
+
+test('a spotlight asks the others to follow, and lets them go', () => {
+  const room = makeRoom()
+  const got = []
+  const a = room.join(() => {})
+  const b = room.join((m) => got.push(m))
+  a.message(JSON.stringify({ t: 'hello', name: 'Ana' }))
+  b.message(JSON.stringify({ t: 'hello', name: 'Sam' }))
+  a.message(JSON.stringify({ t: 'spotlight', on: true }))
+  assert.deepEqual(got.at(-1), { t: 'spotlight', id: a.id, on: true })
+  a.message(JSON.stringify({ t: 'spotlight', on: false }))
+  assert.deepEqual(got.at(-1), { t: 'spotlight', id: a.id, on: false })
+})

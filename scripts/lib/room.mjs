@@ -37,7 +37,7 @@ export function makeRoom({ newId = () => Math.random().toString(36).slice(2, 10)
   const tellHost = () => {
     for (const p of peers.values()) if (p.here && !p.host) p.send({ t: 'host', on: !!hostNow(), edit: mayEdit(p) })
   }
-  const shown = (p) => ({ id: p.id, name: p.name, color: p.color, ...(p.cursor ? { cursor: p.cursor } : {}), ...(p.sel ? { sel: p.sel } : {}) })
+  const shown = (p) => ({ id: p.id, name: p.name, color: p.color, ...(p.cursor ? { cursor: p.cursor } : {}), ...(p.sel ? { sel: p.sel } : {}), ...(p.spotlight ? { spotlight: true } : {}) })
   return {
     get size() { return peers.size },
     join(send, state = null) {
@@ -50,7 +50,7 @@ export function makeRoom({ newId = () => Math.random().toString(36).slice(2, 10)
       let calls = []
       return {
         id: p.id,
-        get state() { return { id: p.id, name: p.name, color: p.color, cursor: p.cursor, sel: p.sel ?? null, here: p.here, host: !!p.host, key: p.key ?? '', editKey: p.editKey ?? '' } },
+        get state() { return { id: p.id, name: p.name, color: p.color, cursor: p.cursor, sel: p.sel ?? null, spotlight: !!p.spotlight, here: p.here, host: !!p.host, key: p.key ?? '', editKey: p.editKey ?? '' } },
         message(text) {
           if (typeof text !== 'string' || text.length > MAX_MESSAGE) return
           let m
@@ -98,6 +98,10 @@ export function makeRoom({ newId = () => Math.random().toString(36).slice(2, 10)
             const y = num(m.y)
             p.cursor = page && x != null && y != null ? { page, x, y } : null
             others(p.id, { t: 'cursor', id: p.id, ...(p.cursor ?? { page: null }) })
+          } else if (m.t === 'spotlight') {
+            // Figma's Spotlight: this person asks everyone else to follow them (on), or lets them go (off).
+            p.spotlight = !!m.on
+            others(p.id, { t: 'spotlight', id: p.id, on: p.spotlight })
           } else if (m.t === 'chat') {
             // Cursor chat, as Figma's: a few words shown by their pointer while they type them (empty takes it away).
             others(p.id, { t: 'chat', id: p.id, text: clean(m.text, 100) })

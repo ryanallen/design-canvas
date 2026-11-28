@@ -403,7 +403,7 @@ A line bound to an ellipse, diamond or triangle meets its outline.
 
 A note, rectangle or ellipse given more words than it holds grows down to hold them all.
 
-A picture (PNG, JPEG, GIF, WebP or AVIF) dropped on the board or pasted with Ctrl+V is saved into the folder's `images/`. The same picture again uses the file already there. It is placed there at its own size, no wider than 1200. Its corner resizes it in proportion, and Shift lets the proportions go. `canvas.html` carries the board's pictures inside it, up to 10 MB in all, so a canvas sent alone still shows them.
+A picture (PNG, JPEG, GIF, WebP or AVIF) dropped on the board or pasted with Ctrl+V is saved into the folder's `images/`. **Place a picture…** (Ctrl+Shift+K, in the canvas menu and the board's right-click menu) picks one from this computer instead, as Figma's Place image: it goes into the prototype part selected, or onto the board in the middle of the view. The same picture again uses the file already there. It is placed there at its own size, no wider than 1200. Its corner resizes it in proportion, and Shift lets the proportions go. `canvas.html` carries the board's pictures inside it, up to 10 MB in all, so a canvas sent alone still shows them.
 
 Words pasted with Ctrl+V make a sticky note where the pointer is, grown to hold them. With a prototype element selected, they make a paragraph a line after it instead, or inside it when it holds others.
 

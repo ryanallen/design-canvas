@@ -996,6 +996,7 @@
       return openMenu(at, itemMenu())
     }
     if (!f) openMenu(at, [
+      serve && !local && !data.memory ? { label: 'Place a picture…', key: 'Ctrl+Shift+K', run: pickPictures } : null,
       serve && boardClip ? { label: 'Paste here', run: () => pasteAt(toWorld(at.x, at.y)) } : null,
       serve && boardClip ? { label: 'Paste', key: 'Ctrl+V', run: pasteItems } : null,
       serve && boardClip ? { label: 'Paste in place', key: 'Ctrl+Shift+V', run: pasteInPlace } : null,
@@ -1036,6 +1037,21 @@
     chooseItems(ids)
     hint(saved.length > 1 ? `Placed ${saved.length} pictures` : 'Placed the picture', 1200)
     return true
+  }
+  /** Figma's Place image (Ctrl+Shift+K): pictures picked from this computer go where a drop would put them, into
+      the prototype part selected, else onto the board in the middle of the view. */
+  function pickPictures() {
+    if (!serve || local || data.memory) return hint('Pictures are saved into the folder, so the canvas needs to be served from it.', 3500)
+    const input = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/gif,image/webp,image/avif', multiple: true, style: 'display:none' })
+    input.addEventListener('change', () => {
+      const files = [...(input.files ?? [])].filter((f) => PICTURE_TYPES.test(f.type))
+      input.remove()
+      if (!files.length) return
+      const r = viewport.getBoundingClientRect()
+      placePictures(files, { x: r.left + r.width / 2, y: r.top + r.height / 2 }, call('selectedFile') ? { selected: true } : null)
+    })
+    document.body.append(input)
+    input.click()
   }
   /** Each picture saved into the folder's images/, with its size to place it at (no wider than 1200). */
   async function savePictures(pics) {
@@ -4677,7 +4693,7 @@
   // ── keyboard shortcuts (Shift+?): every key the canvas answers, in one sheet ──
   const SHORTCUTS = [
     ['Tools', [['V', 'Select'], ['H or Space', 'Hand'], ['T', 'Text'], ['N', 'Sticky note'], ['P', 'Pencil'], ['E', 'Stamp'], ['R', 'Rectangle'], ['O', 'Ellipse'], ['L, Shift+L', 'Line, arrow'], ['S', 'Section'], ['Shift, Alt while drawing', 'Square or level, from the middle'], ['A', 'Artboard'], ['C', 'Comment']]],
-    ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['Page Down, Page Up', 'Next, previous screen'], ['+ and −, Ctrl+= and Ctrl+−', 'Zoom in and out'], ['0, Shift+0 or Ctrl+0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+Alt+O', 'Show or hide outlines'], ['Ctrl+Shift+\\', 'Hide or show the bars'], ['Ctrl+\\', 'Panel']]],
+    ['View', [['Shift+1 or F', 'Zoom to fit'], ['Shift+2', 'Zoom to selection'], ['Page Down, Page Up', 'Next, previous screen'], ['+ and −, Ctrl+= and Ctrl+−', 'Zoom in and out'], ['0, Shift+0 or Ctrl+0', '100%'], ['Ctrl+F', 'Find and replace'], ['Ctrl+Alt+O', 'Show or hide outlines'], ['Ctrl+Shift+K', 'Place a picture from this computer'], ['Ctrl+Shift+\\', 'Hide or show the bars'], ['Ctrl+\\', 'Panel']]],
     ['Board objects', [['Ctrl+A', 'Select everything on the page'], ['Ctrl+Shift+A', 'Select everything not selected'], ['Ctrl+Alt+A', 'Select matching: same kind and color'], ['Tab, Shift+Tab', 'Next or previous object'], ['Enter', 'Type in the one picked'], ['Shift+click', 'Add to the selection'], ['Ctrl+G, Ctrl+Shift+G', 'Group, ungroup'], ['Ctrl+Alt+G', 'Wrap in a section'], ['Ctrl+D', 'Duplicate'], ['Alt+drag', 'Drop a copy'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste'], ['Ctrl+Shift+V', 'Paste in place'], ['Ctrl+Shift+R', 'Paste to replace what is selected'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Shift+L', 'Lock or unlock'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, centers, right'], ['Alt+W, V, S', 'Align top, middles, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+T', 'Tidy up into a grid'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Ctrl+drag', 'Move without snapping'], ['Shift+drag', 'Move straight across or down; resize in proportion'], ['Alt+drag a corner', 'Resize from the middle'], ['Alt (held)', 'Measure to what is pointed at'], ['Delete', 'Delete']]],
     ['In a prototype', [['Ctrl+click', 'Select instead of clicking'], ['Alt+click', 'Select every copy like it'], ['Ctrl+A', 'Select everything alongside it'], ['Ctrl+Shift+A', 'Select what sits alongside it, leaving it out'], ['Ctrl+Alt+A', 'Select every copy like it'], ['Enter, Shift+Enter', 'Edit text or select its children, go out'], ['Esc', 'Select the parent'], ['Tab, Shift+Tab', 'Next or previous sibling'], ['Alt (held)', 'Measure to what is pointed at'], ['Arrows, Shift+arrows', 'Nudge 1, 10'], ['Alt+arrows', 'Move one place in the flow'], ['Ctrl+], Ctrl+[', 'Forward, backward'], ['Ctrl+Shift+], Ctrl+Shift+[', 'To front, to back'], ['Alt+A, H, D', 'Align left, center, right'], ['Alt+W, V, S', 'Align top, middle, bottom'], ['Alt+Shift+H, V', 'Space evenly across, down'], ['Alt+drag', 'Drop a copy'], ['Shift+drag', 'Straight across or down; resize in proportion'], ['Ctrl+B, I, U, K', 'Bold, italic, underline, link while typing'], ['Ctrl+Shift+X', 'Strikethrough'], ['Ctrl+Shift+8, Ctrl+Shift+7', 'Bulleted list, numbered list'], ['Ctrl+C, Ctrl+X, Ctrl+V', 'Copy, cut, paste after it'], ['Ctrl+Shift+R', 'Paste to replace it'], ['Ctrl+Shift+C', 'Copy as PNG'], ['Ctrl+Alt+C, Ctrl+Alt+V', 'Copy, paste properties'], ['Ctrl+R', 'Rename in Layers, or several at once'], ['Alt+L', 'Collapse every layer'], ['Alt+click a ▸', 'Open or close every layer inside'], ['Ctrl+Shift+H', 'Hide or show'], ['Ctrl+Shift+L', 'Lock or unlock a part'], ['Ctrl+Alt+L, T, R, J', 'Align text left, center, right, justified'], ['Ctrl+Shift+>, Ctrl+Shift+<', 'Text 1px bigger, smaller'], ['Ctrl+Alt+>, Ctrl+Alt+<', 'Bolder, lighter'], ['Alt+>, Alt+<', 'Letter spacing up, down'], ['Alt+Shift+>, Alt+Shift+<', 'Line height up, down'], ['Shift+A', 'Add auto layout'], ['Shift+H, Shift+V', 'Flip across, flip up and down'], ['Ctrl+Alt+K', 'Make component'], ['Ctrl+D', 'Duplicate (a whole screen too)'], ['Ctrl+G, Ctrl+Shift+G', 'Wrap, unwrap']]],
     ['Playing a prototype', [['← and →', 'Previous and next screen on the page'], ['C', 'Comment on it, then click where'], ['R', 'Start over from the first screen'], ['Esc', 'Back to the canvas']]],
@@ -4889,6 +4905,7 @@
       serve && !board.voting && board.items.some((i) => i.kind === 'stamp' && i.vote) ? { label: 'Remove the votes', run: removeVotes } : null,
       // A board laid out for a retro, a kanban, a journey map or a flowchart.
       serve ? { label: 'Templates…', run: () => setTimeout(() => templateMenu($('#title-btn')), 0) } : null,
+      serve && !local && !data.memory ? { label: 'Place a picture…', key: 'Ctrl+Shift+K', run: pickPictures } : null,
       // Which element a click in a prototype picks: the one under the pointer, or the outermost block (as Figma), a
       // click inside the selection then going one level in. Kept in this browser.
       { label: `Click selects the exact item${store.get('clickDepth') === 'outer' ? '' : '  ✓'}`, run: () => { store.set('clickDepth', 'inner'); hint('A click now selects exactly what you click. Press Esc to select what holds it.', 2200) } },
@@ -5311,6 +5328,11 @@
         e.preventDefault()
         return e.shiftKey ? distributeChosen(how) : alignChosen(how)
       }
+    }
+    // Figma's Place image.
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.code === 'KeyK' && serve) {
+      e.preventDefault()
+      return pickPictures()
     }
     // Copy as PNG, for board objects.
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.code === 'KeyC' && (selectedItems().length || chosen?.frames?.size) && !call('selectedFile')) {

@@ -306,7 +306,7 @@ Setting **Position** to absolute or fixed works like Figma's Absolute position. 
 
 An element placed absolutely or fixed has **Constraints** in Properties, as in Figma: which edges of what holds it it keeps to when that resizes. Across: Left, Right, Left and right (its width follows), Center or Scale (left and width as percentages). Down: Top, Bottom, Top and bottom, Center or Scale. Each is written from where the element sits, so picking one moves nothing.
 
-A board object picked shows **X · Y** and **W · H** in Properties, as Figma's place and size for any layer. Typing one moves or sizes it, and the fields follow a drag. A line or drawing shows X · Y only, and a line held by what it joins says it moves with them.
+A board object picked shows **X · Y** and **W · H** in Properties, as Figma's place and size for any layer. Typing one moves or sizes it, and the fields follow a drag. A line or drawing shows X · Y only, and a line held by what it joins says it moves with them. A picture on the board has **Replace…** there too: the new one keeps its place and width.
 
 Properties' **Appearance** holds the element's look. Each change is one undo step.
 

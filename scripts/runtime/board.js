@@ -1053,6 +1053,21 @@
     document.body.append(input)
     input.click()
   }
+  /** A picture on the board given another from this computer: the same place and width, its height from the new one. */
+  function replaceBoardPicture(id) {
+    if (!serve || local || data.memory) return hint('Pictures are saved into the folder, so the canvas needs to be served from it.', 3500)
+    const input = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/gif,image/webp,image/avif', style: 'display:none' })
+    input.addEventListener('change', async () => {
+      const file = [...(input.files ?? [])].find((f) => PICTURE_TYPES.test(f.type))
+      input.remove()
+      const it = board.items.find((i) => i.id === id)
+      if (!file || !it) return
+      const [s] = await savePictures([file])
+      if (s) updateItem(id, { src: s.src, h: Math.max(1, Math.round((it.w ?? s.w) * s.h / s.w)) })
+    })
+    document.body.append(input)
+    input.click()
+  }
   /** Each picture saved into the folder's images/, with its size to place it at (no wider than 1200). */
   async function savePictures(pics) {
     const saved = []
@@ -5501,7 +5516,7 @@
     get items() { return items() },
     get chosen() { return chosen && { box: chosen.box, items: [...chosen.items], frames: [...chosen.frames] } },
     get picked() { return picked },
-    updateItem, pickPictures,
+    updateItem, pickPictures, replaceBoardPicture,
     choose, geometryOf,
     get pages() { return pages() },
     get threads() { return threads },

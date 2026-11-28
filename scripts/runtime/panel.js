@@ -656,6 +656,7 @@
       section(flat ? 'Place' : 'Place and size', null,
         // A line held by what it joins goes where they go: its place is not its own to type.
         flat && (it.from || it.to) ? field('X · Y', h('span', { class: 'val' }, 'Moves with what it joins')) : field('X · Y', input(n(it.x), put('x'), { class: 'n', 'aria-label': 'X' }), input(n(it.y), put('y'), { class: 'n', 'aria-label': 'Y' })),
+        it.kind === 'image' && dc.replaceBoardPicture && !dc.local && !dc.data?.memory ? field('Picture', h('span', { class: 'val', title: it.src ?? '' }, String(it.src ?? '').split('/').pop().slice(0, 28)), h('button', { type: 'button', class: 'mini', title: 'Replace it with a picture from this computer', onclick: () => dc.replaceBoardPicture(it.id) }, 'Replace…')) : null,
         flat || it.w == null ? null : field('W · H', input(n(it.w), put('w'), { class: 'n', 'aria-label': 'Width' }), input(n(it.h), put('h'), { class: 'n', 'aria-label': 'Height' }))))
   }
   function drawPropsFor() {

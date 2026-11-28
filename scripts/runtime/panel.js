@@ -185,6 +185,8 @@
     row.addEventListener('dblclick', (e) => {
       e.preventDefault()
       if (gone(el)) return renderLayers()
+      // A locked part (or one the prototype's script made) keeps its name: said, not typed into and refused.
+      if (!ed.editable(el)) return dc.hint(ed.notEditable(el), 2400)
       const label = row.querySelector('.ln')
       if (!label) return
       const now = el.getAttribute('data-name') ?? ''
@@ -642,6 +644,20 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 4000)
     dc.hint(`Saved ${name}`, 1600)
   }
+  const BOARD_NAMES = { note: 'Note', title: 'Title', rect: 'Rectangle', ellipse: 'Ellipse', diamond: 'Diamond', triangle: 'Triangle', stamp: 'Stamp', section: 'Section', line: 'Line', arrow: 'Arrow', pencil: 'Drawing', image: 'Picture' }
+  /** A board object's place and, where it has one, its size, each written when typed, as dragging writes them. */
+  function boardItemSection(it) {
+    const flat = ['line', 'arrow', 'pencil'].includes(it.kind)
+    const n = (v) => String(Math.round(Number(v) || 0))
+    const put = (k) => (v) => { const x = Math.round(Number(String(v).replace(/px$/, ''))); if (Number.isFinite(x) && (!['w', 'h'].includes(k) || x >= 8)) dc.updateItem(it.id, { [k]: x }) }
+    const words = String(it.text ?? '').trim().split('\n')[0].slice(0, 30)
+    return h('div', {},
+      h('div', { class: 'ptitle' }, `${BOARD_NAMES[it.kind] ?? it.kind}${words ? ` "${words}"` : ''}`),
+      section(flat ? 'Place' : 'Place and size', null,
+        // A line held by what it joins goes where they go: its place is not its own to type.
+        flat && (it.from || it.to) ? field('X · Y', h('span', { class: 'val' }, 'Moves with what it joins')) : field('X · Y', input(n(it.x), put('x'), { class: 'n', 'aria-label': 'X' }), input(n(it.y), put('y'), { class: 'n', 'aria-label': 'Y' })),
+        flat || it.w == null ? null : field('W · H', input(n(it.w), put('w'), { class: 'n', 'aria-label': 'Width' }), input(n(it.h), put('h'), { class: 'n', 'aria-label': 'Height' }))))
+  }
   function drawPropsFor() {
     const el = ed.primary()
     const hidden = el && el.style.getPropertyValue('display') === 'none' && ed.cvOf(el) != null
@@ -668,6 +684,9 @@
     const el = ed.primary()
     if (!el) {
       clearStateShown()
+      // A board object picked: its place and size, as Figma's X, Y, W, H for any layer.
+      const it = dc.picked ? dc.items?.find((i) => i.id === dc.picked) : null
+      if (it && dc.serve) return host.append(boardItemSection(it))
       return host.append(h('div', { class: 'empty' }, 'Nothing selected. Click any element in the design to edit it here.'))
     }
     showState(el)
@@ -2060,6 +2079,13 @@
     if (ed.sel?.frame === f || openFrames.has(f.key) || dc.currentTab() === 'tweaks') render()
   }
   hooks.onTab = render
+  // Only Properties, once a frame at most, so a drag stays smooth.
+  let itemsQueued = false
+  hooks.onItems = () => {
+    if (ed.sel || itemsQueued || dc.currentTab() !== 'properties' || !document.body.classList.contains('panel-open')) return
+    itemsQueued = true
+    requestAnimationFrame(() => { itemsQueued = false; if (!ed.sel) renderProps() })
+  }
   hooks.onScheme = render
   hooks.onPanel = render
   hooks.onTweaks = (f) => {

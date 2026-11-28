@@ -1356,6 +1356,8 @@
       sectionLayer.replaceChildren(...all.filter((i) => i.kind === 'section').map(itemEl).filter(Boolean))
       itemLayer.replaceChildren(...all.filter((i) => i.kind !== 'section').map(itemEl).filter(Boolean))
       drawVoting()
+      // Properties shows the one object picked, as it is now.
+      if (picked) call('onItems')
       if (chosen) {
         // Drawn round what is chosen as it is now, so it follows a drag.
         const b = boxAround([...chosen.items], [...chosen.frames])
@@ -5465,6 +5467,7 @@
     get items() { return items() },
     get chosen() { return chosen && { box: chosen.box, items: [...chosen.items], frames: [...chosen.frames] } },
     get picked() { return picked },
+    updateItem,
     choose, geometryOf,
     get pages() { return pages() },
     get threads() { return threads },

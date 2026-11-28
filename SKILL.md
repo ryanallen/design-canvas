@@ -206,7 +206,7 @@ To select rows:
 - Ctrl+click adds a row or takes it out.
 - Alt+click selects every copy.
 
-Double-click a layer to name it in its row. Ctrl+R names the selected layer, opening the panel if it is shut. The name is written as `data-name` when Enter is pressed or the row is left. Escape keeps the old name. An empty name takes it off. With several parts selected, Ctrl+R renames them all at once, as in Figma. You type one pattern: `$&` stands for each part's name now, and `$n` for its number in page order (`$nn` gives 01, 02). It's one undo step.
+Double-click a layer to name it in its row. Ctrl+R names the selected layer, opening the panel if it is shut. The name is written as `data-name` when Enter is pressed or the row is left. Escape keeps the old name. An empty name takes it off. A locked part keeps its name: double-clicking its row says it is locked. With several parts selected, Ctrl+R renames them all at once, as in Figma. You type one pattern: `$&` stands for each part's name now, and `$n` for its number in page order (`$nn` gives 01, 02). It's one undo step.
 
 The eye on a layer, or Ctrl+Shift+H, hides it and shows it again, in one undo step. If the layer is in the selection, the whole selection is hidden. Hiding writes `display: none` on the element, so Play hides it too. If the element has a display of its own, such as `flex` written by Layout, that is kept in `data-display` while it is hidden and comes back with it.
 
@@ -305,6 +305,8 @@ The align buttons at the top of Properties line up parts placed absolutely or fi
 Setting **Position** to absolute or fixed works like Figma's Absolute position. The element stays where it is drawn, at the same size, and its parent is made `relative` in the same edit if nothing positions it yet. Setting it back to static or relative returns it to the flow and removes its offsets.
 
 An element placed absolutely or fixed has **Constraints** in Properties, as in Figma: which edges of what holds it it keeps to when that resizes. Across: Left, Right, Left and right (its width follows), Center or Scale (left and width as percentages). Down: Top, Bottom, Top and bottom, Center or Scale. Each is written from where the element sits, so picking one moves nothing.
+
+A board object picked shows **X · Y** and **W · H** in Properties, as Figma's place and size for any layer. Typing one moves or sizes it, and the fields follow a drag. A line or drawing shows X · Y only, and a line held by what it joins says it moves with them.
 
 Properties' **Appearance** holds the element's look. Each change is one undo step.
 

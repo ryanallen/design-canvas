@@ -3408,9 +3408,14 @@
     } else if (m.t === 'join') {
       peers.set(m.id, m)
       sendView(true)
+      selSent = ''
     } else if (m.t === 'leave') {
       peers.delete(m.id)
       if (following === m.id) stopFollow()
+    } else if (m.t === 'sel' && peers.has(m.id)) {
+      peers.get(m.id).sel = m.page ? { page: m.page, boxes: m.boxes } : null
+      drawPeerSel()
+      return
     } else if (m.t === 'view' && peers.has(m.id)) {
       peers.get(m.id).view = m
       if (following === m.id) followTo(m)
@@ -3456,11 +3461,27 @@
       }
       el.querySelector('.peer-name').textContent = p.name
     }
+    drawPeerSel()
+  }
+  // Others' selections: a box in their color round each thing they have selected, on this page.
+  function drawPeerSel() {
+    if (!peerLayer) return
+    for (const el of [...peerLayer.querySelectorAll('.peer-sel')]) el.remove()
+    for (const p of peers.values()) {
+      for (const b of p.sel?.boxes ?? []) peerLayer.prepend(h('div', { class: 'peer-sel', 'data-sel': p.id, style: `--c:${p.color}`, 'data-box': JSON.stringify(b), 'data-page': p.sel.page }))
+    }
     placePeers()
   }
   function placePeers() {
     if (!peerLayer) return
-    for (const el of peerLayer.children) {
+    for (const el of peerLayer.querySelectorAll('.peer-sel')) {
+      const b = JSON.parse(el.dataset.box)
+      el.hidden = el.dataset.page !== pageId
+      if (el.hidden) continue
+      const s = toScreen(b.x, b.y)
+      Object.assign(el.style, { transform: `translate(${Math.round(s.x)}px, ${Math.round(s.y)}px)`, width: `${Math.round(b.w * view.z)}px`, height: `${Math.round(b.h * view.z)}px` })
+    }
+    for (const el of peerLayer.querySelectorAll('.peer-cursor')) {
       const c = peers.get(el.dataset.peer)?.cursor
       const on = !!c && c.page === pageId
       el.hidden = !on
@@ -3546,6 +3567,22 @@
     else if (m.event === 'board') refreshBoard()
     else if (m.event === 'sheet' && d.sheet) reloadSheet(d.sheet, d.text)
   }
+  // What this person has selected, sent when it changes (looked at four times a second while others are here).
+  let selSent = ''
+  function mySelection() {
+    const ids = chosen ? [...chosen.items] : picked ? withGroup(picked) : []
+    const boxes = ids.map((id) => board.items.find((i) => i.id === id)).filter(Boolean).map((i) => { const g = geometryOf(i); return { x: g.x, y: g.y, w: g.w ?? 0, h: g.h ?? 0 } })
+    for (const k of chosen?.frames ?? []) { const f = allFrames.get(k); if (f) boxes.push({ x: f.x, y: f.y, w: f.W, h: f.H }) }
+    return boxes.length ? boxes : call('selectionBoxes') ?? []
+  }
+  setInterval(() => {
+    if (!peers.size || roomSocket?.readyState !== 1) return
+    const boxes = mySelection().map((b) => ({ x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h) }))
+    const now = JSON.stringify([pageId, boxes])
+    if (now === selSent) return
+    selSent = now
+    roomSend({ t: 'sel', page: pageId, boxes })
+  }, 250)
   // Figma's follow: a face clicked keeps this view on what that person sees, page and zoom too, until this person pans,
   // zooms or presses a key. What each person sees is sent at most five times a second, only while others are here.
   var following = null

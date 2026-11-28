@@ -96,3 +96,20 @@ test('what someone is looking at goes to the others, for following them', () => 
   a.message(JSON.stringify({ t: 'view', page: 'p1', x: 1, y: 1, z: 'far' }))
   assert.equal(got.at(-1).x, 100, 'a view without a zoom goes nowhere')
 })
+
+test("what someone has selected goes to the others as boxes, and a newcomer is told it", () => {
+  const room = makeRoom()
+  const got = []
+  const a = room.join(() => {})
+  const b = room.join((m) => got.push(m))
+  a.message(JSON.stringify({ t: 'hello', name: 'Ana' }))
+  b.message(JSON.stringify({ t: 'hello', name: 'Sam' }))
+  a.message(JSON.stringify({ t: 'sel', page: 'p1', boxes: [{ x: 0, y: 0, w: 10, h: 5 }, { x: 'bad' }] }))
+  assert.deepEqual(got.at(-1), { t: 'sel', id: a.id, page: 'p1', boxes: [{ x: 0, y: 0, w: 10, h: 5 }] })
+  const late = []
+  const c = room.join((m) => late.push(m))
+  c.message(JSON.stringify({ t: 'hello', name: 'Cy' }))
+  assert.deepEqual(late[0].peers.find((p) => p.name === 'Ana').sel, { page: 'p1', boxes: [{ x: 0, y: 0, w: 10, h: 5 }] })
+  a.message(JSON.stringify({ t: 'sel', page: 'p1', boxes: [] }))
+  assert.deepEqual(got.at(-1), { t: 'sel', id: a.id, page: null, boxes: [] })
+})

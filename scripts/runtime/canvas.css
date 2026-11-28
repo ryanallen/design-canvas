@@ -656,3 +656,4 @@ body.has-banner #panel { top: 88px; }
 #follow-ring[hidden] { display: none; }
 .follow-tag { position: absolute; top: 56px; left: 50%; transform: translateX(-50%); background: var(--c); color: #fff; font-size: 12px; font-weight: 600; padding: 5px 6px 5px 10px; border-radius: 6px; display: flex; gap: 8px; align-items: center; pointer-events: auto; white-space: nowrap; }
 .follow-tag button { border: 0; background: rgb(255 255 255 / 0.25); color: #fff; font: inherit; padding: 2px 8px; border-radius: 4px; cursor: pointer; }
+.peer-sel { position: absolute; left: 0; top: 0; border: 2px solid var(--c); border-radius: 2px; box-sizing: border-box; }

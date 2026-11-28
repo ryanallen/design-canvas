@@ -461,6 +461,12 @@
     const y = Math.min(...rs.map((r) => r.top))
     return { x: f.x + x * f.s, y: f.y + y * f.s, w: (Math.max(...rs.map((r) => r.right)) - x) * f.s, h: (Math.max(...rs.map((r) => r.bottom)) - y) * f.s }
   }
+  // Each selected element's own box on the board, for others in the room to see what is selected.
+  hooks.selectionBoxes = () => {
+    if (!sel) return []
+    const f = sel.frame
+    return sel.els.filter(live).slice(0, 50).map((el) => { const r = boxOf(el); return { x: f.x + r.left * f.s, y: f.y + r.top * f.s, w: (r.right - r.left) * f.s, h: (r.bottom - r.top) * f.s } })
+  }
   hooks.selectionTarget = () => {
     const el = primary()
     if (!el) return null

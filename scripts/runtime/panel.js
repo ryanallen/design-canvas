@@ -621,7 +621,7 @@
       field('Scale · Format',
         pdf || vector ? null : h('select', { 'aria-label': 'Export scale', onchange: (e) => { exportAs.scale = Number(e.target.value) } }, ...scales.map((v) => h('option', { value: v, selected: Number(v) === exportAs.scale }, `${v}x`))),
         h('select', { 'aria-label': 'Export format', onchange: (e) => { exportAs.type = e.target.value; renderProps() } }, ...types.map(([v, t]) => h('option', { value: v, selected: v === exportAs.type }, t)))),
-      h('button', { type: 'button', class: 'btn export-btn', onclick: run }, `Export ${screen ? (ed.sel.frame.label || 'the screen') : ed.nameOf(el).text}`))
+      h('button', { type: 'button', class: 'btn export-btn', onclick: run }, `Export ${screen ? (ed.sel.frame.label || 'the screen') : ed.sel.els.length > 1 && !pdf && !vector ? `${ed.sel.els.length} parts` : ed.nameOf(el).text}`))
   }
   /** An icon saved as an SVG file, as Figma exports a vector: its markup as the file has it (where node serves the
       canvas), with the SVG namespace it needs on its own, and its color written on it when its shapes are drawn in

@@ -706,13 +706,13 @@
     if (want == null) return []
     return [...el.ownerDocument.body.querySelectorAll('*')].filter((x) => !SKIP.has(x.localName) && live(x) && key(x) === want)
   }
-  async function pngOf({ scale, type } = {}) {
+  async function pngOf({ scale, type, of = null, frame = null } = {}) {
     if (!dc.serve || dc.local) {
       hint('To make a picture, run the canvas from its folder with node scripts/canvas.mjs serve <folder>', 5000)
       return null
     }
-    const el = primary()
-    const f = sel.frame
+    const el = of ?? primary()
+    const f = frame ?? sel.frame
     hint('Making the picture…', 6000)
     // In the mode the screen is seen in on the board.
     const q = new URLSearchParams({ f: f.file, w: String(Math.round(f.w)), h: String(Math.round(f.h)), ...(dc.schemeOf?.(f) !== 'auto' ? { scheme: dc.schemeOf(f) } : {}), ...(f.hash ? { hash: f.hash } : {}), ...(el.localName === 'body' || cvOf(el) == null ? {} : { cv: String(cvOf(el)) }), ...(scale ? { scale: String(scale) } : {}), ...(type ? { type } : {}) })
@@ -1376,18 +1376,27 @@
       }
     },
     // From Properties › Export, a scale and a format; its file named as Figma names one, with @2x and so on.
+    // Several selected, as Figma exports them: one file each, the same name twice taking a number.
     exportPng: async ({ scale, type, suffix } = {}) => {
       if (!sel) return
-      const base = (primary().localName === 'body' ? sel.frame.label : nameOf(primary()).text).replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'picture'
-      const name = `${base}${suffix && scale !== 1 ? `@${scale}x` : ''}.${type === 'jpeg' ? 'jpg' : 'png'}`
-      const blob = await pngOf({ scale, type })
-      if (!blob) return
-      const a = h('a', { href: URL.createObjectURL(blob), download: name })
-      document.body.append(a)
-      a.click()
-      a.remove()
-      setTimeout(() => URL.revokeObjectURL(a.href), 4000)
-      hint(`Saved ${name}`, 1600)
+      const frame = sel.frame
+      const els = (suffix ? sel.els.filter(live) : [primary()]).slice(0, 20)
+      const used = new Map()
+      for (const el of els) {
+        let base = (el.localName === 'body' ? frame.label : nameOf(el).text).replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'picture'
+        const n = (used.get(base) ?? 0) + 1
+        used.set(base, n)
+        if (n > 1) base = `${base}-${n}`
+        const name = `${base}${suffix && scale !== 1 ? `@${scale}x` : ''}.${type === 'jpeg' ? 'jpg' : 'png'}`
+        const blob = await pngOf({ scale, type, of: el, frame })
+        if (!blob) return
+        const a = h('a', { href: URL.createObjectURL(blob), download: name })
+        document.body.append(a)
+        a.click()
+        a.remove()
+        setTimeout(() => URL.revokeObjectURL(a.href), 4000)
+        hint(els.length > 1 ? `Saved ${name} (${els.indexOf(el) + 1} of ${els.length})` : `Saved ${name}`, 1600)
+      }
     },
     // The screen the selection is on as a PDF, one page as tall as it, its words kept as type.
     exportPdf: async () => {

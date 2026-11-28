@@ -139,3 +139,24 @@ test('a spotlight asks the others to follow, and lets them go', () => {
   a.message(JSON.stringify({ t: 'spotlight', on: false }))
   assert.deepEqual(got.at(-1), { t: 'spotlight', id: a.id, on: false })
 })
+
+test("a timer someone sets reaches everyone, the setter too, and a newcomer gets what is left", () => {
+  let t = 1000
+  const room = makeRoom({ now: () => t })
+  const got = { a: [], b: [] }
+  const a = room.join((m) => got.a.push(m))
+  const b = room.join((m) => got.b.push(m))
+  a.message(JSON.stringify({ t: 'hello', name: 'Ana' }))
+  b.message(JSON.stringify({ t: 'hello', name: 'Sam' }))
+  a.message(JSON.stringify({ t: 'timer', ms: 60000 }))
+  assert.deepEqual(got.b.at(-1), { t: 'timer', left: 60000, by: 'Ana' })
+  assert.deepEqual(got.a.at(-1), { t: 'timer', left: 60000, by: 'Ana' })
+  t += 15000
+  const late = []
+  room.join((m) => late.push(m)).message(JSON.stringify({ t: 'hello', name: 'Cy' }))
+  assert.deepEqual(late[0].timer, { left: 45000, by: 'Ana' })
+  b.message(JSON.stringify({ t: 'timer', ms: 0 }))
+  assert.deepEqual(got.a.at(-1), { t: 'timer', left: 0, by: 'Sam' })
+  a.message(JSON.stringify({ t: 'timer', ms: 99e9 }))
+  assert.equal(got.b.at(-1).left, 3_600_000, 'an hour at most')
+})

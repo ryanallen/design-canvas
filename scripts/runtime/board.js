@@ -3405,6 +3405,7 @@
       if ((me || 'Someone') !== helloName) roomSend({ t: 'name', name: me || 'Someone' })
       peers.clear()
       for (const p of m.peers ?? []) peers.set(p.id, p)
+      if (m.timer) setTimer(m.timer.left, m.timer.by)
       // Someone was spotlighting when this person came in: follow them too.
       const lit = (m.peers ?? []).find((p) => p.spotlight)
       if (lit) setTimeout(() => startFollow(lit.id), 0)
@@ -3415,6 +3416,8 @@
     } else if (m.t === 'leave') {
       peers.delete(m.id)
       if (following === m.id) stopFollow()
+    } else if (m.t === 'timer') {
+      return setTimer(m.left, m.by)
     } else if (m.t === 'spotlight' && peers.has(m.id)) {
       if (m.on) {
         startFollow(m.id)
@@ -3584,6 +3587,39 @@
     else if (m.event === 'board') refreshBoard()
     else if (m.event === 'sheet' && d.sheet) reloadSheet(d.sheet, d.text)
   }
+  // FigJam's timer: set from the canvas menu for everyone in the room (or alone without one); each page counts down
+  // what the room says is left, in the top bar; a click on it stops it for everyone.
+  let timerEnd = 0
+  let timerBy = ''
+  let timerDone = 0
+  const timerChip = h('button', { type: 'button', id: 'timer-chip', hidden: true, onclick: () => startTimer(0) })
+  peerBar.after(timerChip)
+  function startTimer(ms) {
+    if (roomSocket?.readyState === 1) roomSend({ t: 'timer', ms })
+    else setTimer(ms, me || '')
+  }
+  function setTimer(left, by) {
+    timerEnd = left > 0 ? Date.now() + left : 0
+    timerBy = by || ''
+    clearTimeout(timerDone)
+    timerChip.classList.remove('done')
+    tickTimer()
+    if (!left && by) hint(`${by} stopped the timer.`, 1600)
+  }
+  function tickTimer() {
+    if (!timerEnd) return (timerChip.hidden = !timerChip.classList.contains('done'))
+    const left = Math.max(0, timerEnd - Date.now())
+    const secs = Math.ceil(left / 1000)
+    timerChip.hidden = false
+    timerChip.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
+    timerChip.title = `Timer${timerBy ? ` set by ${timerBy}` : ''}: click to stop it for everyone`
+    if (left > 0) return
+    timerEnd = 0
+    timerChip.textContent = "Time's up"
+    timerChip.classList.add('done')
+    timerDone = setTimeout(() => { timerChip.classList.remove('done'); timerChip.hidden = true }, 6000)
+  }
+  setInterval(tickTimer, 250)
   // Cursor chat: a field at this pointer that follows it; what is typed goes out as it is typed. Enter leaves the words
   // up for four seconds, Escape takes them away at once.
   let chatBox = null
@@ -4431,6 +4467,8 @@
       sel ? { label: `Download ${sel}`, icon: 'download', run: () => downloadFile(sel) } : null,
       serve ? { label: 'Rename', run: rename } : null,
       { label: 'History', run: openHistory },
+      // FigJam's timer, for everyone here.
+      { label: timerEnd ? 'Timer: stop' : 'Timer…', run: () => (timerEnd ? startTimer(0) : setTimeout(() => openMenu($('#title-btn'), [1, 3, 5, 10].map((n) => ({ label: `${n} minute${n === 1 ? '' : 's'}`, run: () => startTimer(n * 60000) }))), 0)) },
       // Figma's Spotlight: everyone else here follows this view.
       peers.size ? { label: spotlit ? 'Stop the spotlight' : 'Spotlight me', run: () => { spotlit = !spotlit; roomSend({ t: 'spotlight', on: spotlit }); if (spotlit) sendView(true); hint(spotlit ? 'Everyone here is following you.' : 'Everyone can look around on their own again.', 2000) } } : null,
       // The owner's canvas, host of a hosted room: the hosted copy's address with the invite key.

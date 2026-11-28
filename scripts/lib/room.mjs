@@ -24,7 +24,7 @@ const num = (v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null)
  *  names an edit key; a guest whose hello carries that key may send calls (`call`), which go to the host, and the
  *  host's answers (`answer`) go back to that guest alone. What the host tells (`tell`) goes to everyone. The host
  *  is not a person: it has no face or pointer. */
-export function makeRoom({ newId = () => Math.random().toString(36).slice(2, 10), ownerKey = '' } = {}) {
+export function makeRoom({ newId = () => Math.random().toString(36).slice(2, 10), ownerKey = '', now = () => Date.now() } = {}) {
   const peers = new Map()
   // The first color nobody here has, so two people never share one while there are colors to go round.
   const nextColor = () => ROOM_COLORS.find((c) => ![...peers.values()].some((p) => p.color === c)) ?? ROOM_COLORS[peers.size % ROOM_COLORS.length]
@@ -50,7 +50,7 @@ export function makeRoom({ newId = () => Math.random().toString(36).slice(2, 10)
       let calls = []
       return {
         id: p.id,
-        get state() { return { id: p.id, name: p.name, color: p.color, cursor: p.cursor, sel: p.sel ?? null, spotlight: !!p.spotlight, here: p.here, host: !!p.host, key: p.key ?? '', editKey: p.editKey ?? '' } },
+        get state() { return { id: p.id, name: p.name, color: p.color, cursor: p.cursor, sel: p.sel ?? null, spotlight: !!p.spotlight, timer: p.timer ?? null, here: p.here, host: !!p.host, key: p.key ?? '', editKey: p.editKey ?? '' } },
         message(text) {
           if (typeof text !== 'string' || text.length > MAX_MESSAGE) return
           let m
@@ -67,7 +67,9 @@ export function makeRoom({ newId = () => Math.random().toString(36).slice(2, 10)
           } else if (m.t === 'hello') {
             p.name = clean(m.name, 80) || 'Someone'
             p.key = clean(m.key, 128)
-            send({ t: 'welcome', id: p.id, color: p.color, peers: [...peers.values()].filter((o) => o.id !== p.id && o.here && !o.host).map(shown), host: !!hostNow(), edit: mayEdit(p) })
+            // A timer someone set, still running: how long it has left.
+            const timer = [...peers.values()].map((o) => o.timer).find((t) => t && t.until > now())
+            send({ t: 'welcome', id: p.id, color: p.color, peers: [...peers.values()].filter((o) => o.id !== p.id && o.here && !o.host).map(shown), host: !!hostNow(), edit: mayEdit(p), ...(timer ? { timer: { left: timer.until - now(), by: timer.by } } : {}) })
             if (!p.here) others(p.id, { t: 'join', ...shown(p) })
             p.here = true
           } else if (!p.here) {
@@ -98,6 +100,15 @@ export function makeRoom({ newId = () => Math.random().toString(36).slice(2, 10)
             const y = num(m.y)
             p.cursor = page && x != null && y != null ? { page, x, y } : null
             others(p.id, { t: 'cursor', id: p.id, ...(p.cursor ?? { page: null }) })
+          } else if (m.t === 'timer') {
+            // FigJam's timer: anyone sets one for everyone (up to an hour), or stops it (0). The room's own clock keeps
+            // when it ends, so each page counts down from what is left, whatever its own clock says.
+            const ms = Number.isFinite(m.ms) ? Math.min(3_600_000, Math.max(0, Math.round(m.ms))) : 0
+            for (const o of peers.values()) o.timer = null
+            p.timer = ms ? { until: now() + ms, by: p.name } : null
+            const msg = { t: 'timer', left: ms, by: p.name }
+            send(msg)
+            others(p.id, msg)
           } else if (m.t === 'spotlight') {
             // Figma's Spotlight: this person asks everyone else to follow them (on), or lets them go (off).
             p.spotlight = !!m.on

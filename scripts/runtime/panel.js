@@ -804,11 +804,36 @@
     host.append(section('Size', ['min-width', 'max-width', 'min-height', 'max-height', 'aspect-ratio', 'overflow', 'margin', 'z-index', 'inset'],
       screen ? null : dimRow('width', 'Width'),
       screen ? null : dimRow('height', 'Height'),
-      field('Position', select(['static', 'relative', 'absolute', 'fixed', 'sticky'], c.position, (v) => set({ position: v }))),
+      field('Position', select(['static', 'relative', 'absolute', 'fixed', 'sticky'], c.position, placeAs)),
       ['absolute', 'fixed', 'relative', 'sticky'].includes(c.position) ? field('Left · Top', input(across((x, k) => num(k.left)), (v) => set({ left: px(v) }), { class: 'n' }), input(across((x, k) => num(k.top)),(v) => set({ top: px(v) }), { class: 'n' })) : null,
       constraintsRow(),
       parentFlex ? field('Grow', input(across((x, k) => k.flexGrow),(v) => set({ 'flex-grow': v }), { class: 'n' })) : null,
       screen ? null : turnRow()))
+
+    // Figma's Absolute position: taken out of the flow, one element stays where it is drawn and as big, against its
+    // parent (made relative when nothing places it yet), in one edit. Back in the flow, its offsets go.
+    function placeAs(v) {
+      const was = c.position
+      const out = (p) => ['absolute', 'fixed'].includes(p)
+      if (ed.sel.els.length !== 1 || state !== 'default' || out(was) === out(v)) return set({ position: v })
+      if (!out(v)) return set({ position: v, left: '', top: '', right: '', bottom: '' })
+      const r = el.getBoundingClientRect()
+      const w = Math.round(el.offsetWidth - extraOf(c, 'width'))
+      const props = { position: v, width: `${Math.max(0, w)}px`, right: '', bottom: '', margin: '0' }
+      const items = []
+      if (v === 'fixed') Object.assign(props, { left: `${Math.round(r.left)}px`, top: `${Math.round(r.top)}px` })
+      else {
+        const holder = parent && parent !== el.ownerDocument.body && cs(parent).position === 'static' && ed.editable(parent) && ed.cvOf(parent) != null ? parent : null
+        if (holder) items.push({ cv: ed.cvOf(holder), props: { position: 'relative' } })
+        const box = (holder ?? el.offsetParent ?? el.ownerDocument.documentElement)
+        const b = box.getBoundingClientRect()
+        const bk = cs(box)
+        const base = box === el.ownerDocument.body || box === el.ownerDocument.documentElement ? { left: -el.ownerDocument.defaultView.scrollX, top: -el.ownerDocument.defaultView.scrollY } : { left: b.left + n(bk.borderLeftWidth), top: b.top + n(bk.borderTopWidth) }
+        Object.assign(props, { left: `${Math.round(r.left - base.left)}px`, top: `${Math.round(r.top - base.top)}px` })
+      }
+      items.push({ cv: ed.cvOf(el), props })
+      ed.send({ op: 'styles', items }, { then: ed.reselect() })
+    }
 
     // Figma's constraints, for one element placed absolutely or fixed: which edges of what holds it it keeps to when
     // that resizes. Each is written from where it sits now, so picking one moves nothing: Left (a left offset), Right
